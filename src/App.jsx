@@ -1,0 +1,777 @@
+import GlobalStyles from "./styles/GlobalStyles";
+import Field from "./components/common/Field";
+import SectionLabel from "./components/common/SectionLabel";
+import EmptyState from "./components/common/EmptyState";
+import ChipSelect from "./components/common/ChipSelect";
+import ConfirmDialog from "./components/common/ConfirmDialog";
+import DealCard from "./components/deals/DealCard";
+import DealPreview from "./components/deals/DealPreview";
+import DealFormSheet from "./components/deals/DealFormSheet";
+import { Download } from "lucide-react";
+import { toJpeg } from "html-to-image";
+import { addDeal, getDeals, updateDeal, deleteDeal } from "./services/dealService";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { supabase } from "./lib/supabase";
+import {
+  Menu, X, LayoutDashboard, Briefcase, User, LogOut, Plus, Pencil, Trash2,
+  Search, Clock, Receipt, Sparkles, Eye, EyeOff,
+} from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, Cell,
+} from "recharts";
+import DateField from "./components/common/DateField";
+import DashboardPage from "./pages/DashboardPage";
+import DealsPage from "./pages/DealsPage";
+import Header from "./components/layout/Header";
+import Drawer from "./components/layout/Drawer";
+import AlertModal from "./components/common/AlertModal";
+import ProfilePage from "./pages/ProfilePage";
+import { computeStats } from "./utils/dashboard";
+import AuthPage from "./pages/AuthPage";
+import { changePassword } from "./services/authService";
+import ChangePasswordSheet from "./components/profile/ChangePasswordSheet";
+import { exportDealsCSV } from "./utils/exportCsv";
+import { downloadBackup } from "./utils/backup";
+import { importBackup } from "./utils/importBackup";
+import { submitFeedback } from "./services/feedbackService";
+import FeedbackSheet from "./components/profile/FeedbackSheet";
+/* ---------------------------------- constants ---------------------------------- */
+
+const STORAGE_KEYS = {
+  account: "dealpass-account",
+  deals: "dealpass-deals",
+  session: "dealpass-session",
+};
+
+const CONFIRMATION_MODES = ["Call", "Email", "WhatsApp", "Instagram Chat", "Other"];
+const PAYMENT_MODES = ["UPI", "Bank Transfer", "PayPal", "Cheque", "Cash", "Other"];
+const DELIVERABLE_OPTIONS = [
+  "Reel", "Story", "Static Post", "Carousel", "Review", "UGC Video", "YouTube Video", "Other",
+];
+
+function emptyDeal() {
+  return {
+    brand_id: "",
+
+    deal_title: "",
+
+    collaboration_type: "Paid",
+
+    confirmation_mode: "Email",
+
+    confirmation_date: "",
+
+    deal_status: "Negotiation",
+
+    commercials: "",
+
+    payment_mode: "UPI",
+
+    payment_status: "Pending",
+
+    payment_deadline: "",
+
+    deliverables: [],
+
+    invoice_sent: false,
+
+    invoice_number: "",
+
+    transaction_id: "",
+
+    notes: "",
+  };
+}
+
+/* ---------------------------------- helpers ---------------------------------- */
+
+function formatINR(amount) {
+  const n = Number(amount) || 0;
+  return "₹" + n.toLocaleString("en-IN");
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function nextDealId(deals) {
+  const max = deals.reduce((m, d) => {
+    const match = /DP-(\d+)/.exec(d.id || "");
+    const n = match ? parseInt(match[1], 10) : 0;
+    return Math.max(m, n);
+  }, 0);
+  return "DP-" + String(max + 1).padStart(4, "0");
+}
+
+function daysAgoISO(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+function seedDemoDeals() {
+  return [
+    {
+      id: "DP-0001", brandName: "Mamaearth", pocName: "Riya Kapoor", contactNumber: "+91 98765 43210",
+      confirmationDate: daysAgoISO(3), confirmationMode: "Instagram Chat",
+      commercials: "45000", paymentMode: "UPI", paymentDeadline: daysAgoISO(-7),
+      paymentStatus: "pending", deliverables: ["Reel", "Story"],
+      deliverablesCompletionDate: "", paymentCompletionDate: "", invoiceSent: "no", transactionId: "", notes: "",
+    },
+    {
+      id: "DP-0002", brandName: "boAt", pocName: "Karan Mehta", contactNumber: "+91 91234 56789",
+      confirmationDate: daysAgoISO(10), confirmationMode: "Email",
+      commercials: "60000", paymentMode: "Bank Transfer", paymentDeadline: daysAgoISO(2),
+      paymentStatus: "completed", deliverables: ["Reel", "Carousel"],
+      deliverablesCompletionDate: daysAgoISO(6), paymentCompletionDate: daysAgoISO(2),
+      invoiceSent: "yes", transactionId: "UTR2208841", notes: "",
+    },
+    {
+      id: "DP-0003", brandName: "Nykaa", pocName: "Simran Bhatia", contactNumber: "+91 99887 76655",
+      confirmationDate: daysAgoISO(25), confirmationMode: "Call",
+      commercials: "30000", paymentMode: "UPI", paymentDeadline: daysAgoISO(20),
+      paymentStatus: "completed", deliverables: ["Static Post", "Review"],
+      deliverablesCompletionDate: daysAgoISO(22), paymentCompletionDate: daysAgoISO(20),
+      invoiceSent: "yes", transactionId: "UTR1190034", notes: "",
+    },
+    {
+      id: "DP-0004", brandName: "Tripoto", pocName: "Devika Rao", contactNumber: "+91 90909 12345",
+      confirmationDate: daysAgoISO(45), confirmationMode: "WhatsApp",
+      commercials: "80000", paymentMode: "Bank Transfer", paymentDeadline: daysAgoISO(-5),
+      paymentStatus: "pending", deliverables: ["YouTube Video"],
+      deliverablesCompletionDate: daysAgoISO(40), paymentCompletionDate: "",
+      invoiceSent: "yes", transactionId: "", notes: "Awaiting brand finance approval.",
+    },
+    {
+      id: "DP-0005", brandName: "Sugar Cosmetics", pocName: "Naveen Iyer", contactNumber: "+91 98989 11223",
+      confirmationDate: daysAgoISO(70), confirmationMode: "Email",
+      commercials: "20000", paymentMode: "UPI", paymentDeadline: daysAgoISO(64),
+      paymentStatus: "completed", deliverables: ["Reel"],
+      deliverablesCompletionDate: daysAgoISO(67), paymentCompletionDate: daysAgoISO(65),
+      invoiceSent: "yes", transactionId: "UTR0098123", notes: "",
+    },
+  ];
+}
+
+
+
+/* ---------------------------------- global styles ---------------------------------- */
+
+
+/* ---------------------------------- small UI bits ---------------------------------- */
+
+
+
+
+/* ---------------------------------- header / drawer ---------------------------------- */
+
+
+
+
+/* ---------------------------------- auth ---------------------------------- */
+export default function DealPassApp() {
+ const [loading, setLoading] = useState(true);
+const [account, setAccount] = useState(null);
+const [deals, setDeals] = useState([]);
+const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+const [loggedIn, setLoggedIn] = useState(false);
+const [logoutOpen, setLogoutOpen] = useState(false);
+const [authMode, setAuthMode] = useState("signup");
+const [authError, setAuthError] = useState("");
+const [authBusy, setAuthBusy] = useState(false);
+const [feedbackOpen, setFeedbackOpen] = useState(false);
+const [feedbackType, setFeedbackType] = useState("bug");
+const [alert, setAlert] = useState({
+  open: false,
+  type: "warning",
+  title: "",
+  message: "",
+});
+function showAlert(type, title, message) {
+  setAlert({
+    open: true,
+    type,
+    title,
+    message,
+  });
+}
+
+useEffect(() => {
+  async function loadDeals() {
+    if (!loggedIn) return;
+
+    try {
+      const data = await getDeals();
+      setDeals(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  loadDeals();
+}, [loggedIn]);
+
+
+async function handleChangePassword({
+  currentPassword,
+  newPassword,
+  confirmPassword,
+}) {
+  try {
+    if (!currentPassword.trim()) {
+      return showAlert(
+        "warning",
+        "Current Password",
+        "Please enter your current password."
+      );
+    }
+
+    if (!newPassword.trim()) {
+      return showAlert(
+        "warning",
+        "New Password",
+        "Please enter a new password."
+      );
+    }
+
+    if (newPassword.length < 8) {
+      return showAlert(
+        "warning",
+        "Weak Password",
+        "Password must be at least 8 characters."
+      );
+    }
+
+    if (newPassword !== confirmPassword) {
+      return showAlert(
+        "warning",
+        "Passwords Don't Match",
+        "New password and confirmation password must match."
+      );
+    }
+
+    await changePassword(newPassword);
+
+    setChangePasswordOpen(false);
+
+    showAlert(
+      "success",
+      "Password Updated",
+      "Your password has been updated successfully."
+    );
+
+  } catch (err) {
+    showAlert(
+      "error",
+      "Update Failed",
+      err.message
+    );
+  }
+}
+function handleExportCSV() {
+  if (deals.length === 0) {
+    return showInfo(
+      "No Deals",
+      "You don't have any deals to export."
+    );
+  }
+
+  exportDealsCSV(deals);
+
+  showSuccess(
+    "CSV Exported",
+    "Your deals have been downloaded successfully."
+  );
+}
+function handleDownloadBackup() {
+  downloadBackup(account, deals);
+
+  showSuccess(
+    "Backup Downloaded",
+    "Your DealPass backup has been downloaded successfully."
+  );
+}
+function openBackupPicker() {
+  fileInputRef.current?.click();
+}
+async function handleImportBackup(file) {
+  try {
+    const backup = await importBackup(file);
+
+    setDeals(backup.deals);
+
+    if (backup.account) {
+      setAccount(backup.account);
+    }
+
+    showSuccess(
+      "Backup Restored",
+      `${backup.deals.length} deals imported successfully.`
+    );
+
+  } catch (err) {
+    showError(
+      "Import Failed",
+      err.message
+    );
+  }
+}
+async function handleSubmitFeedback({
+  type,
+  title,
+  message,
+}) {
+  try {
+    if (!title.trim()) {
+      return showWarning(
+        "Title Required",
+        "Please enter a title."
+      );
+    }
+
+    if (!message.trim()) {
+      return showWarning(
+        "Message Required",
+        "Please enter your message."
+      );
+    }
+
+    await submitFeedback({
+      type,
+      title,
+      message,
+    });
+
+    setFeedbackOpen(false);
+
+    showSuccess(
+      "Thank You!",
+      type === "bug"
+        ? "Your bug report has been submitted."
+        : type === "feature"
+        ? "Your feature request has been submitted."
+        : "Your message has been sent."
+    );
+
+  } catch (err) {
+    showError(
+      "Submission Failed",
+      err.message
+    );
+  }
+}
+const [page, setPage] = useState("dashboard");
+const [drawerOpen, setDrawerOpen] = useState(false);
+const [formOpen, setFormOpen] = useState(false);
+const [editingDeal, setEditingDeal] = useState(null);
+const [deletingDeal, setDeletingDeal] = useState(null);
+const [toast, setToast] = useState("");
+const [selectedDeal, setSelectedDeal] = useState(null);
+const fileInputRef = useRef(null);
+
+
+useEffect(() => {
+  const checkSession = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session) {
+      const user = session.user;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+ setAccount({
+    full_name: profile?.full_name || "Creator",
+    email: user.email,
+    created_at: profile?.created_at,
+    id: user.id,
+});
+
+      setLoggedIn(true);
+    }
+
+    setLoading(false);
+  };
+
+  checkSession();
+}, []);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2200);
+  };
+
+
+  const persistAccount = async (next) => {
+    setAccount(next);
+    try { await window.storage.set(STORAGE_KEYS.account, JSON.stringify(next)); } catch (e) {}
+  };
+  const persistSession = async (loggedInVal) => {
+    setLoggedIn(loggedInVal);
+    try { await window.storage.set(STORAGE_KEYS.session, JSON.stringify({ loggedIn: loggedInVal })); } catch (e) {}
+  };
+const handleSignup = async ({
+  name,
+  identifier,
+  password,
+  confirm,
+}) => {
+  setAuthError("");
+
+  if (!name.trim() || !identifier.trim() || !password) {
+    setAuthError("Please fill in all fields.");
+    return;
+  }
+
+  if (password !== confirm) {
+    setAuthError("Passwords don't match.");
+    return;
+  }
+
+  try {
+    setAuthBusy(true);
+
+    const { data, error } = await supabase.auth.signUp({
+      email: identifier,
+      password,
+    });
+
+    if (error) throw error;
+
+    const user = data.user;
+
+    if (!user) {
+      throw new Error("User creation failed.");
+    }
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({
+        id: user.id,
+        full_name: name,
+        email: identifier,
+      });
+
+    if (profileError) throw profileError;
+
+    setAuthBusy(false);
+
+    showSuccess(
+  "Account Created",
+  "Your account has been created successfully. You can now log in."
+);
+
+setAuthMode("login");
+
+  } catch (err) {
+    setAuthBusy(false);
+    setAuthError(err.message);
+  }
+};
+const handleLogin = async ({ identifier, password }) => {
+  setAuthError("");
+
+  try {
+    setAuthBusy(true);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: identifier,
+      password,
+    });
+
+    if (error) throw error;
+
+    const user = data.user;
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError && profileError.code === "PGRST116") {
+      await supabase.from("profiles").insert({
+        id: user.id,
+        full_name: user.user_metadata?.full_name || "Creator",
+        email: user.email,
+      });
+    } else if (profileError) {
+      throw profileError;
+    }
+
+    setAccount({
+      name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+      identifier: user.email,
+    });
+
+    setLoggedIn(true);
+    setAuthBusy(false);
+
+  } catch (err) {
+    setAuthBusy(false);
+    setAuthError(err.message);
+  }
+};
+
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+
+  setLoggedIn(false);
+  setAccount(null);
+  setDeals([]);
+  setDrawerOpen(false);
+  setPage("dashboard");
+};
+
+const handleSaveDeal = async (deal) => {
+  try {
+    if (editingDeal) {
+      await updateDeal(editingDeal.id, deal);
+    } else {
+      await addDeal(deal);
+    }
+
+    const latestDeals = await getDeals();
+
+    setDeals(latestDeals);
+    setEditingDeal(null);
+    setFormOpen(false);
+
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
+};
+
+const handleDeleteDeal = async () => {
+  if (!deletingDeal) return;
+
+  try {
+    await deleteDeal(deletingDeal.id);
+
+    const latestDeals = await getDeals();
+    setDeals(latestDeals);
+
+    setDeletingDeal(null);
+
+    showToast("Deal deleted successfully.");
+
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
+};
+
+const showValidation = (field) => {
+  setAlert({
+    open: true,
+    type: "warning",
+    title: "Missing Required Field",
+    message: `Please enter ${field} before continuing.`,
+  });
+};
+
+const showSuccess = (title, message) => {
+  setAlert({
+    open: true,
+    type: "success",
+    title,
+    message,
+  });
+};
+
+const showError = (title, message) => {
+  setAlert({
+    open: true,
+    type: "error",
+    title,
+    message,
+  });
+};
+
+const showInfo = (title, message) => {
+  setAlert({
+    open: true,
+    type: "info",
+    title,
+    message,
+  });
+};
+
+  const PAGE_TITLES = { dashboard: "Dashboard", deals: "Your deals", profile: "Profile" };
+
+  if (loading) {
+    return (
+      <div className="dp-root">
+        <div className="dp-canvas" style={{ alignItems: "center", justifyContent: "center" }}>
+          <div className="dp-display" style={{ fontWeight: 700, fontSize: 18 }}>DealPass</div>
+        </div>
+        <GlobalStyles />
+      </div>
+    );
+  }
+
+  if (!loggedIn || !account) {
+    return (
+      <div className="dp-root">
+        <div className="dp-canvas">
+          <AuthPage mode={authMode} setMode={setAuthMode} onSignup={handleSignup} onLogin={handleLogin} error={authError} busy={authBusy} />
+        </div>
+        <GlobalStyles />
+      </div>
+    );
+  }
+
+  return (
+    <div className="dp-root">
+      <div className="dp-canvas">
+        <Header onMenu={() => setDrawerOpen(true)} title={PAGE_TITLES[page]} account={account} />
+
+        {page === "dashboard" && (
+     <DashboardPage
+  deals={deals}
+  account={account}
+  onAddDeal={() => {
+    setEditingDeal(null);
+    setFormOpen(true);
+  }}
+  onOpenDeal={(d) => setSelectedDeal(d)}
+/>
+        )}
+       {page === "deals" && (
+  <DealsPage
+    deals={deals}
+    onAdd={() => {
+      setEditingDeal(null);
+      setFormOpen(true);
+    }}
+    onEdit={(d) => {
+      setEditingDeal(d);
+      setFormOpen(true);
+    }}
+    onDelete={(d) => setDeletingDeal(d)}
+    onOpenDeal={(d) => setSelectedDeal(d)}
+  />
+)}
+{page === "profile" && (
+  <ProfilePage
+    account={account}
+    deals={deals}
+    stats={computeStats(deals)}
+      onChangePassword={() => setChangePasswordOpen(true)}
+    onLogout={() => setLogoutOpen(true)}
+    onDeleteAccount={() => {}}
+    onExportCSV={handleExportCSV}
+    onDownloadBackup={handleDownloadBackup}
+    onImportBackup={openBackupPicker}
+  onReportBug={() => {
+    setFeedbackType("bug");
+    setFeedbackOpen(true);
+  }}
+  onSuggestFeature={() => {
+    setFeedbackType("feature");
+    setFeedbackOpen(true);
+  }}
+  onContactUs={() => {
+    setFeedbackType("contact");
+    setFeedbackOpen(true);
+  }}
+  />
+)}
+
+        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} page={page} setPage={setPage} onLogout={handleLogout} account={account} />
+
+        {formOpen && (
+          <DealFormSheet
+            initial={editingDeal}
+            onSave={handleSaveDeal}
+            onClose={() => { setFormOpen(false); setEditingDeal(null); }}
+          />
+        )}
+        {changePasswordOpen && (
+ <ChangePasswordSheet
+    onClose={() => setChangePasswordOpen(false)}
+    onSave={handleChangePassword}
+/>
+)}
+{selectedDeal && (
+<DealPreview
+  deal={selectedDeal}
+  account={account}
+  onClose={() => setSelectedDeal(null)}
+/>
+)}
+        {deletingDeal && (
+  <ConfirmDialog
+  title="Delete Deal?"
+  message={`Are you sure you want to delete your collaboration with\n${deletingDeal.brand_name}?\n\nThis action cannot be undone.`}
+  confirmText="Delete"
+  cancelText="Cancel"
+  danger={true}
+  onConfirm={handleDeleteDeal}
+  onCancel={() => setDeletingDeal(null)}
+/>
+        )}
+{logoutOpen && (
+  <ConfirmDialog
+    title="Sign Out"
+    message="Are you sure you want to sign out of DealPass?"
+    confirmText="Sign Out"
+    cancelText="Stay Logged In"
+    danger={false}
+    onConfirm={async () => {
+      setLogoutOpen(false);
+      await handleLogout();
+    }}
+    onCancel={() => setLogoutOpen(false)}
+  />
+)}
+        {toast && <div className="dp-toast">{toast}</div>}
+      </div>
+
+<AlertModal
+  open={alert.open}
+  type={alert.type}
+  title={alert.title}
+  message={alert.message}
+  onClose={() =>
+    setAlert((prev) => ({
+      ...prev,
+      open: false,
+    }))
+  }
+/>
+<input
+  ref={fileInputRef}
+  type="file"
+  accept=".dealpass,.json"
+  style={{ display: "none" }}
+  onChange={async (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    await handleImportBackup(file);
+
+    e.target.value = "";
+  }}
+/>
+{feedbackOpen && (
+  <FeedbackSheet
+    type={feedbackType}
+    onClose={() => setFeedbackOpen(false)}
+    onSubmit={handleSubmitFeedback}
+  />
+)}
+      <GlobalStyles />
+    </div>
+  );
+}
