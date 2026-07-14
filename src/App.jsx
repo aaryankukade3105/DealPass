@@ -35,6 +35,8 @@ import { downloadBackup } from "./utils/backup";
 import { importBackup } from "./utils/importBackup";
 import { submitFeedback } from "./services/feedbackService";
 import FeedbackSheet from "./components/profile/FeedbackSheet";
+import { exportDealsExcel } from "./utils/exportExcel";
+import DeleteAccountRequestSheet from "./components/profile/DeleteAccountRequestSheet";
 /* ---------------------------------- constants ---------------------------------- */
 
 const STORAGE_KEYS = {
@@ -183,8 +185,10 @@ const [authMode, setAuthMode] = useState("signup");
 const [authError, setAuthError] = useState("");
 const [authBusy, setAuthBusy] = useState(false);
 const [feedbackOpen, setFeedbackOpen] = useState(false);
+const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
 const [feedbackType, setFeedbackType] = useState("bug");
 const [alert, setAlert] = useState({
+
   open: false,
   type: "warning",
   title: "",
@@ -286,6 +290,23 @@ function handleExportCSV() {
     "Your deals have been downloaded successfully."
   );
 }
+
+function handleExportExcel() {
+  if (deals.length === 0) {
+    return showInfo(
+      "No Deals",
+      "You don't have any deals to export."
+    );
+  }
+
+  exportDealsExcel(deals);
+
+  showSuccess(
+    "Excel Exported",
+    "Your Excel file has been downloaded successfully."
+  );
+}
+
 function handleDownloadBackup() {
   downloadBackup(account, deals);
 
@@ -372,7 +393,6 @@ const [toast, setToast] = useState("");
 const [selectedDeal, setSelectedDeal] = useState(null);
 const fileInputRef = useRef(null);
 
-
 useEffect(() => {
   const checkSession = async () => {
     const {
@@ -388,11 +408,11 @@ useEffect(() => {
         .eq("id", user.id)
         .single();
 
- setAccount({
-    full_name: profile?.full_name || "Creator",
-    email: user.email,
-    created_at: profile?.created_at,
-    id: user.id,
+setAccount({
+  id: user.id,
+  full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+  email: user.email,
+  created_at: profile?.created_at,
 });
 
       setLoggedIn(true);
@@ -426,8 +446,18 @@ const handleSignup = async ({
 }) => {
   setAuthError("");
 
-  if (!name.trim() || !identifier.trim() || !password) {
-    setAuthError("Please fill in all fields.");
+  if (!name.trim()) {
+    setAuthError("Please enter your full name.");
+    return;
+  }
+
+  if (!identifier.trim()) {
+    setAuthError("Please enter your email.");
+    return;
+  }
+
+  if (password.length < 8) {
+    setAuthError("Password must be at least 8 characters.");
     return;
   }
 
@@ -440,40 +470,49 @@ const handleSignup = async ({
     setAuthBusy(true);
 
     const { data, error } = await supabase.auth.signUp({
-      email: identifier,
+      email: identifier.trim().toLowerCase(),
       password,
     });
 
     if (error) throw error;
 
-    const user = data.user;
-
-    if (!user) {
-      throw new Error("User creation failed.");
+    if (!data.user) {
+      throw new Error("Unable to create your account.");
     }
 
     const { error: profileError } = await supabase
       .from("profiles")
       .insert({
-        id: user.id,
-        full_name: name,
-        email: identifier,
+        id: data.user.id,
+        full_name: name.trim(),
+        email: identifier.trim().toLowerCase(),
       });
 
     if (profileError) throw profileError;
 
     setAuthBusy(false);
+    setAuthError("");
 
+    // Switch to Login screen
+    setAuthMode("login");
+
+    // Show success popup
     showSuccess(
-  "Account Created",
-  "Your account has been created successfully. You can now log in."
-);
-
-setAuthMode("login");
+      "Account Created",
+      "Your account has been created successfully. Please log in."
+    );
 
   } catch (err) {
     setAuthBusy(false);
-    setAuthError(err.message);
+
+    if (
+      err.message?.toLowerCase().includes("already") ||
+      err.message?.toLowerCase().includes("registered")
+    ) {
+      setAuthError("An account with this email already exists.");
+    } else {
+      setAuthError(err.message);
+    }
   }
 };
 const handleLogin = async ({ identifier, password }) => {
@@ -507,10 +546,12 @@ const handleLogin = async ({ identifier, password }) => {
       throw profileError;
     }
 
-    setAccount({
-      name: profile?.full_name || user.user_metadata?.full_name || "Creator",
-      identifier: user.email,
-    });
+   setAccount({
+  id: user.id,
+  full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+  email: user.email,
+  created_at: profile?.created_at,
+});
 
     setLoggedIn(true);
     setAuthBusy(false);
@@ -530,9 +571,55 @@ const handleLogout = async () => {
   setDrawerOpen(false);
   setPage("dashboard");
 };
+const handleDeleteRequest = async (reason) => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
+  const { error } = await supabase
+    .from("account_deletion_requests")
+    .insert({
+      user_id: user.id,
+      reason,
+    });
+
+  if (error) {
+    showAlert(
+      "error",
+      "Request Failed",
+      error.message
+    );
+    return;
+  }
+
+  setDeleteRequestOpen(false);
+
+  showAlert(
+    "success",
+    "Request Submitted",
+    "Your account deletion request has been submitted successfully."
+  );
+};
 const handleSaveDeal = async (deal) => {
   try {
+    const duplicateDeal = deals.find(
+  (d) =>
+    d.id !== editingDeal?.id &&
+    d.brand_name.trim().toLowerCase() ===
+      deal.brand_name.trim().toLowerCase() &&
+    d.deal_title.trim().toLowerCase() ===
+      deal.deal_title.trim().toLowerCase() &&
+    d.confirmation_date === deal.confirmation_date
+);
+
+if (duplicateDeal) {
+  return showAlert(
+    "warning",
+    "Duplicate Deal",
+    "A collaboration with the same brand, deal title and confirmation date already exists."
+  );
+}
+
     if (editingDeal) {
       await updateDeal(editingDeal.id, deal);
     } else {
@@ -621,12 +708,33 @@ const showInfo = (title, message) => {
 
   if (!loggedIn || !account) {
     return (
-      <div className="dp-root">
-        <div className="dp-canvas">
-          <AuthPage mode={authMode} setMode={setAuthMode} onSignup={handleSignup} onLogin={handleLogin} error={authError} busy={authBusy} />
-        </div>
-        <GlobalStyles />
-      </div>
+     <div className="dp-root">
+  <div className="dp-canvas">
+    <AuthPage
+      mode={authMode}
+      setMode={setAuthMode}
+      onSignup={handleSignup}
+      onLogin={handleLogin}
+      error={authError}
+      busy={authBusy}
+    />
+  </div>
+
+  <AlertModal
+    open={alert.open}
+    type={alert.type}
+    title={alert.title}
+    message={alert.message}
+    onClose={() =>
+      setAlert((prev) => ({
+        ...prev,
+        open: false,
+      }))
+    }
+  />
+
+  <GlobalStyles />
+</div>
     );
   }
 
@@ -661,6 +769,19 @@ const showInfo = (title, message) => {
     onOpenDeal={(d) => setSelectedDeal(d)}
   />
 )}
+{deleteRequestOpen && (
+
+<DeleteAccountRequestSheet
+
+onClose={()=>
+setDeleteRequestOpen(false)
+}
+
+onSubmit={handleDeleteRequest}
+
+/>
+
+)}
 {page === "profile" && (
   <ProfilePage
     account={account}
@@ -668,8 +789,9 @@ const showInfo = (title, message) => {
     stats={computeStats(deals)}
       onChangePassword={() => setChangePasswordOpen(true)}
     onLogout={() => setLogoutOpen(true)}
-    onDeleteAccount={() => {}}
+   onDeleteAccount={() =>setDeleteRequestOpen(true)}
     onExportCSV={handleExportCSV}
+    onExportExcel={handleExportExcel}
     onDownloadBackup={handleDownloadBackup}
     onImportBackup={openBackupPicker}
   onReportBug={() => {
@@ -688,13 +810,27 @@ const showInfo = (title, message) => {
 )}
 
         <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} page={page} setPage={setPage} onLogout={handleLogout} account={account} />
-
+{page === "deals" && (
+  <button
+    className="dp-fab"
+    onClick={() => {
+      setEditingDeal(null);
+      setFormOpen(true);
+    }}
+  >
+    <Plus size={24} />
+  </button>
+)}
         {formOpen && (
           <DealFormSheet
-            initial={editingDeal}
-            onSave={handleSaveDeal}
-            onClose={() => { setFormOpen(false); setEditingDeal(null); }}
-          />
+  initial={editingDeal}
+  onSave={handleSaveDeal}
+  onClose={() => {
+    setFormOpen(false);
+    setEditingDeal(null);
+  }}
+  showAlert={showAlert}
+/>
         )}
         {changePasswordOpen && (
  <ChangePasswordSheet

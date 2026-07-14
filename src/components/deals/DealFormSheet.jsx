@@ -20,6 +20,7 @@ function DealFormSheet({
   brands = [],
   onSave,
   onClose,
+  showAlert,
 }) {
  const [form, setForm] = useState(
   initial ?? {
@@ -122,110 +123,138 @@ const handleSubmit = async (e) => {
   e.preventDefault();
 
   if (!form.brand_name.trim()) {
-    alert("Brand name is required.");
+    showAlert(
+      "warning",
+      "Brand Name Required",
+      "Please enter the brand name."
+    );
     return;
   }
 
   if (!form.deal_title.trim()) {
-    alert("Deal title is required.");
+    showAlert(
+      "warning",
+      "Deal Title Required",
+      "Please enter the deal title."
+    );
     return;
   }
 
   if (!form.confirmation_date) {
-    alert("Confirmation date is required.");
+    showAlert(
+      "warning",
+      "Confirmation Date Required",
+      "Please select the confirmation date."
+    );
     return;
   }
 
- if (
-  form.commercials === "" ||
-  Number(form.commercials) <= 0
-) {
-  alert("Commercial amount must be greater than zero.");
-  return;
-}
-// Overdue requires payment deadline
-if (
-  form.payment_status === "Overdue" &&
-  !form.payment_deadline
-) {
-  alert("Payment deadline is required for overdue payments.");
-  return;
-}
-// Overdue requires payment deadline
-if (
-  form.payment_status === "Overdue" &&
-  !form.payment_deadline
-) {
-  alert("Payment deadline is required for overdue payments.");
-  return;
-}
+  if (
+    form.collaboration_type === "Paid" &&
+    (form.commercials === "" || Number(form.commercials) <= 0)
+  ) {
+    showAlert(
+      "warning",
+      "Commercial Amount Required",
+      "Please enter a commercial amount greater than ₹0."
+    );
+    return;
+  }
 
-// Paid or Partially Paid requires payment received date
-if (
-  (form.payment_status === "Paid" ||
-    form.payment_status === "Partially Paid") &&
-  !form.payment_received_date
-) {
-  alert("Payment received date is required.");
-  return;
-}
+  if (form.deliverables.length === 0) {
+    showAlert(
+      "warning",
+      "Deliverables Required",
+      "Please select at least one deliverable."
+    );
+    return;
+  }
 
-// Partially Paid amount must be less than commercials
-if (
-  form.payment_status === "Partially Paid" &&
-  Number(form.payment_received_amount) >= Number(form.commercials)
-) {
-  alert(
-    "Payment received amount must be less than the commercial amount."
-  );
-  return;
-}
+  if (
+    form.payment_status === "Overdue" &&
+    !form.payment_deadline
+  ) {
+    showAlert(
+      "warning",
+      "Payment Deadline Required",
+      "Please select the payment deadline."
+    );
+    return;
+  }
 
-// Partially Paid amount must be greater than zero
-if (
-  form.payment_status === "Partially Paid" &&
-  Number(form.payment_received_amount) <= 0
-) {
-  alert(
-    "Payment received amount must be greater than zero."
-  );
-  return;
-}
+  if (
+    (form.payment_status === "Paid" ||
+      form.payment_status === "Partially Paid") &&
+    !form.payment_received_date
+  ) {
+    showAlert(
+      "warning",
+      "Payment Received Date Required",
+      "Please select the payment received date."
+    );
+    return;
+  }
 
-// Invoice sent requires invoice number
-if (
-  form.invoice_sent &&
-  !form.invoice_number.trim()
-) {
-  alert("Invoice number is required.");
-  return;
-}
+  if (
+    form.payment_status === "Partially Paid" &&
+    Number(form.payment_received_amount) <= 0
+  ) {
+    showAlert(
+      "warning",
+      "Invalid Payment Amount",
+      "Please enter the amount received."
+    );
+    return;
+  }
 
-// Invoice sent requires transaction id
-if (
-  form.invoice_sent &&
-  !form.transaction_id.trim()
-) {
-  alert("Transaction ID is required.");
-  return;
-}
-// Invoice sent requires invoice number
-if (
-  form.invoice_sent &&
-  !form.invoice_number.trim()
-) {
-  alert("Invoice number is required.");
-  return;
-}
+  if (
+    form.payment_status === "Partially Paid" &&
+    Number(form.payment_received_amount) >= Number(form.commercials)
+  ) {
+    showAlert(
+      "warning",
+      "Invalid Payment Amount",
+      "Received amount cannot be greater than or equal to the commercial amount."
+    );
+    return;
+  }
 
-// Invoice sent requires transaction id
-if (
-  form.invoice_sent &&
-  !form.transaction_id.trim()
-) {
-  alert("Transaction ID is required.");
-  return;
-}
+  if (
+    form.payment_status === "Paid" &&
+    Number(form.payment_received_amount) !== Number(form.commercials)
+  ) {
+    showAlert(
+      "warning",
+      "Payment Amount Mismatch",
+      "For fully paid deals, the received amount must equal the commercial amount."
+    );
+    return;
+  }
+
+  if (
+    form.invoice_sent &&
+    !form.invoice_number.trim()
+  ) {
+    showAlert(
+      "warning",
+      "Invoice Number Required",
+      "Please enter the invoice number."
+    );
+    return;
+  }
+
+  if (
+    form.invoice_sent &&
+    !form.transaction_id.trim()
+  ) {
+    showAlert(
+      "warning",
+      "Transaction ID Required",
+      "Please enter the transaction ID."
+    );
+    return;
+  }
+
   const emptyToNull = (value) =>
     value === "" || value === undefined ? null : value;
 
@@ -366,11 +395,12 @@ console.log("Deal being submitted:", deal);
 <SectionLabel>Confirmation</SectionLabel>
 
 <Field label="Confirmation Date *">
- <DateField
-  value={form.confirmation_date}
-  onChange={(value) => update("confirmation_date", value)}
-  placeholder="Select confirmation date"
-/>
+  <DateField
+    value={form.confirmation_date}
+    onChange={(value) => update("confirmation_date", value)}
+    placeholder="Select confirmation date"
+    maxDate={new Date().toISOString().slice(0, 10)}
+  />
 </Field>
 
 <Field label="Confirmation Mode">
@@ -408,26 +438,29 @@ console.log("Deal being submitted:", deal);
 
 <Field label="Content Due Date">
   <DateField
-  value={form.content_due_date}
-  onChange={(value) => update("content_due_date", value)}
-  placeholder="Select content due date"
-/>
+    value={form.content_due_date}
+    onChange={(value) => update("content_due_date", value)}
+    placeholder="Select due date"
+    minDate={form.confirmation_date}
+  />
 </Field>
 
 <Field label="Content Submitted Date">
- <DateField
-  value={form.content_submitted_date}
-  onChange={(value) => update("content_submitted_date", value)}
-  placeholder="Select content submitted date"
-/>
+  <DateField
+    value={form.content_submitted_date}
+    onChange={(value) => update("content_submitted_date", value)}
+    placeholder="Select submitted date"
+    minDate={form.confirmation_date}
+  />
 </Field>
 
 <Field label="Posted Date">
- <DateField
-  value={form.posted_date}
-  onChange={(value) => update("posted_date", value)}
-  placeholder="Select posted date"
-/>
+  <DateField
+    value={form.posted_date}
+    onChange={(value) => update("posted_date", value)}
+    placeholder="Select posted date"
+    minDate={form.confirmation_date}
+  />
 </Field>
 
 <Field label="Campaign Links">
@@ -489,22 +522,17 @@ console.log("Deal being submitted:", deal);
   />
 </Field>
 
-<Field
-  label={
-    form.payment_status === "Overdue"
-      ? "Payment Deadline *"
-      : "Payment Deadline"
-  }
->
- <DateField
-  value={form.payment_deadline}
-  onChange={(value) => update("payment_deadline", value)}
-  placeholder={
-    form.payment_status === "Overdue"
-      ? "Payment deadline (required)"
-      : "Select payment deadline"
-  }
-/>
+<Field label="Payment Deadline">
+  <DateField
+    value={form.payment_deadline}
+    onChange={(value) => update("payment_deadline", value)}
+    placeholder={
+      form.payment_status === "Overdue"
+        ? "Payment deadline (required)"
+        : "Select payment deadline"
+    }
+    minDate={form.confirmation_date}
+  />
 </Field>
 
 <Field label="Payment Received Date">
@@ -514,6 +542,12 @@ console.log("Deal being submitted:", deal);
       update("payment_received_date", value)
     }
     placeholder="Select payment received date"
+    minDate={form.confirmation_date}
+    maxDate={new Date().toISOString().slice(0, 10)}
+    disabled={
+      form.payment_status === "Pending" ||
+      form.payment_status === "Overdue"
+    }
   />
 </Field>
 

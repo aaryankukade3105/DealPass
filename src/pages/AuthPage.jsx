@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage({
@@ -14,7 +14,13 @@ export default function AuthPage({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
-
+useEffect(() => {
+  setName("");
+  setIdentifier("");
+  setPassword("");
+  setConfirm("");
+  setShowPw(false);
+}, [mode]);
   const handleSubmit = (e) => {
     e.preventDefault();
 

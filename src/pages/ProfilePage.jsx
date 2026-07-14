@@ -34,13 +34,13 @@ function ProfilePage({
   onLogout,
   onDeleteAccount,
    onExportCSV,
+   onExportExcel,
    onDownloadBackup,
        onImportBackup,
     onReportBug,
   onSuggestFeature,
   onContactUs,     
 }) {
-
   const highestDeal =
     deals.length > 0
       ? deals.reduce((a, b) =>
@@ -408,8 +408,8 @@ const InfoRow = ({
 
 <InfoRow
   icon={<Trash2 size={18} />}
-  title="Delete Account"
-  value="Permanently delete your DealPass account"
+  title="Request Account Deletion"
+  value="Submt a request to permanently delete your account"
   danger
   onClick={onDeleteAccount}
 />
@@ -437,11 +437,12 @@ const InfoRow = ({
   onClick={onExportCSV}
 />
 
-        <InfoRow
-          icon={<Briefcase size={18} />}
-          title="Export Excel"
-          value="Download all your deals as Excel"
-        />
+       <InfoRow
+  icon={<Briefcase size={18} />}
+  title="Export Excel"
+  value="Download all your deals as an Excel workbook"
+  onClick={onExportExcel}
+/>
 
         <InfoRow
     icon={<CloudDownload size={18} />}
