@@ -58,6 +58,7 @@ function DealFormSheet({
 const [campaignLinksText, setCampaignLinksText] = useState(
   (initial?.campaign_links || []).join(" ")
 );
+const isBarter = form.collaboration_type === "Barter";
 const update = (field, value) => {
   setForm((prev) => {
     const next = {
@@ -69,6 +70,16 @@ const update = (field, value) => {
     if (field === "collaboration_type") {
       if (value === "Barter") {
         next.commercials = 0;
+        next.payment_mode = "";
+        next.payment_status = "";
+        next.payment_deadline = "";
+        next.payment_received_date = "";
+        next.payment_received_amount = "";
+        next.currency = "";
+      } else {
+        next.currency = "INR";
+        next.payment_mode = "UPI";
+        next.payment_status = "Pending";
       }
     }
 
@@ -490,11 +501,27 @@ console.log("Deal being submitted:", deal);
   />
 </Field>
 <SectionLabel>Commercials</SectionLabel>
-
+{isBarter && (
+  <div
+    style={{
+      marginBottom: 14,
+      padding: "10px 12px",
+      borderRadius: 10,
+      background: "#FFF8E6",
+      border: "1px solid #F4D27A",
+      color: "#8A5A00",
+      fontSize: 13,
+      lineHeight: 1.5,
+    }}
+  >
+    ⚠️ Payment details are unavailable because this is a barter collaboration.
+  </div>
+)}
 <Field label="Commercials (₹) *">
   <input
     type="number"
     className="dp-input"
+    disabled={isBarter}
     value={form.commercials}
     onChange={(e) =>
       update("commercials", e.target.value)
@@ -504,6 +531,7 @@ console.log("Deal being submitted:", deal);
 
 <Field label="Currency">
   <ChipSelect
+   disabled={isBarter}
     options={CURRENCIES}
     value={form.currency}
     onChange={(v) => update("currency", v)}
@@ -512,6 +540,7 @@ console.log("Deal being submitted:", deal);
 
 <Field label="Payment Mode">
  <ChipSelect
+  disabled={isBarter}
     options={PAYMENT_MODES}
     value={form.payment_mode}
     onChange={(v) =>
@@ -522,6 +551,7 @@ console.log("Deal being submitted:", deal);
 
 <Field label="Payment Status">
  <ChipSelect
+  disabled={isBarter}
     options={PAYMENT_STATUS}
     value={form.payment_status}
     onChange={(v) =>
@@ -532,6 +562,7 @@ console.log("Deal being submitted:", deal);
 
 <Field label="Payment Deadline">
   <DateField
+   disabled={isBarter}
     value={form.payment_deadline}
     onChange={(value) => update("payment_deadline", value)}
     placeholder={
@@ -545,6 +576,7 @@ console.log("Deal being submitted:", deal);
 
 <Field label="Payment Received Date">
   <DateField
+  
     value={form.payment_received_date}
     onChange={(value) =>
       update("payment_received_date", value)
@@ -553,6 +585,7 @@ console.log("Deal being submitted:", deal);
     minDate={form.confirmation_date}
     maxDate={new Date().toISOString().slice(0, 10)}
     disabled={
+      isBarter ||
       form.payment_status === "Pending" ||
       form.payment_status === "Overdue"
     }
@@ -565,6 +598,7 @@ console.log("Deal being submitted:", deal);
     className="dp-input"
     value={form.payment_received_amount}
     disabled={
+      isBarter ||
         form.payment_status === "Pending" ||
         form.payment_status === "Overdue"
     }
