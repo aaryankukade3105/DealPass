@@ -27,20 +27,16 @@ function DealFormSheet({
     brand_name: "",
     poc_name: "",
     contact_number: "",
-
     deal_title: "",
     collaboration_type: "Paid",
-
     confirmation_date: "",
     confirmation_mode: "Email",
-
     deliverables: [],
     deliverable_count: 1,
     content_due_date: "",
     content_submitted_date: "",
     posted_date: "",
-    campaign_links: [],
-
+    campaign_links: "",
     commercials: "",
     currency: "INR",
     payment_mode: "UPI",
@@ -57,6 +53,10 @@ function DealFormSheet({
 
     notes: "",
   }
+);
+
+const [campaignLinksText, setCampaignLinksText] = useState(
+  (initial?.campaign_links || []).join(" ")
 );
 const update = (field, value) => {
   setForm((prev) => {
@@ -105,7 +105,11 @@ const update = (field, value) => {
     return next;
   });
 };
-
+useEffect(() => {
+  setCampaignLinksText(
+    (form.campaign_links || []).join(" ")
+  );
+}, [initial]);
   const toggleDeliverable = (item) => {
     setForm((prev) => {
       const exists = prev.deliverables.includes(item);
@@ -286,7 +290,13 @@ const handleSubmit = async (e) => {
 
     // Arrays
     deliverables: form.deliverables || [],
-    campaign_links: form.campaign_links || [],
+    campaign_links:
+  typeof form.campaign_links === "string"
+    ? form.campaign_links
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+    : form.campaign_links || [],
 
     // Boolean
     invoice_sent: form.invoice_sent,
@@ -367,7 +377,12 @@ console.log("Deal being submitted:", deal);
   <input
     className="dp-input"
     value={form.contact_number}
-    onChange={(e) => update("contact_number", e.target.value)}
+   onChange={(e) =>
+  update(
+    "contact_number",
+    e.target.value.replace(/\D/g, "").slice(0, 10)
+  )
+}
     placeholder="+91 9876543210"
   />
 </Field>
@@ -446,41 +461,34 @@ console.log("Deal being submitted:", deal);
 </Field>
 
 <Field label="Content Submitted Date">
-  <DateField
-    value={form.content_submitted_date}
-    onChange={(value) => update("content_submitted_date", value)}
-    placeholder="Select submitted date"
-    minDate={form.confirmation_date}
-  />
+<DateField
+  value={form.content_submitted_date}
+  onChange={(value) => update("content_submitted_date", value)}
+  minDate={form.confirmation_date}
+  maxDate={new Date().toISOString().slice(0, 10)}
+/>
 </Field>
 
 <Field label="Posted Date">
-  <DateField
-    value={form.posted_date}
-    onChange={(value) => update("posted_date", value)}
-    placeholder="Select posted date"
-    minDate={form.confirmation_date}
-  />
+ <DateField
+  value={form.posted_date}
+  onChange={(value) => update("posted_date", value)}
+  minDate={form.confirmation_date}
+  maxDate={new Date().toISOString().slice(0, 10)}
+/>
 </Field>
 
 <Field label="Campaign Links">
   <textarea
-    rows={3}
+    rows={4}
     className="dp-input"
-    value={(form.campaign_links || []).join("\n")}
+    value={form.campaign_links}
     onChange={(e) =>
-      update(
-        "campaign_links",
-        e.target.value
-          .split("\n")
-          .map((x) => x.trim())
-          .filter(Boolean)
-      )
+      update("campaign_links", e.target.value)
     }
-    placeholder={`One link per line\nhttps://instagram.com/reel/...`}
+    placeholder="Paste one or more links separated by spaces"
   />
 </Field>
-
 <SectionLabel>Commercials</SectionLabel>
 
 <Field label="Commercials (₹) *">

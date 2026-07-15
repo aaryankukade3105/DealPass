@@ -182,7 +182,6 @@ const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 const [loggedIn, setLoggedIn] = useState(false);
 const [logoutOpen, setLogoutOpen] = useState(false);
 const [authMode, setAuthMode] = useState("signup");
-const [authError, setAuthError] = useState("");
 const [authBusy, setAuthBusy] = useState(false);
 const [feedbackOpen, setFeedbackOpen] = useState(false);
 const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
@@ -257,7 +256,10 @@ async function handleChangePassword({
       );
     }
 
-    await changePassword(newPassword);
+await changePassword(
+  currentPassword,
+  newPassword
+);
 
     setChangePasswordOpen(false);
 
@@ -444,28 +446,70 @@ const handleSignup = async ({
   password,
   confirm,
 }) => {
-  setAuthError("");
-
   if (!name.trim()) {
-    setAuthError("Please enter your full name.");
-    return;
-  }
+  showAlert(
+    "warning",
+    "Full Name Required",
+    "Please enter your full name."
+  );
+  return;
+}
 
-  if (!identifier.trim()) {
-    setAuthError("Please enter your email.");
-    return;
-  }
+if (!identifier.trim()) {
+  showAlert(
+    "warning",
+    "Email Required",
+    "Please enter your email address."
+  );
+  return;
+}
 
-  if (password.length < 8) {
-    setAuthError("Password must be at least 8 characters.");
-    return;
-  }
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  if (password !== confirm) {
-    setAuthError("Passwords don't match.");
-    return;
-  }
+if (!emailRegex.test(identifier.trim())) {
+  showAlert(
+    "warning",
+    "Invalid Email",
+    "Please enter a valid email address."
+  );
+  return;
+}
 
+if (!password.trim()) {
+  showAlert(
+    "warning",
+    "Password Required",
+    "Please enter your password."
+  );
+  return;
+}
+
+if (password.length < 8) {
+  showAlert(
+    "warning",
+    "Weak Password",
+    "Password must be at least 8 characters."
+  );
+  return;
+}
+
+if (!confirm.trim()) {
+  showAlert(
+    "warning",
+    "Confirm Password Required",
+    "Please confirm your password."
+  );
+  return;
+}
+
+if (password !== confirm) {
+  showAlert(
+    "warning",
+    "Passwords Don't Match",
+    "Password and Confirm Password must match."
+  );
+  return;
+}
   try {
     setAuthBusy(true);
 
@@ -491,7 +535,6 @@ const handleSignup = async ({
     if (profileError) throw profileError;
 
     setAuthBusy(false);
-    setAuthError("");
 
     // Switch to Login screen
     setAuthMode("login");
@@ -509,14 +552,21 @@ const handleSignup = async ({
       err.message?.toLowerCase().includes("already") ||
       err.message?.toLowerCase().includes("registered")
     ) {
-      setAuthError("An account with this email already exists.");
+      showAlert(
+  "warning",
+  "Email Already Registered",
+  "An account with this email already exists."
+);
     } else {
-      setAuthError(err.message);
+    showAlert(
+  "error",
+  "Signup Failed",
+  err.message
+);
     }
   }
 };
 const handleLogin = async ({ identifier, password }) => {
-  setAuthError("");
 
   try {
     setAuthBusy(true);
@@ -558,7 +608,11 @@ const handleLogin = async ({ identifier, password }) => {
 
   } catch (err) {
     setAuthBusy(false);
-    setAuthError(err.message);
+    showAlert(
+  "error",
+  "Login Failed",
+  err.message
+);
   }
 };
 
@@ -710,14 +764,14 @@ const showInfo = (title, message) => {
     return (
      <div className="dp-root">
   <div className="dp-canvas">
-    <AuthPage
-      mode={authMode}
-      setMode={setAuthMode}
-      onSignup={handleSignup}
-      onLogin={handleLogin}
-      error={authError}
-      busy={authBusy}
-    />
+   <AuthPage
+  mode={authMode}
+  setMode={setAuthMode}
+  onSignup={handleSignup}
+  onLogin={handleLogin}
+  busy={authBusy}
+  showAlert={showAlert}
+/>
   </div>
 
   <AlertModal

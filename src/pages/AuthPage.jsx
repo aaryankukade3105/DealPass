@@ -8,6 +8,7 @@ export default function AuthPage({
   onLogin,
   error,
   busy,
+  showAlert,
 }) {
   const [name, setName] = useState("");
   const [identifier, setIdentifier] = useState("");
@@ -21,24 +22,111 @@ useEffect(() => {
   setConfirm("");
   setShowPw(false);
 }, [mode]);
-  const handleSubmit = (e) => {
-    e.preventDefault();
+const handleSubmit = (e) => {
+  e.preventDefault();
 
-    if (mode === "signup") {
-      onSignup({
-        name,
-        identifier,
-        password,
-        confirm,
-      });
-    } else {
-      onLogin({
-        identifier,
-        password,
-      });
+  if (mode === "signup") {
+    if (!name.trim()) {
+      return showAlert(
+        "warning",
+        "Full Name Required",
+        "Please enter your full name."
+      );
     }
-  };
 
+    if (!identifier.trim()) {
+      return showAlert(
+        "warning",
+        "Email Required",
+        "Please enter your email address."
+      );
+    }
+
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(identifier.trim())) {
+      return showAlert(
+        "warning",
+        "Invalid Email",
+        "Please enter a valid email address."
+      );
+    }
+
+    if (!password.trim()) {
+      return showAlert(
+        "warning",
+        "Password Required",
+        "Please enter your password."
+      );
+    }
+
+    if (password.length < 8) {
+      return showAlert(
+        "warning",
+        "Weak Password",
+        "Password must be at least 8 characters."
+      );
+    }
+
+    if (!confirm.trim()) {
+      return showAlert(
+        "warning",
+        "Confirm Password",
+        "Please confirm your password."
+      );
+    }
+
+    if (password !== confirm) {
+      return showAlert(
+        "warning",
+        "Passwords Don't Match",
+        "Password and Confirm Password must match."
+      );
+    }
+
+    return onSignup({
+      name,
+      identifier,
+      password,
+      confirm,
+    });
+  }
+
+  // Login
+
+  if (!identifier.trim()) {
+    return showAlert(
+      "warning",
+      "Email Required",
+      "Please enter your email address."
+    );
+  }
+
+  const emailRegex =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailRegex.test(identifier.trim())) {
+    return showAlert(
+      "warning",
+      "Invalid Email",
+      "Please enter a valid email address."
+    );
+  }
+
+  if (!password.trim()) {
+    return showAlert(
+      "warning",
+      "Password Required",
+      "Please enter your password."
+    );
+  }
+
+  onLogin({
+    identifier,
+    password,
+  });
+};
   return (
     <div
       style={{
@@ -104,13 +192,14 @@ useEffect(() => {
       </div>
 
       <form
-        onSubmit={handleSubmit}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
+  noValidate
+  onSubmit={handleSubmit}
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  }}
+>
         {mode === "signup" && (
           <div>
             <label className="dp-label">
@@ -124,7 +213,6 @@ useEffect(() => {
                 setName(e.target.value)
               }
               placeholder="John Doe"
-              required
             />
           </div>
         )}
@@ -164,7 +252,6 @@ useEffect(() => {
                 setPassword(e.target.value)
               }
               placeholder="••••••••"
-              required
               style={{
                 paddingRight: 45,
               }}
@@ -209,22 +296,10 @@ useEffect(() => {
                 setConfirm(e.target.value)
               }
               placeholder="••••••••"
-              required
             />
           </div>
         )}
 
-        {error && (
-          <div
-            style={{
-              color: "#D62828",
-              fontWeight: 600,
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </div>
-        )}
 
         <button
           type="submit"

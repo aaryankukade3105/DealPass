@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Download } from "lucide-react";
-import { toJpeg } from "html-to-image";
+import { toPng } from "html-to-image";
 import { formatINR, formatDate } from "../../utils/formatters";
 
 function DealPreview({ deal, account, onClose }) {
@@ -34,12 +34,11 @@ function DealPreview({ deal, account, onClose }) {
 
     document.body.appendChild(wrapper);
 
-    const dataUrl = await toJpeg(clone, {
-      quality: 1,
-      pixelRatio: 3,
-      backgroundColor: "#ffffff",
-      cacheBust: true,
-    });
+const dataUrl = await toPng(clone, {
+  pixelRatio: 4,
+  backgroundColor: "#fff",
+  cacheBust: true,
+});
 
     document.body.removeChild(wrapper);
 
@@ -265,7 +264,33 @@ function DealPreview({ deal, account, onClose }) {
           <div><b>Submitted:</b> {formatDate(deal.content_submitted_date)}</div>
           <div><b>Posted:</b> {formatDate(deal.posted_date)}</div>
         </Section>
-
+{deal.campaign_links?.length > 0 && (
+  <Section title="CAMPAIGN LINKS">
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      {deal.campaign_links.map((link, index) => (
+        <a
+          key={index}
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "#2563EB",
+            wordBreak: "break-all",
+            textDecoration: "underline",
+          }}
+        >
+          {link}
+        </a>
+      ))}
+    </div>
+  </Section>
+)}
         <Section title="INVOICE">
           <div><b>Sent:</b> {deal.invoice_sent ? "Yes" : "No"}</div>
           <div><b>Invoice No:</b> {deal.invoice_number || "—"}</div>
@@ -277,22 +302,39 @@ function DealPreview({ deal, account, onClose }) {
             <div>{deal.notes}</div>
           </Section>
         )}
+<Section title="PASS INFORMATION">
+  <div><b>Deal ID:</b> {deal.id?.slice(0, 8)}</div>
+  <div><b>Created:</b> {formatDate(deal.created_at)}</div>
 
-        <Section title="PASS INFORMATION">
-          <div><b>Deal ID:</b> {deal.id?.slice(0,8)}</div>
-          <div><b>Created:</b> {formatDate(deal.created_at)}</div>
-          <div
-            style={{
-              marginTop: 14,
-              textAlign: "center",
-              color: "var(--slate)",
-              fontSize: 11,
-              letterSpacing: 2,
-            }}
-          >
-            Powered by DealPass
-          </div>
-        </Section>
+  <div
+    style={{
+      marginTop: 18,
+      paddingTop: 14,
+      borderTop: "1px dashed var(--line)",
+      fontSize: 10,
+      color: "var(--slate)",
+      lineHeight: 1.6,
+      textAlign: "center",
+    }}
+  >
+    <strong>Disclaimer:</strong> This DealPass is generated for personal
+    record-keeping purposes only. It is not a legally binding document,
+    contract, invoice, receipt, or proof of payment.
+  </div>
+
+  <div
+    style={{
+      marginTop: 14,
+      textAlign: "center",
+      color: "var(--slate)",
+      fontSize: 11,
+      letterSpacing: 2,
+      fontWeight: 600,
+    }}
+  >
+    Powered by DealPass
+  </div>
+</Section>
       </div>
     </>
   );

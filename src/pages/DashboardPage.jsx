@@ -38,9 +38,9 @@ console.log(deals);
   return (
     <div className="dp-scroll" style={{ flex: 1, overflowY: "auto", padding: "18px 18px 90px" }}>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 13, color: "var(--slate)" }}>Welcome back,</div>
+        <div style={{ fontSize: 13, color: "var(--slate)" }}>Welcome,</div>
         <div className="dp-display" style={{ fontSize: 21, fontWeight: 700 }}>
-          {(account?.name || "Creator").split(" ")[0]} 👋
+         {(account?.full_name || account?.name || "Creator").split(" ")[0]} 👋
         </div>
       </div>
 
