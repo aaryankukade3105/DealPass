@@ -151,16 +151,16 @@ const handleSubmit = (e) => {
         </div>
 
         <div
-          style={{
-            color: "var(--slate)",
-            fontSize: 14,
-            marginTop: 6,
-          }}
-        >
-          Every brand collaboration,
-          <br />
-          tracked like a boarding pass.
-        </div>
+  style={{
+    color: "var(--slate)",
+    fontSize: 14,
+    marginTop: 6,
+  }}
+>
+  Built for creators with
+  <br />
+  too many brand deals to remember.
+</div>
       </div>
 
       <div

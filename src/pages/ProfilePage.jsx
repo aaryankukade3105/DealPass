@@ -574,14 +574,36 @@ const InfoRow = ({
         </div>
 
         <div
-          style={{
-            marginTop: 10,
-            fontSize: 13,
-            color: "var(--slate)",
-          }}
-        >
-          Made with ❤️ in India
-        </div>
+  style={{
+    marginTop: 18,
+    paddingTop: 16,
+    borderTop: "1px dashed var(--line)",
+  }}
+>
+  <div
+    style={{
+      fontSize: 12,
+      fontWeight: 700,
+      letterSpacing: 1,
+      color: "var(--slate)",
+      marginBottom: 8,
+    }}
+  >
+    FUN FACT
+  </div>
+
+  <div
+    style={{
+      fontSize: 13,
+      color: "var(--slate)",
+      lineHeight: 1.6,
+    }}
+  >
+    Your next brand deal shouldn't be
+    <br />
+    found in a 3-month-old chat. 😉
+  </div>
+</div>
       </div>
 
     </div>
