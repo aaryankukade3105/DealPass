@@ -680,15 +680,28 @@ if (duplicateDeal) {
       await addDeal(deal);
     }
 
-    const latestDeals = await getDeals();
+const latestDeals = await getDeals();
 
-    setDeals(latestDeals);
-    setEditingDeal(null);
-    setFormOpen(false);
+setDeals(latestDeals);
+setEditingDeal(null);
+setFormOpen(false);
+
+showAlert(
+  "success",
+  editingDeal ? "Deal Updated" : "Deal Added",
+  editingDeal
+    ? "Your collaboration has been updated successfully."
+    : "Your collaboration has been added successfully."
+);
 
   } catch (err) {
     console.error(err);
-    alert(err.message);
+  
+    showAlert(
+      "error",
+      "Failed to Save Deal",
+      err.message
+    );
   }
 };
 
@@ -707,7 +720,12 @@ const handleDeleteDeal = async () => {
 
   } catch (err) {
     console.error(err);
-    alert(err.message);
+  
+    showAlert(
+      "error",
+      "Failed to Delete Deal",
+      err.message
+    );
   }
 };
 

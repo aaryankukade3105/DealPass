@@ -70,12 +70,12 @@ const update = (field, value) => {
     if (field === "collaboration_type") {
       if (value === "Barter") {
         next.commercials = 0;
-        next.payment_mode = "";
-        next.payment_status = "";
+        next.currency = "N/A";
+        next.payment_mode = "Barter";
+        next.payment_status = "Barter";
         next.payment_deadline = "";
         next.payment_received_date = "";
-        next.payment_received_amount = "";
-        next.currency = "";
+        next.payment_received_amount = null;
       } else {
         next.currency = "INR";
         next.payment_mode = "UPI";
@@ -275,7 +275,9 @@ const handleSubmit = async (e) => {
 
   const deal = {
     ...form,
-
+   currency: form.currency,
+payment_mode: form.payment_mode,
+payment_status: form.payment_status,
     // Numbers
     commercials: Number(form.commercials),
     deliverable_count: Number(form.deliverable_count),
@@ -318,9 +320,14 @@ console.log("Deal being submitted:", deal);
   try {
     await onSave(deal);
   } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
+  console.error(err);
+
+  showAlert(
+    "error",
+    "Failed to Save Deal",
+    err.message
+  );
+}
 };
   return (
    <>

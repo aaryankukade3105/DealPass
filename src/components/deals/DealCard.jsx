@@ -1,8 +1,13 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { formatINR, formatDate } from "../../utils/formatters";
 function DealCard({ deal, onClick, onEdit, onDelete, compact }) {
- const statusInfo =
-  deal.payment_status === "Paid"
+  const statusInfo =
+  deal.collaboration_type === "Barter"
+    ? {
+        label: "Barter",
+        color: "#8B5CF6", // Purple
+      }
+    : deal.payment_status === "Paid"
     ? {
         label: "Paid",
         color: "var(--mint)",
@@ -29,7 +34,9 @@ function DealCard({ deal, onClick, onEdit, onDelete, compact }) {
             )}
           </div>
           <div className="dp-mono" style={{ fontWeight: 700, fontSize: 15, whiteSpace: "nowrap" }}>
-            {formatINR(deal.commercials)}
+          {deal.collaboration_type === "Barter"
+  ? "Barter"
+  : formatINR(deal.commercials)}
           </div>
         </div>
 
@@ -73,7 +80,9 @@ function DealCard({ deal, onClick, onEdit, onDelete, compact }) {
         style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 12px", minWidth: 80 }}
       >
         <span className="dp-stamp" style={{ color: statusInfo.color }}>{statusInfo.label}</span>
-        {deal.payment_deadline && deal.payment_status !== "completed" && (
+        {deal.collaboration_type !== "Barter" &&
+  deal.payment_deadline &&
+  deal.payment_status !== "Paid" && (
           <div style={{ fontSize: 9.5, color: "var(--slate)", marginTop: 8, textAlign: "center", lineHeight: 1.3 }}>
             Due<br />{formatDate(deal.payment_deadline)}
           </div>
