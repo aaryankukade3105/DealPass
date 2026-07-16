@@ -230,7 +230,7 @@ const dataUrl = await toPng(clone, {
 
         <Section title="DEAL DETAILS">
         <div>
-  <b>From:</b> {account?.name || "Creator"}
+  <b>From:</b> {account?.full_name || "Creator"}
 </div>
           <div><b>To:</b> {deal.brand_name}</div>
           <div><b>Type:</b> {deal.collaboration_type}</div>
