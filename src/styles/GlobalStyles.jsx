@@ -44,6 +44,34 @@ function GlobalStyles() {
     flex-direction: column;
     overflow: hidden;
 }
+    html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+.dp-root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp-canvas {
+  touch-action: pan-y;
+}
 .dp-page {
     flex: 1;
     overflow-y: auto;

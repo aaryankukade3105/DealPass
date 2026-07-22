@@ -222,6 +222,27 @@ function showAlert(type, title, message) {
     message,
   });
 }
+useEffect(() => {
+  let lastTouchEnd = 0;
+
+  const preventZoom = (e) => {
+    const now = Date.now();
+
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+
+    lastTouchEnd = now;
+  };
+
+  document.addEventListener("touchend", preventZoom, {
+    passive: false,
+  });
+
+  return () => {
+    document.removeEventListener("touchend", preventZoom);
+  };
+}, []);
 
 useEffect(() => {
   async function loadDeals() {
@@ -741,7 +762,7 @@ window.history.replaceState({}, "", "/");
 showAlert(
   "success",
   "Password Updated",
-  "Your password has been changed successfully. Please log in with your new password."
+  "Your password has been changed successfully. You can now return to the app and log in with your new password."
 );
 
   } catch (err) {
