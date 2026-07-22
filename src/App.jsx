@@ -220,14 +220,6 @@ useEffect(() => {
   loadDeals();
 }, [loggedIn]);
 
-const hash = window.location.hash;
-
-if (
-  hash.includes("type=recovery") ||
-  window.location.pathname === "/reset-password"
-) {
-  setIsResetPasswordPage(true);
-}
 
 async function handleChangePassword({
   currentPassword,
@@ -407,10 +399,19 @@ const [selectedDeal, setSelectedDeal] = useState(null);
 const fileInputRef = useRef(null);
 
 useEffect(() => {
-  const checkSession = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+const checkSession = async () => {
+  const hash = window.location.hash;
+
+  if (
+    hash.includes("type=recovery") ||
+    window.location.pathname === "/reset-password"
+  ) {
+    setIsResetPasswordPage(true);
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
     if (session) {
       const user = session.user;
