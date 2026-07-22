@@ -34,10 +34,11 @@ function GlobalStyles() {
   --app-bg: #030712;
 }
       .dp-root * { box-sizing: border-box; }
- .dp-canvas {
+.dp-canvas {
     width: 100%;
     max-width: 460px;
-    height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
     background: var(--paper);
     position: relative;
     display: flex;
