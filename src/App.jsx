@@ -190,7 +190,7 @@ const [feedbackType, setFeedbackType] = useState("bug");
 const [isResetPasswordPage, setIsResetPasswordPage] = useState(false);
 const [resetBusy, setResetBusy] = useState(false);
 const [darkMode, setDarkMode] = useState(() => {
-  return localStorage.getItem("theme") !== "light";
+  return localStorage.getItem("theme") === "dark";
 });
 useEffect(() => {
   const root = document.querySelector(".dp-root");
