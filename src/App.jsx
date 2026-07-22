@@ -711,15 +711,20 @@ const handleResetPassword = async ({
 
     setResetBusy(false);
 
-    showAlert(
-      "success",
-      "Password Updated",
-      "Your password has been changed successfully."
-    );
+await supabase.auth.signOut();
 
-    setIsResetPasswordPage(false);
+setIsResetPasswordPage(false);
+setLoggedIn(false);
+setAccount(null);
+setAuthMode("login");
 
-    window.history.replaceState({}, "", "/");
+window.history.replaceState({}, "", "/");
+
+showAlert(
+  "success",
+  "Password Updated",
+  "Your password has been changed successfully. Please log in with your new password."
+);
 
   } catch (err) {
     setResetBusy(false);
