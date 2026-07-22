@@ -16,7 +16,9 @@ import {
   Bug, 
   Lightbulb,
   Mail,
-  ChevronRight
+  ChevronRight,
+  Moon, 
+  Sun,
 } from "lucide-react";
 
 import { formatDate, formatINR } from "../utils/formatters";
@@ -39,7 +41,9 @@ function ProfilePage({
        onImportBackup,
     onReportBug,
   onSuggestFeature,
-  onContactUs,     
+  onContactUs, 
+  darkMode,
+  setDarkMode,    
 }) {
   const highestDeal =
     deals.length > 0
@@ -485,11 +489,18 @@ const InfoRow = ({
           value="Coming Soon"
         />
 
-        <InfoRow
-          icon={<Calendar size={18} />}
-          title="Theme"
-          value="Coming Soon"
-        />
+       <InfoRow
+  icon={
+    darkMode ? (
+      <Sun size={18} />
+    ) : (
+      <Moon size={18} />
+    )
+  }
+  title={darkMode ? "Light Mode" : "Dark Mode"}
+  value="Tap to switch appearance"
+  onClick={() => setDarkMode((prev) => !prev)}
+/>
       </div>
 
       {/* SUPPORT */}

@@ -189,6 +189,24 @@ const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
 const [feedbackType, setFeedbackType] = useState("bug");
 const [isResetPasswordPage, setIsResetPasswordPage] = useState(false);
 const [resetBusy, setResetBusy] = useState(false);
+const [darkMode, setDarkMode] = useState(() => {
+  return localStorage.getItem("theme") !== "light";
+});
+useEffect(() => {
+  const root = document.querySelector(".dp-root");
+
+  if (root) {
+    root.setAttribute(
+      "data-theme",
+      darkMode ? "dark" : "light"
+    );
+  }
+
+  localStorage.setItem(
+    "theme",
+    darkMode ? "dark" : "light"
+  );
+}, [darkMode]);
 const [alert, setAlert] = useState({
 
   open: false,
@@ -994,6 +1012,8 @@ onSubmit={handleDeleteRequest}
     onExportCSV={handleExportCSV}
     onExportExcel={handleExportExcel}
     onDownloadBackup={handleDownloadBackup}
+      darkMode={darkMode}
+  setDarkMode={setDarkMode}
     onImportBackup={openBackupPicker}
   onReportBug={() => {
     setFeedbackType("bug");

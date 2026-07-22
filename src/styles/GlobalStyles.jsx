@@ -12,14 +12,27 @@ function GlobalStyles() {
         --amber: #C97A12;
         --slate: #6B7280;
         --line: #E1DED5;
+        --app-bg: #E7E5DD;
+
         font-family: 'Inter', sans-serif;
         color: var(--ink);
-        background: #E7E5DD;
+       background: var(--app-bg);
         min-height: 100vh;
         display: flex;
         justify-content: center;
         box-sizing: border-box;
       }
+        .dp-root[data-theme="dark"] {
+  --ink: #F9FAFB;
+  --paper: #111827;
+  --surface: #1F2937;
+  --signal: #FF3B5C;
+  --mint: #22C55E;
+  --amber: #F59E0B;
+  --slate: #9CA3AF;
+  --line: #374151;
+  --app-bg: #030712;
+}
       .dp-root * { box-sizing: border-box; }
  .dp-canvas {
     width: 100%;
