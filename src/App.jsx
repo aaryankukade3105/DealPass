@@ -36,6 +36,7 @@ import { importBackup } from "./utils/importBackup";
 import { submitFeedback } from "./services/feedbackService";
 import FeedbackSheet from "./components/profile/FeedbackSheet";
 import { exportDealsExcel } from "./utils/exportExcel";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DeleteAccountRequestSheet from "./components/profile/DeleteAccountRequestSheet";
 /* ---------------------------------- constants ---------------------------------- */
 
@@ -186,6 +187,8 @@ const [authBusy, setAuthBusy] = useState(false);
 const [feedbackOpen, setFeedbackOpen] = useState(false);
 const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
 const [feedbackType, setFeedbackType] = useState("bug");
+const [isResetPasswordPage, setIsResetPasswordPage] = useState(false);
+const [resetBusy, setResetBusy] = useState(false);
 const [alert, setAlert] = useState({
 
   open: false,
@@ -217,6 +220,14 @@ useEffect(() => {
   loadDeals();
 }, [loggedIn]);
 
+const hash = window.location.hash;
+
+if (
+  hash.includes("type=recovery") ||
+  window.location.pathname === "/reset-password"
+) {
+  setIsResetPasswordPage(true);
+}
 
 async function handleChangePassword({
   currentPassword,
@@ -615,7 +626,110 @@ const handleLogin = async ({ identifier, password }) => {
 );
   }
 };
+const handleForgotPassword = async (email) => {
+  try {
+    if (!email.trim()) {
+  return showAlert(
+    "warning",
+    "Email Required",
+    "Please enter your email address first."
+  );
+}
 
+const emailRegex =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (!emailRegex.test(email.trim())) {
+  return showAlert(
+    "warning",
+    "Invalid Email",
+    "Please enter a valid email address."
+  );
+}
+    const { error } =
+      await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        {
+          redirectTo:
+            window.location.origin + "/reset-password",
+        }
+      );
+
+    if (error) throw error;
+
+    showAlert(
+      "success",
+      "Reset Email Sent",
+      "We've sent you a password reset link. Please check your inbox."
+    );
+  } catch (err) {
+    showAlert(
+      "error",
+      "Failed",
+      err.message
+    );
+  }
+};
+
+const handleResetPassword = async ({
+  password,
+  confirm,
+}) => {
+  try {
+    if (!password.trim()) {
+      return showAlert(
+        "warning",
+        "Password Required",
+        "Please enter your new password."
+      );
+    }
+
+    if (password.length < 8) {
+      return showAlert(
+        "warning",
+        "Weak Password",
+        "Password must be at least 8 characters."
+      );
+    }
+
+    if (password !== confirm) {
+      return showAlert(
+        "warning",
+        "Passwords Don't Match",
+        "Please make sure both passwords match."
+      );
+    }
+
+    setResetBusy(true);
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) throw error;
+
+    setResetBusy(false);
+
+    showAlert(
+      "success",
+      "Password Updated",
+      "Your password has been changed successfully."
+    );
+
+    setIsResetPasswordPage(false);
+
+    window.history.replaceState({}, "", "/");
+
+  } catch (err) {
+    setResetBusy(false);
+
+    showAlert(
+      "error",
+      "Update Failed",
+      err.message
+    );
+  }
+};
 const handleLogout = async () => {
   await supabase.auth.signOut();
 
@@ -777,9 +891,17 @@ const showInfo = (title, message) => {
       </div>
     );
   }
-
+if (isResetPasswordPage) {
+  return (
+    <ResetPasswordPage
+  busy={resetBusy}
+  onSave={handleResetPassword}
+/>
+  );
+}
   if (!loggedIn || !account) {
     return (
+      
      <div className="dp-root">
   <div className="dp-canvas">
    <AuthPage
@@ -789,6 +911,7 @@ const showInfo = (title, message) => {
   onLogin={handleLogin}
   busy={authBusy}
   showAlert={showAlert}
+    onForgotPassword={handleForgotPassword}
 />
   </div>
 

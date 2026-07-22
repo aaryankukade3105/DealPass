@@ -9,6 +9,7 @@ export default function AuthPage({
   error,
   busy,
   showAlert,
+  onForgotPassword,
 }) {
   const [name, setName] = useState("");
   const [identifier, setIdentifier] = useState("");
@@ -255,8 +256,33 @@ const handleSubmit = (e) => {
               style={{
                 paddingRight: 45,
               }}
+            
             />
-
+{mode === "login" && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "flex-end",
+      marginTop: 8,
+    }}
+  >
+    <button
+      type="button"
+        onClick={() => onForgotPassword(identifier)}
+      style={{
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        color: "var(--accent)",
+        fontSize: 13,
+        cursor: "pointer",
+        fontWeight: 500,
+      }}
+    >
+      Forgot Password?
+    </button>
+  </div>
+)}
             <button
               type="button"
               onClick={() =>
