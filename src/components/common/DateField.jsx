@@ -1,5 +1,5 @@
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { MobileDatePicker } from "@mui/x-date-pickers/MobileDatePicker";
+import dayjs from "dayjs";
 
 export default function DateField({
   value,
@@ -9,25 +9,24 @@ export default function DateField({
   maxDate,
   disabled = false,
 }) {
-  const selected = value ? new Date(value) : null;
-
-
   return (
-    <>
-    <DatePicker
-  selected={selected}
-  onChange={(date) =>
-    onChange(date ? date.toISOString().slice(0, 10) : "")
-  }
-  dateFormat="dd MMM yyyy"
-  placeholderText={placeholder}
-  className="dp-input"
-  showPopperArrow={false}
-  calendarStartDay={1}
-  minDate={minDate ? new Date(minDate) : undefined}
-  maxDate={maxDate ? new Date(maxDate) : undefined}
-  disabled={disabled}
-/>
-    </>
+    <MobileDatePicker
+      value={value ? dayjs(value) : null}
+      onChange={(newValue) => {
+        onChange(newValue ? newValue.format("YYYY-MM-DD") : "");
+      }}
+      minDate={minDate ? dayjs(minDate) : undefined}
+      maxDate={maxDate ? dayjs(maxDate) : undefined}
+      disabled={disabled}
+      format="DD MMM YYYY"
+   slotProps={{
+  textField: {
+    placeholder,
+    fullWidth: true,
+    variant: "outlined",
+    size: "small",
+  },
+}}
+    />
   );
 }

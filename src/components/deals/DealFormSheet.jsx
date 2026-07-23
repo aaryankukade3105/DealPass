@@ -54,7 +54,7 @@ function DealFormSheet({
     notes: "",
   }
 );
-
+const [saving, setSaving] = useState(false);
 const [campaignLinksText, setCampaignLinksText] = useState(
   (initial?.campaign_links || []).join(" ")
 );
@@ -319,7 +319,7 @@ console.log("Deal being submitted:", deal);
 
   try {
     await onSave(deal);
-  } catch (err) {
+ } catch (err) {
   console.error(err);
 
   showAlert(
@@ -327,6 +327,8 @@ console.log("Deal being submitted:", deal);
     "Failed to Save Deal",
     err.message
   );
+} finally {
+  setSaving(false);
 }
 };
   return (
@@ -687,12 +689,17 @@ console.log("Deal being submitted:", deal);
       borderTop: "1px solid var(--line)",
     }}
   >
-    <button
-      type="submit"
-      className="dp-btn-signal"
-    >
-      {initial ? "Save Changes" : "Save Deal"}
-    </button>
+   <button
+  type="submit"
+  className="dp-btn-signal"
+  disabled={saving}
+>
+  {saving
+    ? "Saving..."
+    : initial
+    ? "Save Changes"
+    : "Save Deal"}
+</button>
   </div>
     </form>
   </div>

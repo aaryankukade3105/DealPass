@@ -833,17 +833,25 @@ if (duplicateDeal) {
   );
 }
 
-    if (editingDeal) {
-      await updateDeal(editingDeal.id, deal);
-    } else {
-      await addDeal(deal);
-    }
+let newDeal;
 
-const latestDeals = await getDeals();
+if (editingDeal) {
+  await updateDeal(editingDeal.id, deal);
+} else {
+  newDeal = await addDeal(deal);
+}
 
-setDeals(latestDeals);
+// Instantly show the new deal (only for new deals)
+if (newDeal) {
+  setDeals((prev) => [newDeal, ...prev]);
+}
+
+// Close immediately
 setEditingDeal(null);
 setFormOpen(false);
+
+// Refresh silently in the background
+getDeals().then(setDeals);
 
 showAlert(
   "success",
