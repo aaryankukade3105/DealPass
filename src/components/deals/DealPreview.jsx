@@ -13,6 +13,8 @@ const downloadDealPass = async () => {
 
   try {
   const node = previewRef.current;
+const originalShadow = node.style.boxShadow;
+node.style.boxShadow = "none";
 
 const original = {
   maxHeight: node.style.maxHeight,
@@ -34,6 +36,7 @@ const canvas = await html2canvas(node, {
 const dataUrl = canvas.toDataURL("image/png");
 node.style.maxHeight = original.maxHeight;
 node.style.overflowY = original.overflowY;
+node.style.boxShadow = originalShadow;
 
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -191,7 +194,6 @@ pdf.save(`${deal.brand_name}-DealPass.pdf`);
         borderRadius: 24,
         zIndex: 71,
         animation: "dealZoom .28s ease",
-        boxShadow: "0 40px 80px rgba(0,0,0,.28)",
       }}
     >
         <div style={{ textAlign: "center", marginBottom: 24 }}>
