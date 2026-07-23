@@ -834,11 +834,12 @@ if (duplicateDeal) {
 }
 
 let newDeal;
+let tempDeal = null;
 
 if (editingDeal) {
   await updateDeal(editingDeal.id, deal);
 } else {
-const tempDeal = {
+tempDeal = {
   ...deal,
   id: crypto.randomUUID(),
   saving: true,
@@ -853,7 +854,7 @@ newDeal = await addDeal(deal);
 }
 
 // Instantly show the new deal (only for new deals)
-if (newDeal) {
+if (newDeal && tempDeal) {
   setDeals((prev) =>
     prev.map((d) =>
       d.id === tempDeal.id ? newDeal : d
