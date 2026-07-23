@@ -1,53 +1,73 @@
-import { useRef } from "react";
 import { Download } from "lucide-react";
-import { toPng } from "html-to-image";
+import { jsPDF } from "jspdf";
 import { formatINR, formatDate } from "../../utils/formatters";
+import { useRef } from "react";
+import html2canvas from "html2canvas";
+import autoTable from "jspdf-autotable";
 
 function DealPreview({ deal, account, onClose }) {
-  const cardRef = useRef(null);
-  const downloadDealPass = async () => {
-  if (!cardRef.current) return;
+ const previewRef = useRef(null);
+const exportRef = useRef(null);
+const downloadDealPass = async () => {
+  if (!previewRef.current) return;
 
   try {
-    const clone = cardRef.current.cloneNode(true);
+  const node = previewRef.current;
 
-    clone.style.position = "static";
-    clone.style.transform = "none";
-    clone.style.left = "0";
-    clone.style.top = "0";
-    clone.style.margin = "0";
-    clone.style.maxHeight = "none";
-    clone.style.overflow = "visible";
-    clone.style.animation = "none";
-    clone.style.boxShadow = "0 20px 50px rgba(0,0,0,.15)";
-    clone.style.width = "520px";
+const original = {
+  maxHeight: node.style.maxHeight,
+  overflowY: node.style.overflowY,
+};
 
-    const wrapper = document.createElement("div");
+node.style.maxHeight = "none";
+node.style.overflowY = "visible";
 
-    wrapper.style.position = "fixed";
-    wrapper.style.left = "-10000px";
-    wrapper.style.top = "0";
-    wrapper.style.padding = "40px";
-    wrapper.style.background = "#ffffff";
-
-    wrapper.appendChild(clone);
-
-    document.body.appendChild(wrapper);
-
-const dataUrl = await toPng(clone, {
-  pixelRatio: 4,
-  backgroundColor: "#fff",
-  cacheBust: true,
+const canvas = await html2canvas(node, {
+  scale: 3,
+  useCORS: true,
+  backgroundColor: "#ffffff",
+  scrollX: 0,
+  scrollY: -window.scrollY,
 });
 
-    document.body.removeChild(wrapper);
 
-    const link = document.createElement("a");
+const dataUrl = canvas.toDataURL("image/png");
+node.style.maxHeight = original.maxHeight;
+node.style.overflowY = original.overflowY;
 
-    link.download = `${deal.brand_name}-DealPass.jpg`;
-    link.href = dataUrl;
-    link.click();
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
 
+const imgWidth = canvas.width;
+const imgHeight = canvas.height;
+
+const pageWidth = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
+
+const margin = 10;
+
+const availableWidth = pageWidth - margin * 2;
+const availableHeight = pageHeight - margin * 2;
+
+const ratio = imgWidth / imgHeight;
+
+let pdfWidth = availableWidth;
+let pdfHeight = pdfWidth / ratio;
+
+if (pdfHeight > availableHeight) {
+  pdfHeight = availableHeight;
+  pdfWidth = pdfHeight * ratio;
+}
+
+const x = (pageWidth - pdfWidth) / 2;
+const y = (pageHeight - pdfHeight) / 2;
+
+pdf.addImage(dataUrl, "PNG", x, y, pdfWidth, pdfHeight);
+
+pdf.save(`${deal.brand_name}-DealPass.pdf`);
   } catch (err) {
     console.error(err);
   }
@@ -155,9 +175,9 @@ const dataUrl = await toPng(clone, {
     </div>
 
     {/* This is the only thing that gets downloaded */}
-    <div
-      ref={cardRef}
-      className="dp-card"
+ <div
+  ref={previewRef}
+  className="dp-card"
       style={{
         position: "fixed",
         left: "50%",
@@ -239,11 +259,11 @@ const dataUrl = await toPng(clone, {
 
         <Section title="DELIVERABLES">
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-            {(deal.deliverables || []).map(item => (
-              <span key={item} style={chipStyle("var(--paper)")}>
-                {item}
-              </span>
-            ))}
+          {(deal.deliverables || []).map((item, index) => (
+  <span key={`${item}-${index}`} style={chipStyle("var(--paper)")}>
+    {item}
+  </span>
+))}
           </div>
         </Section>
 

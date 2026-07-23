@@ -266,21 +266,33 @@ const handleSubmit = (e) => {
       marginTop: 8,
     }}
   >
-    <button
-      type="button"
-        onClick={() => onForgotPassword(identifier)}
-      style={{
-        background: "transparent",
-        border: "none",
-        padding: 0,
-        color: "var(--accent)",
-        fontSize: 13,
-        cursor: "pointer",
-        fontWeight: 500,
-      }}
-    >
-      Forgot Password?
-    </button>
+  <button
+  type="button"
+  onClick={() => onForgotPassword(identifier)}
+  style={{
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    color: "var(--signal)",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: "auto",
+    transition: "all 0.2s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "translateX(3px)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "translateX(0)";
+  }}
+>
+  Forgot password
+  <span style={{ fontSize: 14 }}>→</span>
+</button>
   </div>
 )}
             <button
