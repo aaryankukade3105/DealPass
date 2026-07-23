@@ -78,7 +78,62 @@ export function computeStats(deals) {
   const pendingPayments = deals.filter(
     (d) => d.payment_status !== "Paid"
   ).length;
+const pendingRevenue = {};
 
+[15, 30, 60].forEach((days) => {
+  pendingRevenue[days] = deals
+    .filter((d) => {
+      if (d.collaboration_type !== "Paid") return false;
+
+      if (d.payment_status === "Paid") return false;
+
+      if (!d.confirmation_date) return false;
+
+      const diff = daysBetween(d.confirmation_date);
+
+      return diff >= 0 && diff <= days;
+    })
+    .reduce(
+      (sum, d) => sum + (Number(d.commercials) || 0),
+      0
+    );
+});
+
+pendingRevenue.total = deals
+  .filter(
+    (d) =>
+      d.collaboration_type === "Paid" &&
+      d.payment_status !== "Paid"
+  )
+  .reduce(
+    (sum, d) => sum + (Number(d.commercials) || 0),
+    0
+  );
+  const overdueRevenue = deals
+  .filter((d) => {
+    if (d.collaboration_type !== "Paid") return false;
+
+    if (d.payment_status === "Paid") return false;
+
+    if (!d.payment_deadline) return false;
+
+    return daysBetween(d.payment_deadline) > 0;
+  })
+  .reduce(
+    (sum, d) => sum + (Number(d.commercials) || 0),
+    0
+  );
+  const totalCommercials = deals
+  .filter((d) => d.collaboration_type === "Paid")
+  .reduce(
+    (sum, d) => sum + (Number(d.commercials) || 0),
+    0
+  );
+
+const collectionRate =
+  totalCommercials === 0
+    ? 0
+    : Math.round((totalEarnings / totalCommercials) * 100);
   const recentDeal =
     [...deals].sort(
       (a, b) =>
@@ -92,6 +147,9 @@ export function computeStats(deals) {
     dealCounts,
     pendingCollabs,
     pendingPayments,
+     pendingRevenue,
+       overdueRevenue,
+         collectionRate,
     recentDeal,
   };
 }

@@ -14,7 +14,14 @@ import {
 } from "recharts";
 
 import {
-  Clock,
+  Wallet,
+  HandCoins,
+  CreditCard,
+  Clapperboard,
+  Handshake,
+  TrendingUp,
+  Trophy,
+  Star,
   Receipt,
 } from "lucide-react";
 
@@ -33,6 +40,7 @@ function DashboardPage({ deals, account, onAddDeal, onOpenDeal}) {
     const [dealPeriod, setDealPeriod] = useState(30);
    const [showMonthDropdown, setShowMonthDropdown] = useState(false);
     const [earningPeriod, setEarningPeriod] = useState(30);
+    const [pendingRevenuePeriod, setPendingRevenuePeriod] = useState(30);
     const [analyticsMonth, setAnalyticsMonth] = useState(
   new Date().toLocaleString("default", {
     month: "long",
@@ -149,11 +157,24 @@ const highestDealAmount = useMemo(() => {
   </div>
 </div>
 
-   <div className="dp-card" style={{ padding: 20, marginBottom: 18 }}>
+   <div className="dp-card" style={{ padding: 24, marginBottom: 18 }}>
 
-  <div className="dp-label">
-    Total Earnings Received
-  </div>
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 14,
+    fontWeight: 700,
+    color: "var(--ink)",
+  }}
+>
+  <Wallet
+  size={20}
+  strokeWidth={2.2}
+  color="#D97706"
+/> Earnings Overview
+</div>
 
   <div
     className="dp-display dp-mono"
@@ -167,20 +188,26 @@ const highestDealAmount = useMemo(() => {
       ? formatINR(stats.totalEarnings)
       : formatINR(stats.earnings[earningPeriod])}
   </div>
-
-  <div
+<div
+  style={{
+    marginTop: 10,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  }}
+>
+  <span
     style={{
-      fontSize: 13,
       color: "var(--slate)",
-      marginTop: 2,
-      marginBottom: 14,
+      fontSize: 13,
+      fontWeight: 600,
     }}
   >
     {earningPeriod === "total"
       ? "All Time"
       : `Last ${earningPeriod} Days`}
-  </div>
-
+  </span>
+</div>
   <div
     className="dp-scroll"
     style={{
@@ -289,18 +316,213 @@ const highestDealAmount = useMemo(() => {
 
 </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-        <div className="dp-card" style={{ flex: 1, padding: 14 }}>
-          <Clock size={16} color="var(--amber)" />
-          <div className="dp-display" style={{ fontSize: 20, fontWeight: 700, marginTop: 6 }}>{stats.pendingCollabs}</div>
-          <div style={{ fontSize: 11.5, color: "var(--slate)", fontWeight: 600 }}>Collabs pending</div>
-        </div>
-        <div className="dp-card" style={{ flex: 1, padding: 14 }}>
-          <Receipt size={16} color="var(--signal)" />
-          <div className="dp-display" style={{ fontSize: 20, fontWeight: 700, marginTop: 6 }}>{stats.pendingPayments}</div>
-          <div style={{ fontSize: 11.5, color: "var(--slate)", fontWeight: 600 }}>Payments pending</div>
-        </div>
+     <div className="dp-card" style={{ padding: 20, marginBottom: 18 }}>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 18,
+    }}
+  >
+    <span style={{ fontSize: 22 }}><HandCoins
+  size={20}
+  strokeWidth={2.2}
+  color="#DC2626"
+/></span>
+
+    <div>
+      <div
+        className="dp-display"
+        style={{ fontSize: 18, fontWeight: 700 }}
+      >
+        Action Center
       </div>
+
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--slate)",
+        }}
+      >
+        Things that need your attention
+      </div>
+    </div>
+  </div>
+
+  <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "14px 0",
+    borderTop: "1px solid var(--line)",
+  }}
+>
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 12,
+        background: "#FEF3C7",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 20,
+      }}
+    >
+      💰
+    </div>
+
+    <div>
+      <div style={{ fontWeight: 700 }}>Pending Revenue</div>
+      <div style={{ fontSize: 12, color: "var(--slate)" }}>
+        Awaiting payment
+      </div>
+    </div>
+  </div>
+
+  <div
+    className="dp-display"
+    style={{ fontSize: 20, color: "#D97706" }}
+  >
+    {formatINR(stats.pendingRevenue[pendingRevenuePeriod])}
+  </div>
+</div>
+
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "14px 0",
+    borderTop: "1px solid var(--line)",
+  }}
+>
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 12,
+        background: "#FEE2E2",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 20,
+      }}
+    >
+      🚨
+    </div>
+
+    <div>
+      <div style={{ fontWeight: 700 }}>Overdue Revenue</div>
+      <div style={{ fontSize: 12, color: "var(--slate)" }}>
+        Requires follow-up
+      </div>
+    </div>
+  </div>
+
+  <div
+    className="dp-display"
+    style={{ fontSize: 20, color: "#DC2626" }}
+  >
+    {formatINR(stats.overdueRevenue)}
+  </div>
+</div>
+
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "14px 0",
+    borderTop: "1px solid var(--line)",
+  }}
+>
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 12,
+        background: "#DBEAFE",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 20,
+      }}
+    >
+      <CreditCard
+  size={20}
+  strokeWidth={2.2}
+  color="#2563EB"
+/>
+    </div>
+
+    <div>
+      <div style={{ fontWeight: 700 }}>Pending Payments</div>
+      <div style={{ fontSize: 12, color: "var(--slate)" }}>
+        Brands yet to pay
+      </div>
+    </div>
+  </div>
+
+  <div
+    className="dp-display"
+    style={{ fontSize: 20, color: "#2563EB" }}
+  >
+    {stats.pendingPayments}
+  </div>
+</div>
+
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "14px 0",
+    borderTop: "1px solid var(--line)",
+    borderBottom: "1px solid var(--line)",
+  }}
+>
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 12,
+        background: "#EDE9FE",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 20,
+      }}
+    >
+      <Clapperboard
+  size={20}
+  strokeWidth={2.2}
+  color="#7C3AED"
+/>
+    </div>
+
+    <div>
+      <div style={{ fontWeight: 700 }}>Pending Content</div>
+      <div style={{ fontSize: 12, color: "var(--slate)" }}>
+        Content yet to post
+      </div>
+    </div>
+  </div>
+
+  <div
+    className="dp-display"
+    style={{ fontSize: 20, color: "#7C3AED" }}
+  >
+    {stats.pendingCollabs}
+  </div>
+</div>
+</div>
 <div className="dp-card" style={{ padding: 18, marginBottom: 16 }}>
 
   <div
@@ -366,58 +588,115 @@ const highestDealAmount = useMemo(() => {
 </div>
   </div>
 
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 12,
-    }}
-  >
-    <div className="dp-card" style={{ padding: 14 }}>
-      <div className="dp-label">Revenue</div>
-      <div className="dp-display" style={{ fontSize: 24, marginTop: 6 }}>
-        {formatINR(monthlyRevenue)}
-      </div>
-    </div>
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    marginTop: 8,
+  }}
+>
 
-    <div className="dp-card" style={{ padding: 14 }}>
-      <div className="dp-label">Deals</div>
-      <div className="dp-display" style={{ fontSize: 24, marginTop: 6 }}>
-          {analyticsDeals.length}
-      </div>
-    </div>
-
-    <div className="dp-card" style={{ padding: 14 }}>
-      <div className="dp-label">Avg / Deal</div>
-      <div className="dp-display" style={{ fontSize: 22, marginTop: 6 }}>
-        {formatINR(averageDealValue)}
-      </div>
-    </div>
-
-    <div className="dp-card" style={{ padding: 14 }}>
-      <div className="dp-label">Highest Brand</div>
+  {[
+    {
+    icon: Wallet,
+      title: "Revenue",
+      value: formatINR(monthlyRevenue),
+      color: "#DCFCE7",
+    },
+    {
+     icon: Handshake,
+      title: "Deals",
+      value: analyticsDeals.length,
+      color: "#DBEAFE",
+    },
+    {
+      icon: TrendingUp,
+      title: "Average Deal",
+      value: formatINR(averageDealValue),
+      color: "#FEF3C7",
+    },
+    {
+      icon: Trophy,
+      title: "Highest Deal",
+      value: formatINR(highestDealAmount),
+      color: "#F3E8FF",
+    },
+    {
+      icon: Star,
+      title: "Top Brand",
+      value: topPayingBrand?.brand_name || "—",
+      color: "#FCE7F3",
+    },
+  ].map((item, index) => (
+    <div
+      key={item.title}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "16px 0",
+        borderBottom:
+          index === 4 ? "none" : "1px solid var(--line)",
+      }}
+    >
       <div
         style={{
-          fontWeight: 700,
-          marginTop: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
         }}
       >
-          {topPayingBrand?.brand_name || "—"}
+    <div
+  style={{
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    background: item.color,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  <item.icon
+    size={20}
+    strokeWidth={2.2}
+    color="#111827"
+  />
+</div>
+
+        <div>
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 15,
+            }}
+          >
+            {item.title}
+          </div>
+
+          <div
+            style={{
+              color: "var(--slate)",
+              fontSize: 12,
+            }}
+          >
+            This month
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="dp-display"
+        style={{
+          fontSize: 19,
+          fontWeight: 700,
+        }}
+      >
+        {item.value}
       </div>
     </div>
-  </div>
-<div className="dp-card" style={{ padding: 14 }}>
-  <div className="dp-label">Highest Deal</div>
+  ))}
 
-  <div
-    className="dp-display"
-    style={{
-      fontSize: 22,
-      marginTop: 6,
-    }}
-  >
-    {formatINR(highestDealAmount)}
-  </div>
 </div>
 </div>
       {hasChartData && (
@@ -435,8 +714,32 @@ const highestDealAmount = useMemo(() => {
             </ResponsiveContainer>
           </div>
         </div>
+        
       )}
+<div className="dp-card" style={{ flex: 1, padding: 14 }}>
+  <Receipt size={16} color="#16a34a" />
 
+  <div
+    className="dp-display"
+    style={{
+      fontSize: 20,
+      fontWeight: 700,
+      marginTop: 6,
+    }}
+  >
+    {stats.collectionRate}%
+  </div>
+
+  <div
+    style={{
+      fontSize: 11.5,
+      color: "var(--slate)",
+      fontWeight: 600,
+    }}
+  >
+    Collection Rate
+  </div>
+</div>
       <div className="dp-label" style={{ marginBottom: 8 }}>
   Most recent deal
 </div>
@@ -446,7 +749,9 @@ const highestDealAmount = useMemo(() => {
     deal={stats.recentDeal}
     onClick={() => onOpenDeal(stats.recentDeal)}
     compact
+    
   />
+  
 ) : (
   <EmptyState
     text="No deals yet. Add your first brand collab to see it here."
@@ -456,6 +761,8 @@ const highestDealAmount = useMemo(() => {
 )}
 
 </div>
+
   );
+  
 }
 export default DashboardPage;
