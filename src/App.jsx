@@ -838,20 +838,32 @@ let newDeal;
 if (editingDeal) {
   await updateDeal(editingDeal.id, deal);
 } else {
-  newDeal = await addDeal(deal);
+const tempDeal = {
+  ...deal,
+  id: crypto.randomUUID(),
+  saving: true,
+};
+
+setDeals((prev) => [tempDeal, ...prev]);
+
+setEditingDeal(null);
+setFormOpen(false);
+
+newDeal = await addDeal(deal);
 }
 
 // Instantly show the new deal (only for new deals)
 if (newDeal) {
-  setDeals((prev) => [newDeal, ...prev]);
+  setDeals((prev) =>
+    prev.map((d) =>
+      d.id === tempDeal.id ? newDeal : d
+    )
+  );
 }
-
 // Close immediately
 setEditingDeal(null);
 setFormOpen(false);
 
-// Refresh silently in the background
-getDeals().then(setDeals);
 
 showAlert(
   "success",
