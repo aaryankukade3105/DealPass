@@ -4,6 +4,7 @@ import { formatINR, formatDate } from "../../utils/formatters";
 import { useRef } from "react";
 import html2canvas from "html2canvas";
 import autoTable from "jspdf-autotable";
+import logo from "../../assets/logo.svg";
 
 function DealPreview({ deal, account, onClose }) {
  const previewRef = useRef(null);
@@ -197,17 +198,35 @@ pdf.save(`${deal.brand_name}-DealPass.pdf`);
       }}
     >
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div
-            style={{
-              letterSpacing: 4,
-              fontWeight: 700,
-              fontSize: 12,
-              color: "var(--slate)",
-            }}
-          >
-            ✈ DEALPASS
-          </div>
+      <div
+  style={{
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  }}
+>
+  <img
+    src={logo}
+    alt="DealPass"
+    style={{
+      width: 28,
+      height: 28,
+    }}
+  />
 
+  <span
+    style={{
+      letterSpacing: 4,
+      fontWeight: 700,
+      fontSize: 12,
+      color: "var(--slate)",
+    }}
+  >
+    DEALPASS
+  </span>
+</div>
           <div
             className="dp-display"
             style={{
