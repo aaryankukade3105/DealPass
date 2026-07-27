@@ -526,7 +526,7 @@ console.log("Deal being submitted:", deal);
     ⚠️ Payment details are unavailable because this is a barter collaboration.
   </div>
 )}
-<Field label="Commercials (₹) *">
+<Field label="Commercials *">
   <input
     type="number"
     className="dp-input"

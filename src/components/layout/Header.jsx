@@ -1,6 +1,17 @@
 import { Menu } from "lucide-react";
 function Header({ onMenu, title, account }) {
-  const initials = (account?.name || "?").trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+const displayName =
+  account?.full_name ||
+  account?.name ||
+  "Creator";
+
+const initials = displayName
+  .trim()
+  .split(/\s+/)
+  .map((word) => word[0])
+  .slice(0, 2)
+  .join("")
+  .toUpperCase();
   return (
     <div
       style={{
