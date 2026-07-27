@@ -1,0 +1,61 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  fill="none"
+>
+  <!-- Sparkle -->
+  <path
+    d="M47 7
+       L48.5 11.5
+       L53 13
+       L48.5 14.5
+       L47 19
+       L45.5 14.5
+       L41 13
+       L45.5 11.5
+       Z"
+    fill="#EC4899"
+  />
+
+  <!-- Creator Pass -->
+  <path
+    d="
+      M15 18
+      H49
+      C51.8 18 54 20.2 54 23
+      V27
+      C52.3 27 51 28.3 51 30
+      C51 31.7 52.3 33 54 33
+      V41
+      C54 43.8 51.8 46 49 46
+      H15
+      C12.2 46 10 43.8 10 41
+      V33
+      C11.7 33 13.0 31.7 13 30
+      C13 28.3 11.7 27 10 27
+      V23
+      C10 20.2 12.2 18 15 18
+      Z"
+    stroke="currentColor"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Content Frame -->
+  <rect
+    x="21"
+    y="25"
+    width="22"
+    height="12"
+    rx="3"
+    stroke="currentColor"
+    stroke-width="2"
+  />
+
+  <!-- Play Icon -->
+  <path
+    d="M30 28.5L35.5 31L30 33.5V28.5Z"
+    fill="#EC4899"
+  />
+</svg>
