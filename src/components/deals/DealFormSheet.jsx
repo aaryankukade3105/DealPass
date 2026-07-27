@@ -5,6 +5,7 @@ import SectionLabel from "../common/SectionLabel";
 import { X } from "lucide-react";
 import {formatDate,formatINR} from "../../utils/formatters";
 import DateField from "../common/DateField";
+import DeliverablesSelector from "./DeliverablesSelector";
 import {
   COLLABORATION_TYPES,
   PAYMENT_STATUS,
@@ -451,11 +452,11 @@ console.log("Deal being submitted:", deal);
 <SectionLabel>Content</SectionLabel>
 
 <Field label="Deliverables">
-  <ChipSelect
-    options={DELIVERABLE_OPTIONS}
+  <DeliverablesSelector
     value={form.deliverables}
-    onChange={toggleDeliverable}
-    multi
+    onChange={(deliverables) =>
+      update("deliverables", deliverables)
+    }
   />
 </Field>
 

@@ -261,9 +261,14 @@ pdf.save(`${deal.brand_name}-DealPass.pdf`);
 
         <Section title="DELIVERABLES">
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-          {(deal.deliverables || []).map((item, index) => (
-  <span key={`${item}-${index}`} style={chipStyle("var(--paper)")}>
-    {item}
+     {(deal.deliverables || []).map((item, index) => (
+  <span
+    key={item.type ?? index}
+    style={chipStyle("var(--paper)")}
+  >
+    {typeof item === "string"
+      ? item
+      : `${item.type} ×${item.qty}`}
   </span>
 ))}
           </div>

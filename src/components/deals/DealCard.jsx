@@ -40,18 +40,23 @@ function DealCard({ deal, onClick, onEdit, onDelete, compact }) {
           </div>
         </div>
 
-        {deal.deliverables && deal.deliverables.length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-            {deal.deliverables.slice(0, 4).map((dv) => (
-              <span
-                key={dv}
-                style={{ fontSize: 10.5, fontWeight: 600, color: "var(--slate)", background: "var(--paper)", padding: "3px 8px", borderRadius: 999 }}
-              >
-                {dv}
-              </span>
-            ))}
-          </div>
-        )}
+       {deal.deliverables.slice(0, 4).map((dv, index) => (
+  <span
+    key={dv.type ?? index}
+    style={{
+      fontSize: 10.5,
+      fontWeight: 600,
+      color: "var(--slate)",
+      background: "var(--paper)",
+      padding: "3px 8px",
+      borderRadius: 999,
+    }}
+  >
+    {typeof dv === "string"
+      ? dv
+      : `${dv.type} ×${dv.qty}`}
+  </span>
+))}
 
         <div style={{ marginTop: 10, fontSize: 11, color: "var(--slate)" }}>
           Confirmed {formatDate(deal.confirmation_date)} · {deal.confirmation_mode}
