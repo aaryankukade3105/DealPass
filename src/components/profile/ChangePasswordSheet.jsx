@@ -42,7 +42,50 @@ export default function ChangePasswordSheet({
                 fontWeight: 700,
               }}
             >
-              Change Password
+             <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  }}
+>
+  <div
+    style={{
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      background: "rgba(255,59,92,0.12)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "var(--signal)",
+    }}
+  >
+    <LockKeyhole size={22} />
+  </div>
+
+  <div>
+    <div
+      className="dp-display"
+      style={{
+        fontSize: 24,
+        fontWeight: 700,
+      }}
+    >
+      Change Password
+    </div>
+
+    <div
+      style={{
+        color: "var(--slate)",
+        fontSize: 13,
+        marginTop: 2,
+      }}
+    >
+      Update your account password
+    </div>
+  </div>
+</div>
             </div>
 
             <div
@@ -66,7 +109,20 @@ export default function ChangePasswordSheet({
               cursor: "pointer",
             }}
           >
-            <X />
+            <div
+  style={{
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    background: "var(--surface)",
+    border: "1px solid var(--line)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+    <X size={18}/>
+</div>
           </button>
         </div>
 

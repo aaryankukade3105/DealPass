@@ -1,5 +1,5 @@
 import { DELIVERABLES } from "../constants/deliverables";
-
+import { Minus } from "lucide-react";
 function DeliverablesSelector({ value = [], onChange }) {
   return (
     <div
@@ -96,13 +96,25 @@ function DeliverablesSelector({ value = [], onChange }) {
                   </span>
 
                   <span
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  onClick={(e) => {
+  e.stopPropagation();
 
-                      onChange(
-                        value.filter((d) => d.id !== item.id)
-                      );
-                    }}
+  const existing = value.find((d) => d.id === item.id);
+
+  if (existing.qty > 1) {
+    onChange(
+      value.map((d) =>
+        d.id === item.id
+          ? { ...d, qty: d.qty - 1 }
+          : d
+      )
+    );
+  } else {
+    onChange(
+      value.filter((d) => d.id !== item.id)
+    );
+  }
+}}
                     style={{
                       width: 20,
                       height: 20,
@@ -118,7 +130,7 @@ function DeliverablesSelector({ value = [], onChange }) {
                       transition: "all .15s ease",
                     }}
                   >
-                    ✕
+                    <Minus size={12} strokeWidth={3} />
                   </span>
                 </>
               )}

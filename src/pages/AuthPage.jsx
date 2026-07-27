@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import logo from "../assets/logo.svg";
 
 export default function AuthPage({
   mode,
   setMode,
   onSignup,
   onLogin,
+  onGoogleLogin,
   error,
   busy,
   showAlert,
@@ -134,35 +136,61 @@ const handleSubmit = (e) => {
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         padding: "40px 26px",
         overflowY: "auto",
       }}
     >
-      <div style={{ marginBottom: 28 }}>
-        <div
-          className="dp-display"
-          style={{
-            fontSize: 30,
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          DealPass
-        </div>
-
-        <div
+   <div
   style={{
-    color: "var(--slate)",
-    fontSize: 14,
-    marginTop: 6,
+    marginBottom: 34,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
   }}
 >
-  Built for creators with
-  <br />
-  too many brand deals to remember.
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+    }}
+  >
+    <img
+      src={logo}
+      alt="DealPass"
+      width={44}
+      height={44}
+      draggable={false}
+    />
+
+    <div
+      className="dp-display"
+      style={{
+        fontSize: 34,
+        fontWeight: 700,
+        letterSpacing: "-0.04em",
+      }}
+    >
+      DealPass
+    </div>
+  </div>
+
+  <div
+    style={{
+      color: "var(--slate)",
+      fontSize: 14,
+      marginTop: 10,
+      textAlign: "center",
+      lineHeight: 1.6,
+      maxWidth: 280,
+    }}
+  >
+    Built for creators with
+    <br />
+    too many brand deals to remember.
+  </div>
 </div>
-      </div>
 
       <div
         style={{
@@ -191,6 +219,49 @@ const handleSubmit = (e) => {
           Log In
         </button>
       </div>
+<button
+  type="button"
+  className="dp-btn-outline"
+  onClick={onGoogleLogin}
+  style={{
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 20,
+  }}
+>
+  <img
+    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+    alt="Google"
+    width={18}
+    height={18}
+  />
+  Continue with Google
+</button>
+
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    marginBottom: 20,
+  }}
+>
+  <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
+
+  <span
+    style={{
+      padding: "0 12px",
+      fontSize: 13,
+      color: "var(--slate)",
+    }}
+  >
+    OR
+  </span>
+
+  <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
+</div>
 
       <form
   noValidate

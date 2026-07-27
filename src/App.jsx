@@ -666,6 +666,23 @@ const handleLogin = async ({ identifier, password }) => {
 );
   }
 };
+
+const handleGoogleLogin = async () => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+
+  if (error) {
+    showAlert(
+      "error",
+      "Google Sign-In Failed",
+      error.message
+    );
+  }
+};
 const handleForgotPassword = async (email) => {
   try {
     if (!email.trim()) {
@@ -975,6 +992,7 @@ if (isResetPasswordPage) {
   setMode={setAuthMode}
   onSignup={handleSignup}
   onLogin={handleLogin}
+    onGoogleLogin={handleGoogleLogin}
   busy={authBusy}
   showAlert={showAlert}
     onForgotPassword={handleForgotPassword}

@@ -113,7 +113,12 @@ const update = (field, value) => {
     ) {
       next.payment_received_amount = value;
     }
-
+if (field === "deliverables") {
+  next.deliverable_count = value.reduce(
+    (total, item) => total + item.qty,
+    0
+  );
+}
     return next;
   });
 };
@@ -121,6 +126,14 @@ useEffect(() => {
   setCampaignLinksText(
     (form.campaign_links || []).join(" ")
   );
+
+  setForm((prev) => ({
+    ...prev,
+    deliverable_count: (prev.deliverables || []).reduce(
+      (total, item) => total + item.qty,
+      0
+    ),
+  }));
 }, [initial]);
   const toggleDeliverable = (item) => {
     setForm((prev) => {
@@ -281,7 +294,10 @@ payment_mode: form.payment_mode,
 payment_status: form.payment_status,
     // Numbers
     commercials: Number(form.commercials),
-    deliverable_count: Number(form.deliverable_count),
+   deliverable_count: form.deliverables.reduce(
+  (total, item) => total + item.qty,
+  0
+),
     payment_received_amount:
       form.payment_received_amount === ""
         ? null
@@ -463,12 +479,9 @@ console.log("Deal being submitted:", deal);
 <Field label="Deliverable Count">
   <input
     type="number"
-    min="1"
     className="dp-input"
     value={form.deliverable_count}
-    onChange={(e) =>
-      update("deliverable_count", Number(e.target.value))
-    }
+    readOnly
   />
 </Field>
 
