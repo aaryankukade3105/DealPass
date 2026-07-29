@@ -249,6 +249,33 @@ function InvoicePreviewModal({
   total,
   onClose,
 }) {
+  const invoiceRef = useRef(null);
+  const downloadPDF = () => {
+    const element = invoiceRef.current;
+
+    const options = {
+      margin: 10,
+      filename: `${invoice.invoiceNumber}.pdf`,
+      image: {
+        type: "jpeg",
+        quality: 1,
+      },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+      },
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait",
+      },
+    };
+
+    html2pdf()
+      .set(options)
+      .from(element)
+      .save();
+  };
   return (
     <>
       <div
@@ -301,29 +328,29 @@ function InvoicePreviewModal({
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="dp-btn-primary">
-                <Download size={16} />
-                Download PDF
-              </button>
-
               <button
-                onClick={onClose}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 4,
-                }}
-              >
-                <X size={20} />
-              </button>
+    className="dp-btn-primary"
+    onClick={downloadPDF}
+>
+    <Download size={16} />
+    Download PDF
+</button>
+
+             <button
+  className="dp-btn-secondary"
+  onClick={onClose}
+>
+  <X size={16} />
+  Close
+</button>
             </div>
           </div>
 
           {/* Ledger-style invoice document */}
-          <div
-            style={{
-              padding: "36px 40px",
+         <div
+    ref={invoiceRef}
+    style={{
+        padding: "36px 40px",
               fontFamily:
                 "'JetBrains Mono','Courier New',ui-monospace,monospace",
               fontSize: 13.5,

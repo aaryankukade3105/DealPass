@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ArrowLeft, FileText, Eye, Download, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import Field from "../components/common/Field";
 import SectionLabel from "../components/common/SectionLabel";
 import DateField from "../components/common/DateField";
-
+import html2pdf from "html2pdf.js";
 function formatDisplayDate(dateStr) {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("en-IN", {
@@ -18,7 +18,25 @@ function formatAmount(value) {
   if (value === null || value === undefined || value === "") return "-";
   return `₹${Number(value).toLocaleString("en-IN")}`;
 }
+function displayValue(value, type = "text") {
+  if (value === null || value === undefined || value === "") {
+    switch (type) {
+      case "date":
+        return "Not Specified";
 
+      case "optional":
+        return "Not Applicable";
+
+      case "billing":
+        return "Not Available";
+
+      default:
+        return "Not Provided";
+    }
+  }
+
+  return value;
+}
 const Divider = () => (
   <div
     style={{
@@ -136,10 +154,6 @@ export default function InvoiceEditorPage({ deal, onBack }) {
             Preview
           </button>
 
-          <button className="dp-btn-primary">
-            <Download size={18} />
-            Download PDF
-          </button>
         </div>
       </div>
 
@@ -543,6 +557,36 @@ function InvoicePreviewModal({
   total,
   onClose,
 }) {
+const invoiceRef = useRef(null);
+const downloadPDF = () => {
+  const element = invoiceRef.current;
+
+  if (!element) {
+    alert("Invoice not found.");
+    return;
+  }
+
+  html2pdf()
+    .set({
+      margin: 10,
+      filename: `${invoice.invoiceNumber}.pdf`,
+      image: {
+        type: "jpeg",
+        quality: 1,
+      },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+      },
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait",
+      },
+    })
+    .from(element)
+    .save();
+};
   return (
     <>
       <div
@@ -591,11 +635,14 @@ function InvoicePreviewModal({
             }}
           >
             <div style={{ fontWeight: 700, fontSize: 16 }}>
-              Invoice Preview
+             Preview & Download
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="dp-btn-primary">
+            <button
+    className="dp-btn-primary"
+    onClick={downloadPDF}
+>
                 <Download size={16} />
                 Download PDF
               </button>
@@ -607,6 +654,7 @@ function InvoicePreviewModal({
                   border: "none",
                   cursor: "pointer",
                   padding: 4,
+                      color: "#000", // Black icon
                 }}
               >
                 <X size={20} />
@@ -615,9 +663,10 @@ function InvoicePreviewModal({
           </div>
 
           {/* Ledger-style invoice document */}
-          <div
-            style={{
-              padding: "36px 40px",
+         <div
+    ref={invoiceRef}
+    style={{
+        padding: "36px 40px",
               fontFamily:
                 "'JetBrains Mono','Courier New',ui-monospace,monospace",
               fontSize: 13.5,
@@ -636,31 +685,34 @@ function InvoicePreviewModal({
               <span>Invoice #{invoice.invoiceNumber}</span>
             </div>
             <div>Invoice Date: {formatDisplayDate(invoice.invoiceDate)}</div>
-            <div>Due Date: {formatDisplayDate(invoice.dueDate)}</div>
+            <div>
+  Due Date: {invoice.dueDate ? formatDisplayDate(invoice.dueDate) : displayValue("", "date")}
+</div>
 
             <Divider />
 
             <div style={{ fontWeight: 700 }}>FROM</div>
-            <div>{billingProfile?.full_name || billingProfile?.account_holder || "-"}</div>
-            <div>{billingProfile?.address || "-"}</div>
+            <div>{displayValue(billingProfile?.full_name, "billing")}</div>
+            <div>{displayValue(billingProfile?.address, "billing")}</div>
             <div>Phone: {billingProfile?.phone || "-"}</div>
-            <div>Email: {billingProfile?.email || "-"}</div>
-            <div>PAN: {billingProfile?.pan_number || "-"}</div>
-            <div>GST: {billingProfile?.gst_number || "-"}</div>
-
+            <div>Email: {displayValue(billingProfile?.email, "billing")}</div>
+            <div>PAN: {displayValue(billingProfile?.pan_number, "optional")}</div>
+<div>GST: {displayValue(billingProfile?.gst_number, "optional")}</div>
             <Divider />
 
             <div style={{ fontWeight: 700 }}>BILL TO</div>
-            <div>{invoice.companyName || invoice.clientName || "-"}</div>
+            <div>
+  {displayValue(invoice.companyName || invoice.clientName)}
+</div>
             {invoice.clientName && invoice.companyName && (
               <div>Attn: {invoice.clientName}</div>
             )}
             <div style={{ whiteSpace: "pre-line" }}>
-              {invoice.billingAddress || "-"}
+            {displayValue(invoice.billingAddress)}
             </div>
             {invoice.clientEmail && <div>Email: {invoice.clientEmail}</div>}
             {invoice.clientPhone && <div>Phone: {invoice.clientPhone}</div>}
-            <div>GST: {invoice.gstNumber || "-"}</div>
+         <div>GST: {displayValue(invoice.gstNumber, "optional")}</div>
 
             <Divider />
 
