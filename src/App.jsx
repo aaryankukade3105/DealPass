@@ -34,7 +34,9 @@ import { exportDealsCSV } from "./utils/exportCsv";
 import { downloadBackup } from "./utils/backup";
 import { importBackup } from "./utils/importBackup";
 import { submitFeedback } from "./services/feedbackService";
+import BillingProfilePage from "./pages/BillingProfilePage";
 import FeedbackSheet from "./components/profile/FeedbackSheet";
+import InvoiceEditorPage from "./pages/InvoiceEditorPage";
 import { exportDealsExcel } from "./utils/exportExcel";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DeleteAccountRequestSheet from "./components/profile/DeleteAccountRequestSheet";
@@ -457,9 +459,6 @@ const checkSession = async () => {
 
     if (session) {
       const user = session.user;
-console.log(user);
-console.log(user.user_metadata);
-console.log(user.identities);
  const { data: profile } = await supabase
   .from("profiles")
   .select("*")
@@ -853,6 +852,7 @@ const handleDeleteRequest = async (reason) => {
     "Your account deletion request has been submitted successfully."
   );
 };
+
 const handleSaveDeal = async (deal) => {
   try {
     const duplicateDeal = deals.find(
@@ -1056,7 +1056,7 @@ if (isResetPasswordPage) {
   onOpenDeal={(d) => setSelectedDeal(d)}
 />
         )}
-       {page === "deals" && (
+  {page === "deals" && (
   <DealsPage
     deals={deals}
     onAdd={() => {
@@ -1069,6 +1069,11 @@ if (isResetPasswordPage) {
     }}
     onDelete={(d) => setDeletingDeal(d)}
     onOpenDeal={(d) => setSelectedDeal(d)}
+
+    onGenerateInvoice={(deal) => {
+      setSelectedDeal(deal);
+      setPage("invoice-editor");
+    }}
   />
 )}
 {deleteRequestOpen && (
@@ -1095,6 +1100,7 @@ onSubmit={handleDeleteRequest}
     onExportCSV={handleExportCSV}
     onExportExcel={handleExportExcel}
     onDownloadBackup={handleDownloadBackup}
+    onOpenBillingProfile={() => setPage("billing-profile")}
       darkMode={darkMode}
   setDarkMode={setDarkMode}
     onImportBackup={openBackupPicker}
@@ -1110,6 +1116,20 @@ onSubmit={handleDeleteRequest}
     setFeedbackType("contact");
     setFeedbackOpen(true);
   }}
+  />
+)}
+{page === "billing-profile" && (
+ <BillingProfilePage
+  account={account}
+/>
+)}
+{page === "invoice-editor" && (
+  <InvoiceEditorPage
+    deal={selectedDeal}
+    onBack={() => {
+      setSelectedDeal(null);
+      setPage("deals");
+    }}
   />
 )}
 
@@ -1142,12 +1162,12 @@ onSubmit={handleDeleteRequest}
     onSave={handleChangePassword}
 />
 )}
-{selectedDeal && (
-<DealPreview
-  deal={selectedDeal}
-  account={account}
-  onClose={() => setSelectedDeal(null)}
-/>
+{selectedDeal && page !== "invoice-editor" && (
+  <DealPreview
+    deal={selectedDeal}
+    account={account}
+    onClose={() => setSelectedDeal(null)}
+  />
 )}
         {deletingDeal && (
   <ConfirmDialog

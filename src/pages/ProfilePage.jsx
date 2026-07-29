@@ -44,6 +44,7 @@ function ProfilePage({
   onContactUs, 
   darkMode,
   setDarkMode,    
+  onOpenBillingProfile,
 }) {
   const highestDeal =
     deals.length > 0
@@ -520,7 +521,26 @@ const InfoRow = ({
   onClick={() => setDarkMode((prev) => !prev)}
 />
       </div>
+<div
+  className="dp-card"
+  style={{
+    marginTop: 22,
+  }}
+>
+  <div
+    className="dp-display"
+    style={{ marginBottom: 14 }}
+  >
+    Billing Profile
+  </div>
 
+  <InfoRow
+    icon={<Wallet size={18} />}
+    title="Billing Information"
+    value="Manage bank details, PAN, GST and invoice information"
+    onClick={onOpenBillingProfile}
+  />
+</div>
       {/* SUPPORT */}
 
       <div

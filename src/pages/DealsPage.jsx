@@ -9,6 +9,7 @@ function DealsPage({
   onEdit,
   onDelete,
   onOpenDeal,
+   onGenerateInvoice,
 }) {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -62,6 +63,7 @@ if (
     onClick={() => onOpenDeal(deal)}
     onEdit={onEdit}
     onDelete={onDelete}
+    onGenerateInvoice={onGenerateInvoice}
   />
 )))}
     </div>

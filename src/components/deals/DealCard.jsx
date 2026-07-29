@@ -1,6 +1,13 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, FileText } from "lucide-react";
 import { formatINR, formatDate } from "../../utils/formatters";
-function DealCard({ deal, onClick, onEdit, onDelete, compact }) {
+function DealCard({
+  deal,
+  onClick,
+  onEdit,
+  onDelete,
+  onGenerateInvoice,
+  compact,
+}) {
   const statusInfo =
   deal.collaboration_type === "Barter"
     ? {
@@ -64,18 +71,71 @@ function DealCard({ deal, onClick, onEdit, onDelete, compact }) {
 
         {!compact && (
           <div style={{ display: "flex", gap: 16, marginTop: 10, borderTop: "1px dashed var(--line)", paddingTop: 10 }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(deal); }}
-              style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0 }}
-            >
-              <Pencil size={13} /> Edit
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(deal); }}
-              style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "var(--signal)", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0 }}
-            >
-              <Trash2 size={13} /> Delete
-            </button>
+   <button
+  onClick={(e) => {
+    e.stopPropagation();
+    onEdit(deal);
+  }}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    background: "none",
+    border: "none",
+    color: "var(--ink)",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: 0,
+  }}
+>
+  <Pencil size={13} />
+  Edit
+</button>
+
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    onGenerateInvoice(deal);
+  }}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    background: "none",
+    border: "none",
+    color: "#2563EB",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: 0,
+  }}
+>
+  <FileText size={13} />
+  Invoice
+</button>
+
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    onDelete(deal);
+  }}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    background: "none",
+    border: "none",
+    color: "var(--signal)",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: 0,
+  }}
+>
+  <Trash2 size={13} />
+  Delete
+</button>
           </div>
         )}
       </div>
