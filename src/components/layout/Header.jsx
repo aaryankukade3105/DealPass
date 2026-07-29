@@ -51,23 +51,41 @@ const initials = displayName
     DealPass
   </div>
 </div>
-  <div
+ <div
   style={{
     width: 36,
     height: 36,
     borderRadius: "50%",
+    overflow: "hidden",
     background: "var(--surface)",
     border: "1px solid var(--line)",
-    color: "var(--ink)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 13,
-    fontWeight: 700,
     flexShrink: 0,
   }}
 >
-  {initials || "U"}
+  {account?.avatar_url ? (
+    <img
+      src={account.avatar_url}
+      alt={displayName}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+      }}
+    />
+  ) : (
+    <span
+      style={{
+        color: "var(--ink)",
+        fontSize: 13,
+        fontWeight: 700,
+      }}
+    >
+      {initials || "U"}
+    </span>
+  )}
 </div>
     </div>
   );

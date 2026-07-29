@@ -390,19 +390,21 @@ async function handleSubmitFeedback({
   message,
 }) {
   try {
-    if (!title.trim()) {
-      return showWarning(
-        "Title Required",
-        "Please enter a title."
-      );
-    }
+if (!title.trim()) {
+  return showAlert(
+    "warning",
+    "Title Required",
+    "Please enter a title."
+  );
+}
 
-    if (!message.trim()) {
-      return showWarning(
-        "Message Required",
-        "Please enter your message."
-      );
-    }
+if (!message.trim()) {
+  return showAlert(
+    "warning",
+    "Message Required",
+    "Please enter your message."
+  );
+}
 
     await submitFeedback({
       type,
@@ -420,13 +422,14 @@ async function handleSubmitFeedback({
         ? "Your feature request has been submitted."
         : "Your message has been sent."
     );
+}catch (err) {
+  console.error("Feedback Error:", err);
 
-  } catch (err) {
-    showError(
-      "Submission Failed",
-      err.message
-    );
-  }
+  showError(
+    "Submission Failed",
+    err.message
+  );
+}
 }
 const [page, setPage] = useState("dashboard");
 const [drawerOpen, setDrawerOpen] = useState(false);
@@ -454,17 +457,37 @@ const checkSession = async () => {
 
     if (session) {
       const user = session.user;
+console.log(user);
+console.log(user.user_metadata);
+console.log(user.identities);
+ const { data: profile } = await supabase
+  .from("profiles")
+  .select("*")
+  .eq("id", user.id)
+  .single();
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+if (
+  user.user_metadata?.avatar_url &&
+  profile?.avatar_url !== user.user_metadata.avatar_url
+) {
+  await supabase
+    .from("profiles")
+    .update({
+      avatar_url: user.user_metadata.avatar_url,
+    })
+    .eq("id", user.id);
+
+  profile.avatar_url = user.user_metadata.avatar_url;
+}
 
 setAccount({
   id: user.id,
   full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
   email: user.email,
+  avatar_url:
+    profile?.avatar_url ||
+    user.user_metadata?.avatar_url ||
+    null,
   created_at: profile?.created_at,
 });
 
@@ -473,7 +496,7 @@ setAccount({
 
     setLoading(false);
   };
-
+console.log("CHECK SESSION RUNNING");
   checkSession();
 }, []);
 

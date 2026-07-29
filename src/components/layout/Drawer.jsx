@@ -16,10 +16,79 @@ function Drawer({ open, onClose, page, setPage, onLogout, account }) {
     <>
       <div className="dp-drawer-backdrop" onClick={onClose} />
       <div className="dp-drawer">
-        <div style={{ padding: "22px 20px 18px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-          <div className="dp-display" style={{ fontSize: 19, fontWeight: 700 }}>DealPass</div>
-          <div style={{ fontSize: 12.5, opacity: 0.6, marginTop: 2 }}>{account?.name}</div>
-        </div>
+    <div
+  style={{
+    padding: "22px 20px 18px",
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+  }}
+>
+  <div
+    style={{
+      width: 52,
+      height: 52,
+      borderRadius: "50%",
+      overflow: "hidden",
+      background: "rgba(255,255,255,0.08)",
+      border: "1px solid rgba(255,255,255,0.15)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    }}
+  >
+    {account?.avatar_url ? (
+      <img
+        src={account.avatar_url}
+        alt={account?.full_name}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+      />
+    ) : (
+      <span
+        style={{
+          fontWeight: 700,
+          fontSize: 18,
+          color: "var(--paper)",
+        }}
+      >
+        {(account?.full_name || "Creator")
+          .split(" ")
+          .map((w) => w[0])
+          .slice(0, 2)
+          .join("")
+          .toUpperCase()}
+      </span>
+    )}
+  </div>
+
+  <div>
+    <div
+      className="dp-display"
+      style={{
+        fontSize: 18,
+        fontWeight: 700,
+      }}
+    >
+      {account?.full_name || "Creator"}
+    </div>
+
+    <div
+      style={{
+        fontSize: 12.5,
+        opacity: 0.65,
+        marginTop: 3,
+      }}
+    >
+      {account?.email}
+    </div>
+  </div>
+</div>
         <div style={{ flex: 1, padding: 10 }}>
           {items.map(({ key, label, icon: Icon }) => (
             <button

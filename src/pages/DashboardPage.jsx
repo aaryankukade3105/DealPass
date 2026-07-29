@@ -23,6 +23,7 @@ import {
   Trophy,
   Star,
   Receipt,
+  User,
 } from "lucide-react";
 
 import {
@@ -137,24 +138,49 @@ const highestDealAmount = useMemo(() => {
     <div className="dp-scroll" style={{ flex: 1, overflowY: "auto", padding: "18px 18px 90px" }}>
     <div style={{ marginBottom: 18 }}>
   <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  }}
+>
+  <div
     style={{
-      fontSize: 13,
-      color: "var(--slate)",
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      background: "rgba(255,59,92,.08)",
+      color: "var(--signal)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
     }}
   >
-    Welcome,
+    <User size={20} strokeWidth={2.2} />
   </div>
 
-  <div
-    className="dp-display"
-    style={{
-      fontSize: 21,
-      fontWeight: 700,
-      marginTop: 2,
-    }}
-  >
-    {(account?.full_name || account?.name || "Creator").split(" ")[0]} 👋
+  <div>
+    <div
+      style={{
+        fontSize: 13,
+        color: "var(--slate)",
+      }}
+    >
+      Welcome,
+    </div>
+
+    <div
+      className="dp-display"
+      style={{
+        fontSize: 21,
+        fontWeight: 700,
+        marginTop: 2,
+      }}
+    >
+      {(account?.full_name || account?.name || "Creator").split(" ")[0]}
+    </div>
   </div>
+</div>
 </div>
 
    <div className="dp-card" style={{ padding: 24, marginBottom: 18 }}>

@@ -207,27 +207,45 @@ const InfoRow = ({
           marginBottom: 18,
         }}
       >
-        <div
-          style={{
-            width: 88,
-            height: 88,
-            margin: "0 auto",
-            borderRadius: "50%",
-            background: "var(--signal)",
-            color: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 32,
-            fontWeight: 700,
-          }}
-        >
-          {account?.full_name
-            ?.split(" ")
-            .map((n) => n[0])
-            .join("")
-            .slice(0, 2)}
-        </div>
+     <div
+  style={{
+    width: 88,
+    height: 88,
+    margin: "0 auto",
+    borderRadius: "50%",
+    overflow: "hidden",
+    background: "var(--signal)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  {account?.avatar_url ? (
+    <img
+      src={account.avatar_url}
+      alt={account?.full_name}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+      }}
+    />
+  ) : (
+    <span
+      style={{
+        color: "#fff",
+        fontSize: 32,
+        fontWeight: 700,
+      }}
+    >
+      {(account?.full_name || "Creator")
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)}
+    </span>
+  )}
+</div>
 
         <div
           className="dp-display"
@@ -539,83 +557,74 @@ const InfoRow = ({
   onClick={onContactUs}
 />
       </div>
+{/* ABOUT */}
 
-      {/* ABOUT */}
-
-      <div
-        className="dp-card"
-        style={{
-          marginTop: 22,
-          marginBottom: 40,
-          textAlign: "center",
-        }}
-      >
-        <div
-          className="dp-display"
-          style={{ marginBottom: 20 }}
-        >
-          About DealPass
-        </div>
-
-        <div
-          style={{
-            fontSize: 22,
-            fontWeight: 700,
-          }}
-        >
-          DealPass
-        </div>
-
-        <div
-          style={{
-            color: "var(--slate)",
-            marginTop: 6,
-          }}
-        >
-          Creator Collaboration Manager
-        </div>
-
-        <div
-          style={{
-            marginTop: 18,
-            color: "var(--slate)",
-          }}
-        >
-          Version 1.0.0
-        </div>
-
-        <div
+<div
+  className="dp-card"
   style={{
-    marginTop: 18,
-    paddingTop: 16,
-    borderTop: "1px dashed var(--line)",
+    marginTop: 22,
+    marginBottom: 40,
+    textAlign: "center",
+    padding: 28,
   }}
 >
   <div
     style={{
-      fontSize: 12,
+      fontSize: 28,
       fontWeight: 700,
-      letterSpacing: 1,
-      color: "var(--slate)",
-      marginBottom: 8,
+      letterSpacing: -0.5,
     }}
   >
-    FUN FACT
+    DealPass
   </div>
 
   <div
     style={{
-      fontSize: 13,
+      marginTop: 8,
       color: "var(--slate)",
-      lineHeight: 1.6,
+      fontSize: 15,
     }}
   >
-    Your next brand deal shouldn't be
-    <br />
-    found in a 3-month-old chat. 😉
+    Creator Collaboration Manager
+  </div>
+
+  <div
+    style={{
+      marginTop: 24,
+      paddingTop: 20,
+      borderTop: "1px solid var(--line)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+      textAlign: "left",
+    }}
+  >
+    <div className="dp-row">
+      <span>Manage Collaborations</span>
+    </div>
+
+    <div className="dp-row">
+      <span>Track Deliverables</span>
+    </div>
+
+    <div className="dp-row">
+      <span>Monitor Payments</span>
+    </div>
+  </div>
+
+  <div
+    style={{
+      marginTop: 24,
+      paddingTop: 18,
+      borderTop: "1px solid var(--line)",
+      color: "var(--slate)",
+      fontSize: 13,
+      letterSpacing: 0.3,
+    }}
+  >
+    Version 1.0.3
   </div>
 </div>
-      </div>
 
     </div>
   );
