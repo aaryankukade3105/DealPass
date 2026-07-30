@@ -383,13 +383,26 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     billingAddress: "",
     gstNumber: "",
   });
-
+  const STORAGE_KEY = `invoice_draft_${deal?.id}`;
   const [billingProfile, setBillingProfile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+const [lineItems, setLineItems] = useState(
+    (deal?.deliverables || []).map((item) => ({
+      id: item.id || crypto.randomUUID(),
+      label: item.type,
+      qty: Number(item.qty || 1),
+      rate: Number(item.rate || 0),
+    }))
+  );
+  const [gstEnabled, setGstEnabled] = useState(false);
+  const [gstPercent, setGstPercent] = useState(18);
+  const [lastSaved, setLastSaved] = useState(null);
 
   useEffect(() => {
     loadBillingProfile();
+    loadDraft();
   }, []);
+
 
   async function loadBillingProfile() {
     const {
@@ -407,6 +420,66 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     setBillingProfile(data);
   }
 
+  function saveDraft() {
+    const draft = {
+      invoice,
+      lineItems,
+      gstEnabled,
+      gstPercent,
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    setLastSaved(new Date());
+  }
+
+  // Debounced autosave while the user is actively editing.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveDraft();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [invoice, lineItems, gstEnabled, gstPercent]);
+
+  // Always-current snapshot of form state, so we can flush a save
+  // synchronously (e.g. on unmount) without waiting on the debounce timer.
+  const draftRef = useRef();
+  draftRef.current = { invoice, lineItems, gstEnabled, gstPercent };
+
+  // Safety-net: flush the latest draft to localStorage whenever this
+  // page unmounts, so navigating back mid-edit never loses pending changes
+  // that hadn't been captured by the debounced autosave yet.
+  useEffect(() => {
+    return () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(draftRef.current));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function loadDraft() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) return;
+
+    try {
+      const draft = JSON.parse(saved);
+
+      if (draft.invoice)
+        setInvoice(draft.invoice);
+
+      if (draft.lineItems)
+        setLineItems(draft.lineItems);
+
+      if (draft.gstEnabled !== undefined)
+        setGstEnabled(draft.gstEnabled);
+
+      if (draft.gstPercent !== undefined)
+        setGstPercent(draft.gstPercent);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   const update = (field, value) => {
     setInvoice((prev) => ({
       ...prev,
@@ -414,16 +487,16 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     }));
   };
 
-  const [lineItems, setLineItems] = useState(
-    (deal?.deliverables || []).map((item) => ({
-      id: item.id || crypto.randomUUID(),
-      label: item.type,
-      qty: Number(item.qty || 1),
-      rate: Number(item.rate || 0),
-    }))
-  );
-  const [gstEnabled, setGstEnabled] = useState(false);
-  const [gstPercent, setGstPercent] = useState(18);
+  // const [lineItems, setLineItems] = useState(
+  //   (deal?.deliverables || []).map((item) => ({
+  //     id: item.id || crypto.randomUUID(),
+  //     label: item.type,
+  //     qty: Number(item.qty || 1),
+  //     rate: Number(item.rate || 0),
+  //   }))
+  // );
+  // const [gstEnabled, setGstEnabled] = useState(false);
+  // const [gstPercent, setGstPercent] = useState(18);
 
   const subtotal = Number(deal?.commercials || 0);
   const calculatedSubtotal = lineItems.reduce(
@@ -462,6 +535,14 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   const completedCount = steps.filter((s) => s.done).length;
   const progressPct = Math.round((completedCount / steps.length) * 100);
 
+  // Flush the latest draft immediately (bypassing the debounce) and then
+  // hand control back to the caller. Used by the Back button so quick
+  // navigation never races the 500ms autosave timer.
+  const handleBack = () => {
+    saveDraft();
+    onBack();
+  };
+
   return (
     <div
       className="dp-inv-page dp-inv-shell"
@@ -485,7 +566,7 @@ export default function InvoiceEditorPage({ deal, onBack }) {
           alignItems: "center",
         }}
       >
-        <button className="dp-inv-btn dp-inv-btn-ghost" onClick={onBack}>
+        <button className="dp-inv-btn dp-inv-btn-ghost" onClick={handleBack}>
           <ArrowLeft size={17} />
           Back
         </button>
@@ -959,10 +1040,15 @@ export default function InvoiceEditorPage({ deal, onBack }) {
                   <input
                     className="dp-input"
                     type="number"
-                    value={item.rate}
+                    // Show an empty field instead of "0" so typing doesn't
+                    // insert digits next to a leading zero (e.g. "01000").
+                    value={item.rate === 0 ? "" : item.rate}
+                    placeholder="0"
                     style={{ padding: "7px 6px", fontSize: "inherit", width: "100%" }}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => {
-                      const value = Number(e.target.value);
+                      const raw = e.target.value;
+                      const value = raw === "" ? 0 : Number(raw);
                       setLineItems((prev) =>
                         prev.map((li) =>
                           li.id === item.id ? { ...li, rate: value } : li
@@ -1162,39 +1248,33 @@ function InvoicePreviewModal({
   onClose,
 }) {
   const invoiceRef = useRef(null);
-const [qrImage, setQrImage] = useState("");
-useEffect(() => {
-  async function generateQR() {
+  const [qrImage, setQrImage] = useState("");
 
-    if (!billingProfile?.upi_id) {
-      setQrImage("");
-      return;
+  useEffect(() => {
+    async function generateQR() {
+      if (!billingProfile?.upi_id) {
+        setQrImage("");
+        return;
+      }
+
+      const upiLink =
+        `upi://pay?pa=${billingProfile.upi_id}` +
+        `&pn=${encodeURIComponent(billingProfile.full_name || "Recipient")}` +
+        `&am=${total}` +
+        `&cu=INR` +
+        `&tn=${encodeURIComponent(invoice.invoiceNumber)}`;
+
+      try {
+        const qr = await QRCode.toDataURL(upiLink);
+        setQrImage(qr);
+      } catch (err) {
+        console.error(err);
+      }
     }
 
-const upiLink =
-  `upi://pay?pa=${billingProfile.upi_id}` +
-  `&pn=${encodeURIComponent(billingProfile.full_name || "Recipient")}` +
-  `&am=${total}` +
-  `&cu=INR` +
-  `&tn=${encodeURIComponent(invoice.invoiceNumber)}`;
+    generateQR();
+  }, [billingProfile, total]);
 
-    try {
-
-      const qr = await QRCode.toDataURL(upiLink);
-
-      setQrImage(qr);
-
-    } catch (err) {
-
-      console.error(err);
-
-    }
-
-  }
-
-  generateQR();
-
-}, [billingProfile, total]);
   const downloadPDF = () => {
     const element = invoiceRef.current;
     if (!element) {
@@ -1423,41 +1503,41 @@ const upiLink =
                 <div>IFSC: {billingProfile?.ifsc || "-"}</div>
                 <div>UPI: {billingProfile?.upi_id || "-"}</div>
               </div>
-{qrImage ? (
-  <img
-    src={qrImage}
-    alt="UPI QR"
-    className="dp-inv-qr"
-    style={{
-      width: 76,
-      height: 76,
-      border: `1.5px dashed ${VIOLET}88`,
-      borderRadius: 10,
-      padding: 4,
-      background: "#fff",
-      objectFit: "contain",
-      flexShrink: 0,
-    }}
-  />
-) : (
-  <div
-    className="dp-inv-qr"
-    style={{
-      width: 76,
-      height: 76,
-      flexShrink: 0,
-      border: `1.5px dashed ${VIOLET}88`,
-      borderRadius: 10,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 11,
-      color: VIOLET,
-    }}
-  >
-    No QR
-  </div>
-)}
+              {qrImage ? (
+                <img
+                  src={qrImage}
+                  alt="UPI QR"
+                  className="dp-inv-qr"
+                  style={{
+                    width: 76,
+                    height: 76,
+                    border: `1.5px dashed ${VIOLET}88`,
+                    borderRadius: 10,
+                    padding: 4,
+                    background: "#fff",
+                    objectFit: "contain",
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <div
+                  className="dp-inv-qr"
+                  style={{
+                    width: 76,
+                    height: 76,
+                    flexShrink: 0,
+                    border: `1.5px dashed ${VIOLET}88`,
+                    borderRadius: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    color: VIOLET,
+                  }}
+                >
+                  No QR
+                </div>
+              )}
             </div>
 
             <Divider />
