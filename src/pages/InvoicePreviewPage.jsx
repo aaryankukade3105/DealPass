@@ -67,7 +67,8 @@ const GlobalStyle = () => (
   <style>{`
     .dp-inv-page * { box-sizing: border-box; }
     .dp-inv-page {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+ font-family: 'Manrope', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     /* ---------- responsive layout shell ---------- */
@@ -1493,41 +1494,61 @@ function InvoicePreviewModal({
                 <div>IFSC: {billingProfile?.ifsc || "-"}</div>
                 <div>UPI: {billingProfile?.upi_id || "-"}</div>
               </div>
-              {qrImage ? (
-                <img
-                  src={qrImage}
-                  alt="UPI QR"
-                  className="dp-inv-qr"
-                  style={{
-                    width: 76,
-                    height: 76,
-                    border: `1.5px dashed ${VIOLET}88`,
-                    borderRadius: 10,
-                    padding: 4,
-                    background: "#fff",
-                    objectFit: "contain",
-                    flexShrink: 0,
-                  }}
-                />
-              ) : (
-                <div
-                  className="dp-inv-qr"
-                  style={{
-                    width: 76,
-                    height: 76,
-                    flexShrink: 0,
-                    border: `1.5px dashed ${VIOLET}88`,
-                    borderRadius: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    color: VIOLET,
-                  }}
-                >
-                  No QR
-                </div>
-              )}
+            <div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 90,
+  }}
+>
+  {qrImage ? (
+    <img
+      src={qrImage}
+      alt="UPI QR"
+      className="dp-inv-qr"
+      style={{
+        width: 76,
+        height: 76,
+        border: `1.5px dashed ${VIOLET}88`,
+        borderRadius: 10,
+        padding: 4,
+        background: "#fff",
+        objectFit: "contain",
+      }}
+    />
+  ) : (
+    <div
+      className="dp-inv-qr"
+      style={{
+        width: 76,
+        height: 76,
+        border: `1.5px dashed ${VIOLET}88`,
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 11,
+        color: VIOLET,
+      }}
+    >
+      No QR
+    </div>
+  )}
+
+  <div
+    style={{
+      marginTop: 6,
+      fontSize: 11,
+      color: "#6B7280",
+      fontWeight: 600,
+      textAlign: "center",
+    }}
+  >
+    Pay using QR
+  </div>
+</div>
             </div>
 
             <Divider />
