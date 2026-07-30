@@ -67,13 +67,20 @@ function Drawer({ open, onClose, page, setPage, onLogout, account }) {
     )}
   </div>
 
-  <div>
+  {/* min-width: 0 lets this flex child shrink below its content size,
+      which is what allows the ellipsis truncation below to actually
+      kick in instead of pushing the box wider than the drawer. */}
+  <div style={{ minWidth: 0, flex: 1 }}>
     <div
       className="dp-display"
       style={{
         fontSize: 18,
         fontWeight: 700,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       }}
+      title={account?.full_name || "Creator"}
     >
       {account?.full_name || "Creator"}
     </div>
@@ -83,7 +90,11 @@ function Drawer({ open, onClose, page, setPage, onLogout, account }) {
         fontSize: 12.5,
         opacity: 0.65,
         marginTop: 3,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       }}
+      title={account?.email}
     >
       {account?.email}
     </div>

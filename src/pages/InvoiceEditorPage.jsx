@@ -65,9 +65,11 @@ const SLATE = "#5B6472";
 
 const GlobalStyle = () => (
   <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
     .dp-inv-page * { box-sizing: border-box; }
     .dp-inv-page {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     /* ---------- responsive layout shell ---------- */
@@ -172,14 +174,14 @@ const GlobalStyle = () => (
     }
     @media (max-width: 460px) {
       .dp-inv-payment-row { flex-direction: column; align-items: flex-start; }
-      .dp-inv-payment-row .dp-inv-qr { align-self: center; }
+      .dp-inv-payment-row .dp-inv-qr-wrap { align-self: center; }
     }
 
     .dp-inv-btn { min-height: 44px; }
     input.dp-input, textarea.dp-input { min-height: 44px; }
     textarea.dp-input { min-height: unset; }
     .dp-inv-display {
-      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-family: 'Manrope', 'Inter', sans-serif;
     }
     .dp-inv-mono {
       font-family: 'JetBrains Mono', 'Courier New', ui-monospace, monospace;
@@ -190,6 +192,7 @@ const GlobalStyle = () => (
       border-radius: 10px !important;
       transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
       background: #fff;
+      font-family: inherit;
     }
     .dp-inv-page input.dp-input:focus,
     .dp-inv-page textarea.dp-input:focus {
@@ -398,6 +401,9 @@ const [lineItems, setLineItems] = useState(
   const [gstPercent, setGstPercent] = useState(18);
   const [lastSaved, setLastSaved] = useState(null);
 
+  // Load the saved draft (if any) before anything else touches localStorage,
+  // so re-opening this page after navigating away restores exactly what
+  // was typed — invoice fields, line item rates, and GST settings.
   useEffect(() => {
     loadBillingProfile();
     loadDraft();
@@ -432,7 +438,9 @@ const [lineItems, setLineItems] = useState(
     setLastSaved(new Date());
   }
 
-  // Debounced autosave while the user is actively editing.
+  // Debounced autosave while the user is actively editing — every keystroke
+  // resets a 500ms timer, so the draft is written to localStorage shortly
+  // after the user pauses, without hammering storage on every character.
   useEffect(() => {
     const timer = setTimeout(() => {
       saveDraft();
@@ -447,8 +455,9 @@ const [lineItems, setLineItems] = useState(
   draftRef.current = { invoice, lineItems, gstEnabled, gstPercent };
 
   // Safety-net: flush the latest draft to localStorage whenever this
-  // page unmounts, so navigating back mid-edit never loses pending changes
-  // that hadn't been captured by the debounced autosave yet.
+  // page unmounts, so navigating back mid-edit (or closing/reopening the
+  // app) never loses pending changes that hadn't been captured by the
+  // debounced autosave yet.
   useEffect(() => {
     return () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(draftRef.current));
@@ -486,17 +495,6 @@ const [lineItems, setLineItems] = useState(
       [field]: value,
     }));
   };
-
-  // const [lineItems, setLineItems] = useState(
-  //   (deal?.deliverables || []).map((item) => ({
-  //     id: item.id || crypto.randomUUID(),
-  //     label: item.type,
-  //     qty: Number(item.qty || 1),
-  //     rate: Number(item.rate || 0),
-  //   }))
-  // );
-  // const [gstEnabled, setGstEnabled] = useState(false);
-  // const [gstPercent, setGstPercent] = useState(18);
 
   const subtotal = Number(deal?.commercials || 0);
   const calculatedSubtotal = lineItems.reduce(
@@ -792,7 +790,7 @@ const [lineItems, setLineItems] = useState(
 
           <Field label="Invoice Number">
             <input
-              className="dp-input"
+              className="dp-input dp-inv-mono"
               value={invoice.invoiceNumber}
               onChange={(e) => update("invoiceNumber", e.target.value)}
             />
@@ -833,7 +831,7 @@ const [lineItems, setLineItems] = useState(
           </Field>
 
           <Field label="Phone Number">
-            <input className="dp-input" value={billingProfile?.phone || ""} readOnly />
+            <input className="dp-input dp-inv-mono" value={billingProfile?.phone || ""} readOnly />
           </Field>
 
           <div
@@ -871,15 +869,15 @@ const [lineItems, setLineItems] = useState(
           </Field>
 
           <Field label="Account Number">
-            <input className="dp-input" readOnly value={billingProfile?.account_number || ""} />
+            <input className="dp-input dp-inv-mono" readOnly value={billingProfile?.account_number || ""} />
           </Field>
 
           <Field label="IFSC Code">
-            <input className="dp-input" readOnly value={billingProfile?.ifsc || ""} />
+            <input className="dp-input dp-inv-mono" readOnly value={billingProfile?.ifsc || ""} />
           </Field>
 
           <Field label="UPI ID">
-            <input className="dp-input" readOnly value={billingProfile?.upi_id || ""} />
+            <input className="dp-input dp-inv-mono" readOnly value={billingProfile?.upi_id || ""} />
           </Field>
 
           <div
@@ -937,7 +935,7 @@ const [lineItems, setLineItems] = useState(
 
           <Field label="Phone">
             <input
-              className="dp-input"
+              className="dp-input dp-inv-mono"
               value={invoice.clientPhone}
               onChange={(e) =>
                 update("clientPhone", e.target.value.replace(/\D/g, "").slice(0, 10))
@@ -958,7 +956,7 @@ const [lineItems, setLineItems] = useState(
 
           <Field label="GST Number">
             <input
-              className="dp-input"
+              className="dp-input dp-inv-mono"
               value={invoice.gstNumber}
               onChange={(e) => update("gstNumber", e.target.value)}
               placeholder="Optional"
@@ -1032,13 +1030,13 @@ const [lineItems, setLineItems] = useState(
                     borderTop: "1px solid #F0F1F8",
                   }}
                 >
-                  <span style={{ color: SLATE }}>{index + 1}</span>
+                  <span className="dp-inv-mono" style={{ color: SLATE }}>{index + 1}</span>
                   <span style={{ fontWeight: 600, color: INK, overflowWrap: "anywhere" }}>
                     {item.label}
                   </span>
-                  <span style={{ textAlign: "center", color: SLATE }}>{item.qty}</span>
+                  <span className="dp-inv-mono" style={{ textAlign: "center", color: SLATE }}>{item.qty}</span>
                   <input
-                    className="dp-input"
+                    className="dp-input dp-inv-mono"
                     type="number"
                     // Show an empty field instead of "0" so typing doesn't
                     // insert digits next to a leading zero (e.g. "01000").
@@ -1056,7 +1054,7 @@ const [lineItems, setLineItems] = useState(
                       );
                     }}
                   />
-                  <span style={{ textAlign: "right", fontWeight: 700, color: INK }}>
+                  <span className="dp-inv-mono" style={{ textAlign: "right", fontWeight: 700, color: INK }}>
                     {formatAmount(item.qty * item.rate)}
                   </span>
                 </div>
@@ -1082,9 +1080,9 @@ const [lineItems, setLineItems] = useState(
               <div style={{ fontSize: 13.5, lineHeight: 1.6 }}>
                 <strong>Deliverable total must match the agreed commercial amount.</strong>
                 <div style={{ marginTop: 6 }}>
-                  Commercial Amount: <strong>{formatAmount(subtotal)}</strong>
+                  Commercial Amount: <strong className="dp-inv-mono">{formatAmount(subtotal)}</strong>
                   <br />
-                  Current Total: <strong>{formatAmount(calculatedSubtotal)}</strong>
+                  Current Total: <strong className="dp-inv-mono">{formatAmount(calculatedSubtotal)}</strong>
                 </div>
               </div>
             </div>
@@ -1118,7 +1116,7 @@ const [lineItems, setLineItems] = useState(
             {gstEnabled && (
               <div className="dp-inv-fade" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <input
-                  className="dp-input"
+                  className="dp-input dp-inv-mono"
                   type="number"
                   value={gstPercent}
                   onChange={(e) => setGstPercent(Number(e.target.value))}
@@ -1167,7 +1165,7 @@ const [lineItems, setLineItems] = useState(
                 }}
               >
                 <span style={{ color: SLATE }}>Subtotal</span>
-                <strong style={{ color: INK }}>{formatAmount(subtotal)}</strong>
+                <strong className="dp-inv-mono" style={{ color: INK }}>{formatAmount(subtotal)}</strong>
               </div>
 
               <div
@@ -1181,7 +1179,7 @@ const [lineItems, setLineItems] = useState(
                 }}
               >
                 <span>GST {gstEnabled ? `(${gstPercent}%)` : ""}</span>
-                <span>{formatAmount(gst)}</span>
+                <span className="dp-inv-mono">{formatAmount(gst)}</span>
               </div>
 
               <div
@@ -1196,7 +1194,7 @@ const [lineItems, setLineItems] = useState(
                 }}
               >
                 <span>Total</span>
-                <span>{formatAmount(total)}</span>
+                <span className="dp-inv-mono">{formatAmount(total)}</span>
               </div>
             </div>
           </div>
@@ -1250,6 +1248,8 @@ function InvoicePreviewModal({
   const invoiceRef = useRef(null);
   const [qrImage, setQrImage] = useState("");
 
+  // QR is (re)generated any time the UPI ID on the billing profile or the
+  // payable total changes, so it always encodes the current amount.
   useEffect(() => {
     async function generateQR() {
       if (!billingProfile?.upi_id) {
@@ -1287,7 +1287,20 @@ function InvoicePreviewModal({
         margin: 10,
         filename: `${invoice.invoiceNumber}.pdf`,
         image: { type: "jpeg", quality: 1 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          // Force html2canvas to evaluate the document's CSS media queries
+          // as if the viewport were this wide. Without this, on a phone
+          // (viewport < 640px) the mobile breakpoints in .dp-inv-modal-doc
+          // / .dp-inv-line-grid kick in and the PDF comes out looking
+          // different from the desktop version. Pinning windowWidth above
+          // every breakpoint used here makes the exported PDF identical —
+          // fixed A4, desktop-style layout — regardless of device.
+          windowWidth: 900,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       })
       .from(element)
@@ -1383,10 +1396,11 @@ function InvoicePreviewModal({
             </div>
           </div>
 
-          {/* Ledger-style invoice document */}
+          {/* Ledger-style invoice document — Manrope for text, monospace
+              (via dp-inv-mono spans) for anything numeric. */}
           <div
             ref={invoiceRef}
-            className="dp-inv-mono dp-inv-modal-doc"
+            className="dp-inv-display dp-inv-modal-doc"
             style={{
               lineHeight: 1.7,
               color: "#1f2937",
@@ -1410,12 +1424,19 @@ function InvoicePreviewModal({
 
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontWeight: 700, color: VIOLET }}>DealPass</span>
-              <span>Invoice #{invoice.invoiceNumber}</span>
+              <span>
+                Invoice #<span className="dp-inv-mono">{invoice.invoiceNumber}</span>
+              </span>
             </div>
-            <div>Invoice Date: {formatDisplayDate(invoice.invoiceDate)}</div>
+            <div>
+              Invoice Date:{" "}
+              <span className="dp-inv-mono">{formatDisplayDate(invoice.invoiceDate)}</span>
+            </div>
             <div>
               Due Date:{" "}
-              {invoice.dueDate ? formatDisplayDate(invoice.dueDate) : displayValue("", "date")}
+              <span className="dp-inv-mono">
+                {invoice.dueDate ? formatDisplayDate(invoice.dueDate) : displayValue("", "date")}
+              </span>
             </div>
 
             <Divider />
@@ -1423,10 +1444,18 @@ function InvoicePreviewModal({
             <div style={{ fontWeight: 700 }}>FROM</div>
             <div>{displayValue(billingProfile?.full_name, "billing")}</div>
             <div>{displayValue(billingProfile?.address, "billing")}</div>
-            <div>Phone: {billingProfile?.phone || "-"}</div>
+            <div>
+              Phone: <span className="dp-inv-mono">{billingProfile?.phone || "-"}</span>
+            </div>
             <div>Email: {displayValue(billingProfile?.email, "billing")}</div>
-            <div>PAN: {displayValue(billingProfile?.pan_number, "optional")}</div>
-            <div>GST: {displayValue(billingProfile?.gst_number, "optional")}</div>
+            <div>
+              PAN:{" "}
+              <span className="dp-inv-mono">{displayValue(billingProfile?.pan_number, "optional")}</span>
+            </div>
+            <div>
+              GST:{" "}
+              <span className="dp-inv-mono">{displayValue(billingProfile?.gst_number, "optional")}</span>
+            </div>
 
             <Divider />
 
@@ -1439,8 +1468,14 @@ function InvoicePreviewModal({
               {displayValue(invoice.billingAddress)}
             </div>
             {invoice.clientEmail && <div>Email: {invoice.clientEmail}</div>}
-            {invoice.clientPhone && <div>Phone: {invoice.clientPhone}</div>}
-            <div>GST: {displayValue(invoice.gstNumber, "optional")}</div>
+            {invoice.clientPhone && (
+              <div>
+                Phone: <span className="dp-inv-mono">{invoice.clientPhone}</span>
+              </div>
+            )}
+            <div>
+              GST: <span className="dp-inv-mono">{displayValue(invoice.gstNumber, "optional")}</span>
+            </div>
 
             <Divider />
 
@@ -1459,11 +1494,11 @@ function InvoicePreviewModal({
               lineItems.map((item, i) => (
                 <div key={i} className="dp-inv-line-grid">
                   <span style={{ overflowWrap: "anywhere" }}>{item.label}</span>
-                  <span style={{ textAlign: "center" }}>{item.qty}</span>
-                  <span style={{ textAlign: "right" }}>
+                  <span className="dp-inv-mono" style={{ textAlign: "center" }}>{item.qty}</span>
+                  <span className="dp-inv-mono" style={{ textAlign: "right" }}>
                     {item.rate ? formatAmount(item.rate) : "Included"}
                   </span>
-                  <span style={{ textAlign: "right" }}>
+                  <span className="dp-inv-mono" style={{ textAlign: "right" }}>
                     {formatAmount(item.qty * item.rate)}
                   </span>
                 </div>
@@ -1474,11 +1509,11 @@ function InvoicePreviewModal({
 
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>Subtotal</span>
-              <span>{formatAmount(subtotal)}</span>
+              <span className="dp-inv-mono">{formatAmount(subtotal)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>GST{gstEnabled ? ` (${gstPercent}%)` : ""}</span>
-              <span>{formatAmount(gst)}</span>
+              <span className="dp-inv-mono">{formatAmount(gst)}</span>
             </div>
             <div
               style={{
@@ -1490,7 +1525,7 @@ function InvoicePreviewModal({
               }}
             >
               <span>TOTAL</span>
-              <span>{formatAmount(total)}</span>
+              <span className="dp-inv-mono">{formatAmount(total)}</span>
             </div>
 
             <Divider />
@@ -1499,45 +1534,59 @@ function InvoicePreviewModal({
             <div className="dp-inv-payment-row">
               <div>
                 <div>Bank: {billingProfile?.bank_name || "-"}</div>
-                <div>Account: {billingProfile?.account_number || "-"}</div>
-                <div>IFSC: {billingProfile?.ifsc || "-"}</div>
-                <div>UPI: {billingProfile?.upi_id || "-"}</div>
-              </div>
-              {qrImage ? (
-                <img
-                  src={qrImage}
-                  alt="UPI QR"
-                  className="dp-inv-qr"
-                  style={{
-                    width: 76,
-                    height: 76,
-                    border: `1.5px dashed ${VIOLET}88`,
-                    borderRadius: 10,
-                    padding: 4,
-                    background: "#fff",
-                    objectFit: "contain",
-                    flexShrink: 0,
-                  }}
-                />
-              ) : (
-                <div
-                  className="dp-inv-qr"
-                  style={{
-                    width: 76,
-                    height: 76,
-                    flexShrink: 0,
-                    border: `1.5px dashed ${VIOLET}88`,
-                    borderRadius: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    color: VIOLET,
-                  }}
-                >
-                  No QR
+                <div>
+                  Account: <span className="dp-inv-mono">{billingProfile?.account_number || "-"}</span>
                 </div>
-              )}
+                <div>
+                  IFSC: <span className="dp-inv-mono">{billingProfile?.ifsc || "-"}</span>
+                </div>
+                <div>
+                  UPI: <span className="dp-inv-mono">{billingProfile?.upi_id || "-"}</span>
+                </div>
+              </div>
+
+              <div className="dp-inv-qr-wrap" style={{ textAlign: "center", flexShrink: 0 }}>
+                {qrImage ? (
+                  <img
+                    src={qrImage}
+                    alt="UPI QR"
+                    className="dp-inv-qr"
+                    style={{
+                      width: 76,
+                      height: 76,
+                      border: `1.5px dashed ${VIOLET}88`,
+                      borderRadius: 10,
+                      padding: 4,
+                      background: "#fff",
+                      objectFit: "contain",
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="dp-inv-qr"
+                    style={{
+                      width: 76,
+                      height: 76,
+                      flexShrink: 0,
+                      border: `1.5px dashed ${VIOLET}88`,
+                      borderRadius: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      color: VIOLET,
+                    }}
+                  >
+                    No QR
+                  </div>
+                )}
+                {qrImage && (
+                  <div style={{ fontSize: 10.5, color: SLATE, marginTop: 4 }}>
+                    Pay using QR
+                  </div>
+                )}
+              </div>
             </div>
 
             <Divider />
