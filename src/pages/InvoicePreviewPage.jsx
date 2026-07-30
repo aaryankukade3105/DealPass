@@ -5,7 +5,7 @@ import Field from "../common/Field";
 import SectionLabel from "../common/SectionLabel";
 import DateField from "../common/DateField";
 import html2pdf from "html2pdf.js";
-
+import QRCode from "qrcode";
 function formatDisplayDate(dateStr) {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("en-IN", {
@@ -320,7 +320,30 @@ function InvoicePreviewModal({
   onClose,
 }) {
   const invoiceRef = useRef(null);
+useEffect(() => {
+  async function generateQR() {
+    if (!billingProfile?.upi_id) {
+      setPaymentQR("");
+      return;
+    }
 
+    try {
+      const upiUrl = `upi://pay?pa=${billingProfile.upi_id}&pn=${encodeURIComponent(
+        billingProfile.account_holder || billingProfile.full_name
+      )}&am=${total}&cu=INR&tn=${encodeURIComponent(
+        invoice.invoiceNumber
+      )}`;
+
+      const qr = await QRCode.toDataURL(upiUrl);
+
+      setPaymentQR(qr);
+    } catch (err) {
+      console.error("QR generation failed:", err);
+    }
+  }
+
+  generateQR();
+}, [billingProfile, total, invoice.invoiceNumber]);
   const downloadPDF = () => {
     const element = invoiceRef.current;
     if (!element) return;
@@ -670,7 +693,33 @@ function InvoicePreviewModal({
                     {displayValue(billingProfile?.upi_id)}
                   </span>
                 </div>
+{paymentQR && (
+  <div
+    style={{
+      marginTop: 24,
+      textAlign: "center",
+    }}
+  >
+    <img
+      src={paymentQR}
+      alt="Payment QR"
+      style={{
+        width: 120,
+        height: 120,
+      }}
+    />
 
+    <div
+      style={{
+        marginTop: 8,
+        fontSize: 12,
+        color: "#666",
+      }}
+    >
+      Scan to Pay
+    </div>
+  </div>
+)}
                 <div
                   style={{
                     width: 72,

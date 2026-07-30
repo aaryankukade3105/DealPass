@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import QRCode from "qrcode";
 import {
   ArrowLeft,
   FileText,
@@ -1161,7 +1162,39 @@ function InvoicePreviewModal({
   onClose,
 }) {
   const invoiceRef = useRef(null);
+const [qrImage, setQrImage] = useState("");
+useEffect(() => {
+  async function generateQR() {
 
+    if (!billingProfile?.upi_id) {
+      setQrImage("");
+      return;
+    }
+
+const upiLink =
+  `upi://pay?pa=${billingProfile.upi_id}` +
+  `&pn=${encodeURIComponent(billingProfile.full_name || "Recipient")}` +
+  `&am=${total}` +
+  `&cu=INR` +
+  `&tn=${encodeURIComponent(invoice.invoiceNumber)}`;
+
+    try {
+
+      const qr = await QRCode.toDataURL(upiLink);
+
+      setQrImage(qr);
+
+    } catch (err) {
+
+      console.error(err);
+
+    }
+
+  }
+
+  generateQR();
+
+}, [billingProfile, total]);
   const downloadPDF = () => {
     const element = invoiceRef.current;
     if (!element) {
@@ -1390,28 +1423,41 @@ function InvoicePreviewModal({
                 <div>IFSC: {billingProfile?.ifsc || "-"}</div>
                 <div>UPI: {billingProfile?.upi_id || "-"}</div>
               </div>
-
-              <div
-                className="dp-inv-qr"
-                style={{
-                  width: 76,
-                  height: 76,
-                  flexShrink: 0,
-                  border: `1.5px dashed ${VIOLET}88`,
-                  borderRadius: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  textAlign: "center",
-                  fontSize: 10,
-                  color: VIOLET,
-                  gap: 4,
-                }}
-              >
-                <QrCode size={22} color={VIOLET} />
-                QR Code
-              </div>
+{qrImage ? (
+  <img
+    src={qrImage}
+    alt="UPI QR"
+    className="dp-inv-qr"
+    style={{
+      width: 76,
+      height: 76,
+      border: `1.5px dashed ${VIOLET}88`,
+      borderRadius: 10,
+      padding: 4,
+      background: "#fff",
+      objectFit: "contain",
+      flexShrink: 0,
+    }}
+  />
+) : (
+  <div
+    className="dp-inv-qr"
+    style={{
+      width: 76,
+      height: 76,
+      flexShrink: 0,
+      border: `1.5px dashed ${VIOLET}88`,
+      borderRadius: 10,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 11,
+      color: VIOLET,
+    }}
+  >
+    No QR
+  </div>
+)}
             </div>
 
             <Divider />
