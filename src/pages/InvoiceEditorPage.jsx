@@ -1399,9 +1399,12 @@ export default function InvoiceEditorPage({ deal, onBack }) {
 
 /* =====================================================================
    Premium invoice document — a brand-new, print-perfect layout used only
-   for the preview/PDF. Fixed A4 dimensions, desktop-only (no responsive
-   breakpoints), font sizing that gradually tightens as line items grow
-   so the invoice never spills past a single page.
+   for the preview/PDF. Fixed 794px width (desktop-only, no responsive
+   breakpoints), auto-growing height. The exported PDF page is sized to
+   match the rendered content exactly, so everything is always visible —
+   nothing is cropped and it's still a single page, because the page IS
+   the content's height. Font sizing still tightens gradually as line
+   items grow, purely to keep dense invoices tidy rather than huge.
    ===================================================================== */
 function PremiumInvoiceDocument({
   invoice,
@@ -1450,8 +1453,6 @@ function PremiumInvoiceDocument({
       className="dp-inv-premium"
       style={{
         width: "794px",
-        height: "1123px",
-        overflow: "hidden",
         position: "relative",
         background: DOC_PAPER,
         color: DOC_INK,
@@ -1789,10 +1790,9 @@ function PremiumInvoiceDocument({
       {/* Watermark / footer */}
       <div
         style={{
-          position: "absolute",
-          bottom: 24,
-          left: 0,
-          right: 0,
+          marginTop: sp(30),
+          paddingTop: sp(14),
+          borderTop: `1px solid ${DOC_LINE}`,
           textAlign: "center",
           fontSize: 9,
           letterSpacing: 0.5,
@@ -1857,6 +1857,12 @@ function InvoicePreviewModal({
       return;
     }
 
+    // Size the PDF page to exactly match the rendered invoice instead of
+    // forcing it into a fixed A4 box — this is what guarantees nothing
+    // gets cropped, since the page can never be smaller than the content.
+    const width = Math.ceil(element.scrollWidth);
+    const height = Math.ceil(element.scrollHeight);
+
     html2pdf()
       .set({
         margin: 0,
@@ -1865,25 +1871,19 @@ function InvoicePreviewModal({
         html2canvas: {
           scale: 2,
           useCORS: true,
-          // Capture exactly the document's own fixed A4 box (794x1123),
-          // not the browser's current window size. Without an explicit
-          // windowHeight/height, html2canvas defaults to window.innerHeight
-          // for its render viewport — which is usually shorter than the
-          // invoice — and silently clips whatever falls below that,
-          // which is what was causing the exported PDF to look cropped.
-          width: 794,
-          height: 1123,
-          windowWidth: 794,
-          windowHeight: 1123,
+          width,
+          height,
+          windowWidth: width,
+          windowHeight: height,
           x: 0,
           y: 0,
           scrollX: 0,
           scrollY: 0,
         },
-        jsPDF: { unit: "px", format: [794, 1123], orientation: "portrait" },
-        // The document's own fixed height + internal font scaling keep it
-        // to one page; this just makes sure html2pdf never tries to slice
-        // a block across a page boundary.
+        jsPDF: { unit: "px", format: [width, height], orientation: "portrait" },
+        // Content height now equals page height by construction, so there's
+        // nothing to paginate — this just guards against html2pdf trying
+        // to slice a block across a boundary anyway.
         pagebreak: { mode: ["avoid-all"] },
       })
       .from(element)
@@ -1913,6 +1913,7 @@ function InvoicePreviewModal({
           justifyContent: "center",
           alignItems: "flex-start",
           overflowY: "auto",
+          overflowX: "auto",
           padding: "24px 12px",
         }}
       >
@@ -1920,11 +1921,10 @@ function InvoicePreviewModal({
           className="dp-inv-fade"
           style={{
             width: "fit-content",
-            maxWidth: "100%",
+            flexShrink: 0,
             background: "#fff",
             borderRadius: 18,
             boxShadow: "0 30px 80px rgba(0,0,0,.35)",
-            overflow: "hidden",
           }}
         >
           {/* Toolbar */}
@@ -1939,6 +1939,8 @@ function InvoicePreviewModal({
               position: "sticky",
               top: 0,
               zIndex: 2,
+              borderTopLeftRadius: 18,
+              borderTopRightRadius: 18,
             }}
           >
             <div
@@ -1979,7 +1981,15 @@ function InvoicePreviewModal({
             </div>
           </div>
 
-          <div className="dp-inv-modal-scroll" style={{ padding: 24, background: "#EFF1F9" }}>
+          <div
+            className="dp-inv-modal-scroll"
+            style={{
+              padding: 24,
+              background: "#EFF1F9",
+              borderBottomLeftRadius: 18,
+              borderBottomRightRadius: 18,
+            }}
+          >
             <PremiumInvoiceDocument
               invoice={invoice}
               billingProfile={billingProfile}
