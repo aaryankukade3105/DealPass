@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import {
   User,
@@ -11,23 +11,22 @@ import {
   CreditCard,
   Hash,
   BadgeIndianRupee,
-  Save,
   CheckCircle2,
   AlertTriangle,
-  Wallet,
-  Sparkles,
+  ChevronDown,
+  X,
+  Loader2,
 } from "lucide-react";
 
-/* ------------------------------------------------------------------ */
-/*  Only these actually gate getting paid. Everything else is context. */
-/* ------------------------------------------------------------------ */
-const REQUIRED_FIELDS = [
-  "phone",
-  "account_holder",
-  "account_number",
-  "ifsc",
-  "upi_id",
-];
+/* Only these actually gate getting paid correctly — everything else is optional context. */
+const REQUIRED_FIELDS = ["phone", "account_holder", "account_number", "ifsc", "upi_id"];
+
+const PANEL_REQUIRED = {
+  personal: ["phone"],
+  address: [],
+  tax: [],
+  bank: ["account_holder", "account_number", "ifsc", "upi_id"],
+};
 
 const defaultForm = {
   full_name: "",
@@ -46,444 +45,304 @@ const defaultForm = {
   upi_id: "",
 };
 
-/* ------------------------------------------------------------------ */
-/*  Everything below is in normal document flow — no position: fixed,  */
-/*  no sticky, no forced viewport heights. On a mobile app screen that */
-/*  already scrolls, this content just adds height and scrolls with it.*/
-/* ------------------------------------------------------------------ */
-function BillingStyles() {
-  return (
-    <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-
-      .bp-scope {
-        --ink: #0f1a14;
-        --panel: #142a20;
-        --gold: #e3b23c;
-        --paper: #fbf6e9;
-        --paper-line: #e4dcc0;
-        --mint: #6fcf97;
-        --alert: #ef6a5c;
-        --ink-soft: rgba(251, 246, 233, 0.62);
-        font-family: 'Inter', system-ui, sans-serif;
-        background: #0f1a14;
-        color: #fbf6e9;
-        padding: 20px 16px 48px;
-        max-width: 560px;
-        margin: 0 auto;
-      }
-
-      .bp-display { font-family: 'Space Grotesk', sans-serif; }
-
-      /* header */
-      .bp-eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11.5px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--gold);
-        font-weight: 600;
-        margin-bottom: 8px;
-      }
-
-      .bp-title {
-        font-size: 24px;
-        font-weight: 700;
-        margin: 0;
-        line-height: 1.15;
-      }
-
-      .bp-sub {
-        margin-top: 6px;
-        color: var(--ink-soft);
-        font-size: 13.5px;
-      }
-
-      .bp-progress-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-top: 16px;
-      }
-
-      .bp-progress-track {
-        flex: 1;
-        height: 8px;
-        background: rgba(251,246,233,0.12);
-        border-radius: 20px;
-        overflow: hidden;
-      }
-
-      .bp-progress-fill {
-        height: 100%;
-        border-radius: 20px;
-        background: linear-gradient(90deg, var(--gold), var(--mint));
-        transition: width 0.4s ease;
-      }
-
-      .bp-progress-pct {
-        font-size: 12.5px;
-        font-weight: 700;
-        color: var(--gold);
-        min-width: 34px;
-        text-align: right;
-      }
-
-      /* warning */
-      .bp-warning {
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
-        background: linear-gradient(135deg, rgba(227,178,60,0.14), rgba(227,178,60,0.05));
-        border: 1px solid rgba(227,178,60,0.4);
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 18px 0;
-      }
-
-      .bp-warning-icon {
-        flex-shrink: 0;
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        background: var(--gold);
-        color: #241a02;
-        display: grid;
-        place-items: center;
-      }
-
-      .bp-warning b { color: var(--gold); }
-
-      .bp-warning p {
-        margin: 0;
-        font-size: 12.5px;
-        line-height: 1.5;
-        color: #f4ecd6;
-      }
-
-      /* banner */
-      .bp-banner {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        border-radius: 12px;
-        padding: 11px 14px;
-        font-size: 13px;
-        font-weight: 600;
-        margin-bottom: 16px;
-      }
-
-      .bp-banner.success {
-        background: rgba(111,207,151,0.14);
-        border: 1px solid rgba(111,207,151,0.4);
-        color: #d3ffe6;
-      }
-
-      .bp-banner.error {
-        background: rgba(239,106,92,0.14);
-        border: 1px solid rgba(239,106,92,0.4);
-        color: #ffd9d3;
-      }
-
-      /* receipt preview */
-      .bp-receipt {
-        background: var(--paper);
-        color: #241d0c;
-        border-radius: 14px;
-        padding: 20px 18px 22px;
-        font-family: 'IBM Plex Mono', monospace;
-        position: relative;
-        box-shadow: 0 10px 24px rgba(0,0,0,0.28);
-        margin-bottom: 18px;
-      }
-
-      .bp-receipt-title {
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 11px;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        text-align: center;
-        color: #5c5230;
-        margin-bottom: 3px;
-      }
-
-      .bp-receipt-sub {
-        text-align: center;
-        font-size: 10.5px;
-        color: #8a7f52;
-        margin-bottom: 12px;
-      }
-
-      .bp-receipt-divider {
-        border: none;
-        border-top: 1.5px dashed var(--paper-line);
-        margin: 10px 0;
-      }
-
-      .bp-receipt-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        font-size: 12px;
-        margin-bottom: 7px;
-        line-height: 1.4;
-      }
-
-      .bp-receipt-row .k { color: #8a7f52; white-space: nowrap; }
-      .bp-receipt-row .v { text-align: right; font-weight: 600; word-break: break-word; }
-      .bp-receipt-row .v.empty { color: #c8bf98; font-weight: 400; font-style: italic; }
-
-      .bp-payto {
-        background: rgba(15,26,20,0.05);
-        border: 1.5px dashed #b6ab7c;
-        border-radius: 8px;
-        padding: 10px 12px;
-        margin: 12px 0;
-      }
-
-      .bp-payto-label {
-        font-size: 10px;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: #8a7f52;
-        margin-bottom: 5px;
-      }
-
-      .bp-payto-name { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; }
-
-      .bp-stamp {
-        position: absolute;
-        top: 76px;
-        right: 16px;
-        border: 3px solid var(--mint);
-        color: #1c7a4d;
-        font-family: 'Space Grotesk', sans-serif;
-        font-weight: 700;
-        font-size: 11.5px;
-        letter-spacing: 0.05em;
-        padding: 4px 8px;
-        border-radius: 7px;
-        transform: rotate(-11deg);
-        background: rgba(111,207,151,0.08);
-        animation: bp-stamp-in 0.4s ease;
-      }
-
-      @keyframes bp-stamp-in {
-        0% { opacity: 0; transform: rotate(-11deg) scale(1.5); }
-        100% { opacity: 1; transform: rotate(-11deg) scale(1); }
-      }
-
-      .bp-missing-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--alert);
-        margin-top: 2px;
-      }
-
-      /* section cards */
-      .bp-card {
-        background: var(--panel);
-        border: 1px solid rgba(251,246,233,0.08);
-        border-radius: 16px;
-        padding: 18px;
-        margin-bottom: 14px;
-      }
-
-      .bp-section-head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 16px;
-      }
-
-      .bp-icon-badge {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        display: grid;
-        place-items: center;
-        color: #0f1a14;
-        flex-shrink: 0;
-      }
-
-      .bp-section-title { font-size: 15.5px; font-weight: 700; }
-
-      .bp-tag {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        padding: 3px 8px;
-        border-radius: 999px;
-        text-transform: uppercase;
-        margin-left: auto;
-        white-space: nowrap;
-      }
-
-      .bp-tag.required {
-        background: rgba(227,178,60,0.18);
-        color: var(--gold);
-        border: 1px solid rgba(227,178,60,0.4);
-      }
-
-      .bp-tag.optional {
-        background: rgba(251,246,233,0.08);
-        color: var(--ink-soft);
-        border: 1px solid rgba(251,246,233,0.12);
-      }
-
-      /* inputs */
-      .bp-field { margin-bottom: 12px; }
-
-      .bp-label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12.5px;
-        font-weight: 600;
-        color: var(--ink-soft);
-        margin-bottom: 6px;
-      }
-
-      .bp-label .star { color: var(--gold); }
-
-      .bp-input-wrap { position: relative; display: flex; align-items: center; }
-
-      .bp-input-icon {
-        position: absolute;
-        left: 13px;
-        color: var(--ink-soft);
-        pointer-events: none;
-      }
-
-      .bp-input, .bp-textarea {
-        width: 100%;
-        background: rgba(251,246,233,0.05);
-        border: 1.5px solid rgba(251,246,233,0.14);
-        border-radius: 11px;
-        padding: 12px 13px 12px 40px;
-        color: #fbf6e9;
-        font-size: 16px; /* 16px avoids iOS auto-zoom on focus */
-        font-family: inherit;
-        transition: border-color 0.2s ease, background 0.2s ease;
-        -webkit-appearance: none;
-      }
-
-      .bp-textarea { resize: vertical; min-height: 76px; }
-
-      .bp-input:focus, .bp-textarea:focus {
-        outline: none;
-        border-color: var(--gold);
-        background: rgba(251,246,233,0.08);
-      }
-
-      .bp-input::placeholder, .bp-textarea::placeholder {
-        color: rgba(251,246,233,0.28);
-      }
-
-      .bp-input.error, .bp-textarea.error {
-        border-color: var(--alert);
-        background: rgba(239,106,92,0.08);
-      }
-
-      .bp-error-text { font-size: 11.5px; color: var(--alert); margin-top: 5px; }
-
-      /* save button — plain block at the bottom of the scroll, not fixed */
-      .bp-save-btn {
-        width: 100%;
-        border: none;
-        border-radius: 13px;
-        padding: 16px;
-        font-size: 15px;
-        font-weight: 700;
-        font-family: 'Space Grotesk', sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 9px;
-        cursor: pointer;
-        background: linear-gradient(90deg, var(--gold), #f2c96b);
-        color: #241a02;
-        margin-top: 6px;
-        box-shadow: 0 8px 20px rgba(227,178,60,0.25);
-      }
-
-      .bp-save-btn:active { transform: scale(0.98); }
-      .bp-save-btn:disabled { opacity: 0.7; }
-
-      .bp-save-btn.shake { animation: bp-shake 0.4s ease; }
-
-      @keyframes bp-shake {
-        0%, 100% { transform: translateX(0); }
-        20% { transform: translateX(-6px); }
-        40% { transform: translateX(6px); }
-        60% { transform: translateX(-4px); }
-        80% { transform: translateX(4px); }
-      }
-    `}</style>
-  );
+function buzz(ms = 8) {
+  try {
+    if (navigator?.vibrate) navigator.vibrate(ms);
+  } catch (e) {
+    /* haptics are a nice-to-have, never block on them */
+  }
 }
 
-function Field({
-  icon: Icon,
-  label,
-  required = false,
-  textarea = false,
-  error = false,
-  ...props
-}) {
+function Field({ icon: Icon, label, required = false, error = false, textarea = false, ...props }) {
   return (
-    <div className="bp-field">
-      <label className="bp-label">
+    <label className="bp-field">
+      <span className="bp-field-label">
         {label}
-        {required && <span className="star">*</span>}
-      </label>
-
-      <div className="bp-input-wrap">
-        <Icon className="bp-input-icon" size={16} />
+        {required && <em>*</em>}
+      </span>
+      <span className={`bp-field-shell${error ? " bp-field-shell-err" : ""}`}>
+        {Icon && <Icon size={16} className="bp-field-icon" />}
         {textarea ? (
-          <textarea className={`bp-textarea ${error ? "error" : ""}`} {...props} />
+          <textarea className="bp-field-input" rows={3} {...props} />
         ) : (
-          <input className={`bp-input ${error ? "error" : ""}`} {...props} />
+          <input className="bp-field-input" {...props} />
         )}
-      </div>
-
-      {error && <div className="bp-error-text">This one's needed to pay you correctly.</div>}
-    </div>
+      </span>
+      {error && <span className="bp-field-error">Needed to pay you correctly.</span>}
+    </label>
   );
 }
 
-function Section({ icon: Icon, title, color, requiredTag, children }) {
+function Section({ icon: Icon, title, required, complete, open, onToggle, children }) {
   return (
-    <div className="bp-card">
-      <div className="bp-section-head">
-        <div className="bp-icon-badge" style={{ background: color }}>
+    <div className="bp-sec">
+      <button type="button" className="bp-sec-head" onClick={onToggle} aria-expanded={open}>
+        <span className={`bp-sec-icon${complete ? " bp-sec-icon-done" : ""}`}>
           <Icon size={16} />
-        </div>
-        <div className="bp-section-title bp-display">{title}</div>
-        <span className={`bp-tag ${requiredTag ? "required" : "optional"}`}>
-          {requiredTag ? "required" : "optional"}
         </span>
+        <span className="bp-sec-title">{title}</span>
+        {complete ? (
+          <CheckCircle2 size={17} className="bp-sec-check" />
+        ) : required ? (
+          <span className="bp-sec-req">Required</span>
+        ) : null}
+        <ChevronDown size={17} className={`bp-sec-chevron${open ? " bp-sec-chevron-open" : ""}`} />
+      </button>
+      <div className={`bp-sec-wrap${open ? " bp-sec-wrap-open" : ""}`}>
+        <div className="bp-sec-inner">
+          <div className="bp-sec-pad">{children}</div>
+        </div>
       </div>
-      {children}
     </div>
   );
 }
+
+const STYLE = `
+.bp-app {
+  --bp-bg: #F7F7F5;
+  --bp-card: #FFFFFF;
+  --bp-border: #E7E7E2;
+  --bp-text: #1B1D22;
+  --bp-text-soft: #767A85;
+  --bp-accent: #4F46E5;
+  --bp-accent-soft: #EEECFD;
+  --bp-error: #DC2626;
+  --bp-error-soft: #FDECEC;
+  --bp-success: #15803D;
+  --bp-success-soft: #EAF7EE;
+
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bp-bg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--bp-text);
+  overflow: hidden;
+}
+.bp-app * { box-sizing: border-box; }
+
+.bp-topbar {
+  flex: 0 0 auto;
+  background: var(--bp-card);
+  border-bottom: 1px solid var(--bp-border);
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 18px 14px;
+}
+.bp-topbar-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.bp-title { font-size: 17px; font-weight: 600; margin: 0; color: var(--bp-text) !important; }
+.bp-subtitle { font-size: 12.5px; color: var(--bp-text-soft) !important; margin: 2px 0 0; }
+.bp-pct { font-size: 13px; font-weight: 600; color: var(--bp-accent); }
+.bp-track {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--bp-accent-soft);
+  overflow: hidden;
+}
+.bp-track-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--bp-accent);
+  transition: width 0.3s ease;
+}
+
+.bp-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 14px 18px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.bp-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+.bp-notice {
+  position: relative;
+  margin-bottom: 12px;
+  padding: 11px 32px 11px 12px;
+  border-radius: 10px;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  color: #92400E;
+  font-size: 12.5px;
+  line-height: 1.5;
+  background: #FEF6E7;
+}
+.bp-notice svg.bp-notice-icon { flex-shrink: 0; margin-top: 1px; color: #B45309; }
+.bp-notice-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  background: none;
+  color: #92400E;
+  opacity: 0.6;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.bp-toast {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: bp-slide-in 0.2s ease;
+}
+@keyframes bp-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.bp-toast-success { background: var(--bp-success-soft); color: var(--bp-success); }
+.bp-toast-error { background: var(--bp-error-soft); color: var(--bp-error); }
+
+.bp-sec {
+  background: var(--bp-card);
+  border: 1px solid var(--bp-border);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.bp-sec-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bp-sec-head:active { background: #FAFAF9; }
+.bp-sec-icon {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  display: grid; place-items: center;
+  background: var(--bp-accent-soft);
+  color: var(--bp-accent);
+  flex-shrink: 0;
+}
+.bp-sec-icon-done { background: var(--bp-success-soft); color: var(--bp-success); }
+.bp-sec-title { flex: 1; font-size: 14.5px; font-weight: 600; color: var(--bp-text) !important; }
+.bp-sec-req {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #B45309;
+  background: #FEF3E2;
+  padding: 3px 8px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.bp-sec-check { color: var(--bp-success); flex-shrink: 0; animation: bp-pop 0.25s ease; }
+@keyframes bp-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.bp-sec-chevron { color: var(--bp-text-soft); transition: transform 0.2s ease; flex-shrink: 0; }
+.bp-sec-chevron-open { transform: rotate(180deg); }
+
+.bp-sec-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.bp-sec-wrap-open { grid-template-rows: 1fr; }
+.bp-sec-inner { overflow: hidden; min-height: 0; }
+.bp-sec-pad { padding: 0 14px 14px; border-top: 1px solid var(--bp-border); padding-top: 12px; }
+
+.bp-field { display: block; margin-bottom: 14px; }
+.bp-field:last-child { margin-bottom: 2px; }
+.bp-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bp-text-soft) !important;
+  margin-bottom: 6px;
+}
+.bp-field-label em { color: var(--bp-error); font-style: normal; margin-left: 3px; }
+.bp-field-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bp-bg);
+  border: 1px solid var(--bp-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease;
+}
+.bp-field-shell:focus-within { border-color: var(--bp-accent); }
+.bp-field-shell-err { border-color: var(--bp-error); background: var(--bp-error-soft); }
+.bp-field-icon { color: var(--bp-text-soft); flex-shrink: 0; }
+.bp-field-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--bp-text) !important;
+  resize: vertical;
+}
+.bp-field-input::placeholder { color: #A6A9B0; }
+.bp-field-error { display: block; font-size: 11.5px; color: var(--bp-error); margin-top: 5px; }
+
+.bp-scroll-spacer { height: 4px; }
+
+.bp-bottombar {
+  flex: 0 0 auto;
+  background: var(--bp-card);
+  border-top: 1px solid var(--bp-border);
+  padding: 12px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+.bp-save {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bp-accent);
+  color: #fff;
+  border: none;
+  padding: 15px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.bp-save:active { transform: scale(0.98); }
+.bp-save:disabled { opacity: 0.6; }
+.bp-spin { animation: bp-spin 0.8s linear infinite; }
+@keyframes bp-spin { to { transform: rotate(360deg); } }
+`;
 
 export default function BillingProfilePage({ account }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(defaultForm);
   const [showErrors, setShowErrors] = useState(false);
-  const [shake, setShake] = useState(false);
   const [banner, setBanner] = useState(null);
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [openSections, setOpenSections] = useState({ personal: true, address: false, tax: false, bank: false });
+
+  const [form, setForm] = useState(defaultForm);
+  const bannerTimer = useRef(null);
 
   useEffect(() => {
     loadProfile();
+    return () => clearTimeout(bannerTimer.current);
   }, []);
 
   async function loadProfile() {
@@ -517,6 +376,17 @@ export default function BillingProfilePage({ account }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function toggleSection(id) {
+    buzz(6);
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  function flashBanner(next) {
+    setBanner(next);
+    clearTimeout(bannerTimer.current);
+    bannerTimer.current = setTimeout(() => setBanner(null), 4000);
+  }
+
   const missing = useMemo(
     () => REQUIRED_FIELDS.filter((key) => !form[key]?.trim()),
     [form]
@@ -527,13 +397,27 @@ export default function BillingProfilePage({ account }) {
     return Math.round((completed / REQUIRED_FIELDS.length) * 100);
   }, [missing]);
 
-  const isComplete = missing.length === 0;
+  function isSectionComplete(id) {
+    return PANEL_REQUIRED[id].every((k) => !!form[k]?.trim());
+  }
 
   async function handleSave() {
     if (missing.length > 0) {
       setShowErrors(true);
-      setShake(true);
-      setTimeout(() => setShake(false), 400);
+      buzz([10, 30, 10]);
+
+      setOpenSections((prev) => {
+        const next = { ...prev };
+        Object.entries(PANEL_REQUIRED).forEach(([id, keys]) => {
+          if (keys.some((k) => missing.includes(k))) next[id] = true;
+        });
+        return next;
+      });
+
+      flashBanner({
+        type: "error",
+        text: `Missing: ${missing.map((m) => m.replace("_", " ")).join(", ")}`,
+      });
       return;
     }
 
@@ -545,22 +429,25 @@ export default function BillingProfilePage({ account }) {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setBanner({ type: "error", text: "Please log in again." });
+        flashBanner({ type: "error", text: "Please login again." });
         return;
       }
 
-      const { error } = await supabase.from("billing_profiles").upsert({
-        user_id: user.id,
-        ...form,
-        updated_at: new Date().toISOString(),
-      });
+      const { error } = await supabase
+        .from("billing_profiles")
+        .upsert({
+          user_id: user.id,
+          ...form,
+          updated_at: new Date().toISOString(),
+        });
 
       if (error) throw error;
 
       setShowErrors(false);
-      setBanner({ type: "success", text: "Saved — your invoice is ready to go out correctly." });
+      buzz(15);
+      flashBanner({ type: "success", text: "Saved — your invoice is ready to go out correctly." });
     } catch (err) {
-      setBanner({ type: "error", text: err.message });
+      flashBanner({ type: "error", text: err.message });
     } finally {
       setSaving(false);
     }
@@ -570,267 +457,205 @@ export default function BillingProfilePage({ account }) {
 
   if (loading) {
     return (
-      <div className="bp-scope" style={{ textAlign: "center", paddingTop: 60 }}>
-        Loading...
+      <div className="bp-app">
+        <style>{STYLE}</style>
+        <div style={{ margin: "auto", fontSize: 13.5, color: "var(--bp-text-soft, #767A85)" }}>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="bp-scope">
-      <BillingStyles />
+    <div className="bp-app">
+      <style>{STYLE}</style>
 
-      {/* HEADER */}
-      <div className="bp-eyebrow">
-        <Sparkles size={12} />
-        Invoice Profile
-      </div>
-      <h1 className="bp-title bp-display">Where should the money land?</h1>
-      <p className="bp-sub">Fill this once — every invoice pulls straight from here.</p>
-
-      <div className="bp-progress-row">
-        <div className="bp-progress-track">
-          <div className="bp-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="bp-progress-pct">{progress}%</div>
-      </div>
-
-      {/* WARNING */}
-      <div className="bp-warning">
-        <div className="bp-warning-icon">
-          <AlertTriangle size={15} />
-        </div>
-        <p>
-          <b>This exact info prints on your invoice</b> — account holder, account
-          number, IFSC and UPI ID go straight out to whoever's paying you. One typo
-          and your money has a lovely time in a stranger's account instead of yours. 💸😅
-        </p>
-      </div>
-
-      {banner && (
-        <div className={`bp-banner ${banner.type}`}>
-          <CheckCircle2 size={15} />
-          {banner.text}
-        </div>
-      )}
-
-      {/* LIVE RECEIPT PREVIEW */}
-      <div className="bp-receipt">
-        {isComplete && <div className="bp-stamp">VERIFIED ✓</div>}
-
-        <div className="bp-receipt-title">Invoice Preview</div>
-        <div className="bp-receipt-sub">this is exactly what gets sent out</div>
-
-        <div className="bp-payto">
-          <div className="bp-payto-label">
-            <Wallet size={10} style={{ display: "inline", marginRight: 5, verticalAlign: -1 }} />
-            Pay To
+      <div className="bp-topbar">
+        <div className="bp-topbar-row">
+          <div>
+            <p className="bp-title">Payout profile</p>
+            <p className="bp-subtitle">Fill this once. Every invoice uses these details.</p>
           </div>
-          <div className="bp-payto-name">{form.account_holder || "—"}</div>
+          <span className="bp-pct">{progress}%</span>
         </div>
+        <div className="bp-track">
+          <div className="bp-track-fill" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
 
-        <div className="bp-receipt-row">
-          <span className="k">Account No.</span>
-          <span className={`v ${!form.account_number ? "empty" : ""}`}>
-            {form.account_number || "not filled"}
-          </span>
-        </div>
-        <div className="bp-receipt-row">
-          <span className="k">IFSC</span>
-          <span className={`v ${!form.ifsc ? "empty" : ""}`}>{form.ifsc || "not filled"}</span>
-        </div>
-        <div className="bp-receipt-row">
-          <span className="k">Bank</span>
-          <span className={`v ${!form.bank_name ? "empty" : ""}`}>
-            {form.bank_name || "not provided"}
-          </span>
-        </div>
-        <div className="bp-receipt-row">
-          <span className="k">UPI</span>
-          <span className={`v ${!form.upi_id ? "empty" : ""}`}>{form.upi_id || "not filled"}</span>
-        </div>
-
-        <hr className="bp-receipt-divider" />
-
-        <div className="bp-receipt-row">
-          <span className="k">Billed to</span>
-          <span className={`v ${!form.full_name ? "empty" : ""}`}>
-            {form.full_name || "not provided"}
-          </span>
-        </div>
-        <div className="bp-receipt-row">
-          <span className="k">Contact</span>
-          <span className={`v ${!form.phone ? "empty" : ""}`}>{form.phone || "not filled"}</span>
-        </div>
-        <div className="bp-receipt-row">
-          <span className="k">Email</span>
-          <span className={`v ${!form.email ? "empty" : ""}`}>
-            {form.email || "not provided"}
-          </span>
-        </div>
-
-        {(form.pan_number || form.gst_number) && (
-          <>
-            <hr className="bp-receipt-divider" />
-            {form.pan_number && (
-              <div className="bp-receipt-row">
-                <span className="k">PAN</span>
-                <span className="v">{form.pan_number}</span>
-              </div>
-            )}
-            {form.gst_number && (
-              <div className="bp-receipt-row">
-                <span className="k">GST</span>
-                <span className="v">{form.gst_number}</span>
-              </div>
-            )}
-          </>
-        )}
-
-        {!isComplete && (
-          <div className="bp-missing-pill">
-            <AlertTriangle size={11} />
-            {missing.length} required field{missing.length > 1 ? "s" : ""} left
+      <div className="bp-scroll">
+        {!noticeDismissed && (
+          <div className="bp-notice">
+            <AlertTriangle size={15} className="bp-notice-icon" />
+            <p style={{ margin: 0 }}>
+              This prints on your invoice — double-check your account number, IFSC and UPI ID before saving.
+            </p>
+            <button className="bp-notice-close" onClick={() => setNoticeDismissed(true)} aria-label="Dismiss">
+              <X size={14} />
+            </button>
           </div>
         )}
-      </div>
 
-      {/* FORM — stacked, single column, normal scroll flow */}
-      <Section icon={User} title="Contact Details" color="#4f8ff0" requiredTag>
-        <Field
-          icon={Phone}
-          label="Phone Number"
-          required
-          error={fieldError("phone")}
-          name="phone"
-          value={form.phone}
-          onChange={handleChange}
-          placeholder="9876543210"
-        />
-        <Field
+        {banner && (
+          <div className={`bp-toast bp-toast-${banner.type === "success" ? "success" : "error"}`}>
+            <CheckCircle2 size={15} />
+            {banner.text}
+          </div>
+        )}
+
+        <Section
           icon={User}
-          label="Full Name"
-          name="full_name"
-          value={form.full_name}
-          onChange={handleChange}
-          placeholder="Aryan Kukade"
-        />
-        <Field
-          icon={Mail}
-          label="Email"
-          type="email"
-          name="email"
-          value={form.email}
-          onChange={handleChange}
-          placeholder="you@example.com"
-        />
-      </Section>
+          title="Personal information"
+          required
+          complete={isSectionComplete("personal")}
+          open={openSections.personal}
+          onToggle={() => toggleSection("personal")}
+        >
+          <Field
+            icon={Phone}
+            label="Phone"
+            required
+            error={fieldError("phone")}
+            name="phone"
+            value={form.phone}
+            onChange={handleChange}
+            placeholder="9876543210"
+          />
+          <Field
+            icon={User}
+            label="Full name"
+            name="full_name"
+            value={form.full_name}
+            onChange={handleChange}
+            placeholder="Aryan Kukade"
+          />
+          <Field
+            icon={Mail}
+            label="Email"
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+          />
+        </Section>
 
-      <Section icon={MapPin} title="Billing Address" color="#3fb37f">
-        <Field
+        <Section
           icon={MapPin}
-          textarea
-          label="Address"
-          name="address"
-          value={form.address}
-          onChange={handleChange}
-          placeholder="Flat, Street, City, State, PIN"
-        />
-      </Section>
+          title="Billing address"
+          complete={false}
+          open={openSections.address}
+          onToggle={() => toggleSection("address")}
+        >
+          <Field
+            icon={MapPin}
+            textarea
+            label="Address"
+            name="address"
+            value={form.address}
+            onChange={handleChange}
+            placeholder="Flat, Street, City, State, PIN"
+          />
+        </Section>
 
-      <Section icon={Receipt} title="Tax Information" color="#e3b23c">
-        <Field
+        <Section
           icon={Receipt}
-          label="PAN Number"
-          name="pan_number"
-          value={form.pan_number}
-          onChange={handleChange}
-          placeholder="Only if you invoice with PAN"
-        />
-        <Field
-          icon={Receipt}
-          label="GST Number"
-          name="gst_number"
-          value={form.gst_number}
-          onChange={handleChange}
-          placeholder="Only if you're GST-registered"
-        />
-      </Section>
+          title="Tax information"
+          complete={false}
+          open={openSections.tax}
+          onToggle={() => toggleSection("tax")}
+        >
+          <Field
+            icon={Receipt}
+            label="PAN number"
+            name="pan_number"
+            value={form.pan_number}
+            onChange={handleChange}
+            placeholder="Only if you invoice with PAN"
+          />
+          <Field
+            icon={Receipt}
+            label="GST number"
+            name="gst_number"
+            value={form.gst_number}
+            onChange={handleChange}
+            placeholder="Only if you're GST-registered"
+          />
+        </Section>
 
-      <Section icon={Landmark} title="Bank & Payment Details" color="#a678f2" requiredTag>
-        <Field
-          icon={User}
-          label="Account Holder Name"
+        <Section
+          icon={Landmark}
+          title="Bank details"
           required
-          error={fieldError("account_holder")}
-          name="account_holder"
-          value={form.account_holder}
-          onChange={handleChange}
-          placeholder="Exactly as it appears on the bank account"
-        />
-        <Field
-          icon={Building2}
-          label="Bank Name"
-          name="bank_name"
-          value={form.bank_name}
-          onChange={handleChange}
-          placeholder="e.g. HDFC Bank"
-        />
-        <Field
-          icon={CreditCard}
-          label="Account Number"
-          required
-          error={fieldError("account_number")}
-          name="account_number"
-          value={form.account_number}
-          onChange={handleChange}
-        />
-        <Field
-          icon={Hash}
-          label="IFSC Code"
-          required
-          error={fieldError("ifsc")}
-          name="ifsc"
-          value={form.ifsc}
-          onChange={handleChange}
-          placeholder="ABCD0123456"
-        />
-        <Field
-          icon={BadgeIndianRupee}
-          label="UPI ID"
-          required
-          error={fieldError("upi_id")}
-          name="upi_id"
-          value={form.upi_id}
-          onChange={handleChange}
-          placeholder="yourname@bank"
-        />
-      </Section>
+          complete={isSectionComplete("bank")}
+          open={openSections.bank}
+          onToggle={() => toggleSection("bank")}
+        >
+          <Field
+            icon={User}
+            label="Account holder"
+            required
+            error={fieldError("account_holder")}
+            name="account_holder"
+            value={form.account_holder}
+            onChange={handleChange}
+            placeholder="Exactly as it appears on the bank account"
+          />
+          <Field
+            icon={Building2}
+            label="Bank name"
+            name="bank_name"
+            value={form.bank_name}
+            onChange={handleChange}
+            placeholder="e.g. HDFC Bank"
+          />
+          <Field
+            icon={CreditCard}
+            label="Account number"
+            required
+            error={fieldError("account_number")}
+            name="account_number"
+            value={form.account_number}
+            onChange={handleChange}
+          />
+          <Field
+            icon={Hash}
+            label="IFSC code"
+            required
+            error={fieldError("ifsc")}
+            name="ifsc"
+            value={form.ifsc}
+            onChange={handleChange}
+            placeholder="ABCD0123456"
+          />
+          <Field
+            icon={BadgeIndianRupee}
+            label="UPI ID"
+            required
+            error={fieldError("upi_id")}
+            name="upi_id"
+            value={form.upi_id}
+            onChange={handleChange}
+            placeholder="yourname@bank"
+          />
+        </Section>
 
-      {showErrors && missing.length > 0 && (
-        <div className="bp-banner error">
-          <AlertTriangle size={15} />
-          Missing: {missing.map((m) => m.replace("_", " ")).join(", ")}
-        </div>
-      )}
+        <div className="bp-scroll-spacer" />
+      </div>
 
-      <button
-        className={`bp-save-btn ${shake ? "shake" : ""}`}
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saving ? (
-          <>
-            <Save size={17} />
-            Saving...
-          </>
-        ) : (
-          <>
-            <CheckCircle2 size={17} />
-            Save Invoice Profile
-          </>
-        )}
-      </button>
+      <div className="bp-bottombar">
+        <button className="bp-save" onClick={handleSave} disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 size={17} className="bp-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={17} />
+              Save profile
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
