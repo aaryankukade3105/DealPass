@@ -19,7 +19,6 @@ import {
 import { supabase } from "../lib/supabase";
 import Field from "../components/common/Field";
 import DateField from "../components/common/DateField";
-import html2pdf from "html2pdf.js";
 
 function formatDisplayDate(dateStr) {
   if (!dateStr) return "-";
@@ -1850,6 +1849,14 @@ function InvoicePreviewModal({
     generateQR();
   }, [billingProfile, total]);
 
+  // Renders the invoice through the browser's own print pipeline instead of
+  // rasterizing it with html2canvas. A screenshot-based export has to guess
+  // at viewport/overflow and can silently clip whatever falls outside that
+  // guess (which is what kept cropping content). Printing hands the exact
+  // same markup to the browser's layout + pagination engine that's already
+  // rendering it correctly on screen, so nothing gets lost — and if an
+  // invoice is ever too tall for one page, it flows onto a second page
+  // instead of being cut off.
   const downloadPDF = () => {
     const element = invoiceRef.current;
     if (!element) {
@@ -1857,37 +1864,48 @@ function InvoicePreviewModal({
       return;
     }
 
-    // Size the PDF page to exactly match the rendered invoice instead of
-    // forcing it into a fixed A4 box — this is what guarantees nothing
-    // gets cropped, since the page can never be smaller than the content.
-    const width = Math.ceil(element.scrollWidth);
-    const height = Math.ceil(element.scrollHeight);
+    const frame = document.createElement("iframe");
+    frame.style.cssText =
+      "position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;";
+    document.body.appendChild(frame);
 
-    html2pdf()
-      .set({
-        margin: 0,
-        filename: `${invoice.invoiceNumber}.pdf`,
-        image: { type: "jpeg", quality: 1 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          width,
-          height,
-          windowWidth: width,
-          windowHeight: height,
-          x: 0,
-          y: 0,
-          scrollX: 0,
-          scrollY: 0,
-        },
-        jsPDF: { unit: "px", format: [width, height], orientation: "portrait" },
-        // Content height now equals page height by construction, so there's
-        // nothing to paginate — this just guards against html2pdf trying
-        // to slice a block across a boundary anyway.
-        pagebreak: { mode: ["avoid-all"] },
-      })
-      .from(element)
-      .save();
+    const frameDoc = frame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${invoice.invoiceNumber}</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Dancing+Script:wght@500;600;700&family=Great+Vibes&family=Sacramento&family=Alex+Brush&family=Allura&display=swap');
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      @page { size: A4; margin: 0; }
+    </style>
+  </head>
+  <body>${element.outerHTML}</body>
+</html>`);
+    frameDoc.close();
+
+    const triggerPrint = () => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    };
+
+    // Clean up once the print dialog closes (works for both "Save as PDF"
+    // and cancel).
+    frame.contentWindow.onafterprint = () => {
+      if (frame.parentNode) document.body.removeChild(frame);
+    };
+
+    // Give web fonts (signature scripts, Fraunces, IBM Plex Mono) a moment
+    // to finish loading inside the iframe before printing, so the export
+    // doesn't fall back to system fonts.
+    if (frameDoc.fonts && frameDoc.fonts.ready) {
+      frameDoc.fonts.ready.then(() => setTimeout(triggerPrint, 250));
+    } else {
+      setTimeout(triggerPrint, 600);
+    }
   };
 
   return (
@@ -1979,6 +1997,19 @@ function InvoicePreviewModal({
                 <X size={18} />
               </button>
             </div>
+          </div>
+
+          <div
+            style={{
+              padding: "8px 24px",
+              background: "#FFF8E8",
+              borderBottom: "1px solid #F0E4C4",
+              fontSize: 12,
+              color: "#8A5A00",
+              textAlign: "center",
+            }}
+          >
+            💡 "Download PDF" opens your browser's print dialog — pick <strong>Save as PDF</strong> as the destination.
           </div>
 
           <div
