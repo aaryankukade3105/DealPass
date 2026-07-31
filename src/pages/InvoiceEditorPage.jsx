@@ -13,7 +13,8 @@ import {
   Package,
   Sparkles,
   AlertTriangle,
-  QrCode,
+  PenTool,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import Field from "../components/common/Field";
@@ -34,27 +35,7 @@ function formatAmount(value) {
   return `₹${Number(value).toLocaleString("en-IN")}`;
 }
 
-function displayValue(value, type = "text") {
-  if (value === null || value === undefined || value === "") {
-    switch (type) {
-      case "date":
-        return "Not Specified";
-      case "optional":
-        return "Not Applicable";
-      case "billing":
-        return "Not Available";
-      default:
-        return "Not Provided";
-    }
-  }
-  return value;
-}
-
-const Divider = () => (
-  <div style={{ borderTop: "1px dashed #cbd5e1", margin: "14px 0" }} />
-);
-
-/* ---------- shared visual tokens ---------- */
+/* ---------- shared visual tokens (editor chrome) ---------- */
 const INK = "#12172B";
 const PAPER = "#F7F8FC";
 const AMBER = "#FFB100";
@@ -63,16 +44,31 @@ const SUCCESS = "#16A34A";
 const DANGER = "#DC2626";
 const SLATE = "#5B6472";
 
+/* ---------- premium invoice document tokens ---------- */
+const DOC_INK = "#0B1220";
+const DOC_LINE = "#E4E6EC";
+const DOC_SLATE = "#68707E";
+const DOC_GOLD = "#9C6B30";
+const DOC_PAPER = "#FFFFFF";
+
+const SIGNATURE_FONTS = [
+  { id: "dancing", label: "Dancing Script", family: "'Dancing Script', cursive" },
+  { id: "greatvibes", label: "Great Vibes", family: "'Great Vibes', cursive" },
+  { id: "sacramento", label: "Sacramento", family: "'Sacramento', cursive" },
+  { id: "alexbrush", label: "Alex Brush", family: "'Alex Brush', cursive" },
+  { id: "allura", label: "Allura", family: "'Allura', cursive" },
+];
+
 const GlobalStyle = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Dancing+Script:wght@500;600;700&family=Great+Vibes&family=Sacramento&family=Alex+Brush&family=Allura&display=swap');
 
     .dp-inv-page * { box-sizing: border-box; }
     .dp-inv-page {
       font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* ---------- responsive layout shell ---------- */
+    /* ---------- responsive layout shell (editor only) ---------- */
     .dp-inv-shell { padding: 36px 24px; }
     @media (max-width: 720px) { .dp-inv-shell { padding: 18px 14px; } }
     @media (max-width: 420px) { .dp-inv-shell { padding: 14px 10px; } }
@@ -154,27 +150,16 @@ const GlobalStyle = () => (
       .dp-inv-modal-toolbar .dp-inv-btn { padding: 9px 13px; font-size: 12.5px; }
     }
 
-    .dp-inv-modal-doc { padding: 40px 44px; font-size: 13.5px; }
-    @media (max-width: 640px) { .dp-inv-modal-doc { padding: 24px 18px; font-size: 12.5px; } }
-    @media (max-width: 400px) { .dp-inv-modal-doc { padding: 20px 14px; font-size: 11.5px; } }
-
-    .dp-inv-line-grid { display: grid; grid-template-columns: 1fr 50px 90px 90px; }
-    @media (max-width: 640px) {
-      .dp-inv-line-grid { grid-template-columns: 1fr 30px 60px 64px; }
-    }
-    @media (max-width: 400px) {
-      .dp-inv-line-grid { grid-template-columns: 1fr 26px 52px 56px; gap: 2px; }
-    }
+    /* The premium document itself is intentionally NOT responsive —
+       it's a fixed A4 canvas meant for print-perfect PDF export. The
+       modal around it scrolls horizontally on small screens instead. */
+    .dp-inv-modal-scroll { overflow-x: auto; }
 
     .dp-inv-payment-row {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-end;
       gap: 14px;
-    }
-    @media (max-width: 460px) {
-      .dp-inv-payment-row { flex-direction: column; align-items: flex-start; }
-      .dp-inv-payment-row .dp-inv-qr-wrap { align-self: center; }
     }
 
     .dp-inv-btn { min-height: 44px; }
@@ -204,6 +189,9 @@ const GlobalStyle = () => (
       background: #F1F2F8 !important;
       color: ${SLATE};
       cursor: default;
+    }
+    .dp-inv-page input.dp-input.dp-input-error {
+      border-color: ${DANGER} !important;
     }
     .dp-inv-btn {
       display: inline-flex;
@@ -236,6 +224,19 @@ const GlobalStyle = () => (
       color: ${VIOLET};
       box-shadow: 0 4px 14px rgba(108,92,231,0.15);
     }
+    .dp-inv-btn-text {
+      background: transparent;
+      border: none;
+      color: ${SLATE};
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 4px;
+    }
+    .dp-inv-btn-text:hover { color: ${DANGER}; }
     .dp-inv-btn-primary {
       background: linear-gradient(135deg, ${VIOLET}, #8B7CF6);
       color: #fff;
@@ -292,6 +293,20 @@ const GlobalStyle = () => (
       box-shadow: 0 1px 3px rgba(0,0,0,0.3);
       transition: transform .2s ease;
     }
+    .dp-inv-sig-option {
+      border: 1.5px solid #E2E5EE;
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      background: #fff;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .dp-inv-sig-option:hover { border-color: ${VIOLET}88; }
+    .dp-inv-sig-option.selected {
+      border-color: ${VIOLET};
+      box-shadow: 0 0 0 4px rgba(108,92,231,0.12);
+      background: #FAF9FF;
+    }
     @keyframes dpFadeUp {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
@@ -308,7 +323,7 @@ const GlobalStyle = () => (
   `}</style>
 );
 
-function SectionHeading({ index, color, icon, title, subtitle, done }) {
+function SectionHeading({ index, color, icon, title, subtitle, done, optional }) {
   return (
     <div
       className="dp-inv-fade"
@@ -339,9 +354,14 @@ function SectionHeading({ index, color, icon, title, subtitle, done }) {
       <div>
         <div
           className="dp-inv-display"
-          style={{ fontSize: 20, fontWeight: 700, color: INK, lineHeight: 1.2 }}
+          style={{ fontSize: 20, fontWeight: 700, color: INK, lineHeight: 1.2, display: "flex", alignItems: "center", gap: 8 }}
         >
           {index}. {title}
+          {optional && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: SLATE, background: "#F1F2F8", padding: "2px 8px", borderRadius: 999, letterSpacing: 0.3 }}>
+              OPTIONAL
+            </span>
+          )}
         </div>
         {subtitle && (
           <div style={{ fontSize: 13.5, color: SLATE, marginTop: 3 }}>
@@ -389,7 +409,8 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   const STORAGE_KEY = `invoice_draft_${deal?.id}`;
   const [billingProfile, setBillingProfile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
-const [lineItems, setLineItems] = useState(
+  const [attemptedPreview, setAttemptedPreview] = useState(false);
+  const [lineItems, setLineItems] = useState(
     (deal?.deliverables || []).map((item) => ({
       id: item.id || crypto.randomUUID(),
       label: item.type,
@@ -401,14 +422,18 @@ const [lineItems, setLineItems] = useState(
   const [gstPercent, setGstPercent] = useState(18);
   const [lastSaved, setLastSaved] = useState(null);
 
+  // Digital signature — a typed name plus one of five selectable script
+  // font styles. Both are persisted with the rest of the draft.
+  const [signatureName, setSignatureName] = useState("");
+  const [signatureFontId, setSignatureFontId] = useState("");
+
   // Load the saved draft (if any) before anything else touches localStorage,
   // so re-opening this page after navigating away restores exactly what
-  // was typed — invoice fields, line item rates, and GST settings.
+  // was typed — invoice fields, line item rates, GST settings, and signature.
   useEffect(() => {
     loadBillingProfile();
     loadDraft();
   }, []);
-
 
   async function loadBillingProfile() {
     const {
@@ -432,6 +457,8 @@ const [lineItems, setLineItems] = useState(
       lineItems,
       gstEnabled,
       gstPercent,
+      signatureName,
+      signatureFontId,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
@@ -447,12 +474,12 @@ const [lineItems, setLineItems] = useState(
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [invoice, lineItems, gstEnabled, gstPercent]);
+  }, [invoice, lineItems, gstEnabled, gstPercent, signatureName, signatureFontId]);
 
   // Always-current snapshot of form state, so we can flush a save
   // synchronously (e.g. on unmount) without waiting on the debounce timer.
   const draftRef = useRef();
-  draftRef.current = { invoice, lineItems, gstEnabled, gstPercent };
+  draftRef.current = { invoice, lineItems, gstEnabled, gstPercent, signatureName, signatureFontId };
 
   // Safety-net: flush the latest draft to localStorage whenever this
   // page unmounts, so navigating back mid-edit (or closing/reopening the
@@ -473,20 +500,45 @@ const [lineItems, setLineItems] = useState(
     try {
       const draft = JSON.parse(saved);
 
-      if (draft.invoice)
-        setInvoice(draft.invoice);
-
-      if (draft.lineItems)
-        setLineItems(draft.lineItems);
-
-      if (draft.gstEnabled !== undefined)
-        setGstEnabled(draft.gstEnabled);
-
-      if (draft.gstPercent !== undefined)
-        setGstPercent(draft.gstPercent);
+      if (draft.invoice) setInvoice(draft.invoice);
+      if (draft.lineItems) setLineItems(draft.lineItems);
+      if (draft.gstEnabled !== undefined) setGstEnabled(draft.gstEnabled);
+      if (draft.gstPercent !== undefined) setGstPercent(draft.gstPercent);
+      if (draft.signatureName !== undefined) setSignatureName(draft.signatureName);
+      if (draft.signatureFontId !== undefined) setSignatureFontId(draft.signatureFontId);
     } catch (err) {
       console.error(err);
     }
+  }
+
+  // Explicit "clear draft" — wipes the saved copy and resets the form back
+  // to defaults. This is the only way old data goes away; simply
+  // navigating back always restores the draft.
+  function clearDraft() {
+    localStorage.removeItem(STORAGE_KEY);
+    setInvoice({
+      invoiceNumber: defaultInvoiceNumber,
+      invoiceDate: today.toISOString().slice(0, 10),
+      dueDate: "",
+      clientName: "",
+      companyName: "",
+      clientEmail: "",
+      clientPhone: "",
+      billingAddress: "",
+      gstNumber: "",
+    });
+    setLineItems(
+      (deal?.deliverables || []).map((item) => ({
+        id: item.id || crypto.randomUUID(),
+        label: item.type,
+        qty: Number(item.qty || 1),
+        rate: Number(item.rate || 0),
+      }))
+    );
+    setGstEnabled(false);
+    setGstPercent(18);
+    setSignatureName("");
+    setSignatureFontId("");
   }
 
   const update = (field, value) => {
@@ -505,6 +557,11 @@ const [lineItems, setLineItems] = useState(
   const gst = gstEnabled ? (subtotal * gstPercent) / 100 : 0;
   const total = subtotal + gst;
 
+  // Only Client Name is mandatory — every other client detail is optional
+  // and simply won't render on the invoice if left blank.
+  const clientNameMissing = !invoice.clientName.trim();
+  const canPreview = !amountMismatch && !clientNameMissing;
+
   // completion tracking — drives the step rail
   const steps = [
     {
@@ -521,9 +578,7 @@ const [lineItems, setLineItems] = useState(
     },
     {
       label: "Bill To",
-      done: Boolean(
-        (invoice.clientName || invoice.companyName) && invoice.billingAddress
-      ),
+      done: Boolean(invoice.clientName.trim()),
     },
     {
       label: "Deliverables",
@@ -540,6 +595,13 @@ const [lineItems, setLineItems] = useState(
     saveDraft();
     onBack();
   };
+
+  const handlePreviewClick = () => {
+    setAttemptedPreview(true);
+    if (canPreview) setShowPreview(true);
+  };
+
+  const selectedSignatureFont = SIGNATURE_FONTS.find((f) => f.id === signatureFontId);
 
   return (
     <div
@@ -597,11 +659,7 @@ const [lineItems, setLineItems] = useState(
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            className="dp-inv-btn dp-inv-btn-primary"
-            disabled={amountMismatch}
-            onClick={() => setShowPreview(true)}
-          >
+          <button className="dp-inv-btn dp-inv-btn-primary" onClick={handlePreviewClick}>
             <Eye size={17} />
             Preview & Send
           </button>
@@ -704,6 +762,36 @@ const [lineItems, setLineItems] = useState(
               Fix deliverable totals to unlock preview.
             </div>
           )}
+
+          {clientNameMissing && !amountMismatch && (
+            <div
+              style={{
+                marginTop: 18,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#FEF2F2",
+                border: "1px solid #FECACA",
+                color: DANGER,
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                gap: 8,
+                alignItems: "flex-start",
+              }}
+            >
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+              Add a client name to unlock preview.
+            </div>
+          )}
+
+          <button
+            className="dp-inv-btn-text"
+            style={{ marginTop: 16 }}
+            onClick={clearDraft}
+          >
+            <Trash2 size={13} />
+            Clear saved draft
+          </button>
         </div>
 
         {/* ---------- Right: the form ---------- */}
@@ -803,7 +891,7 @@ const [lineItems, setLineItems] = useState(
             />
           </Field>
 
-          <Field label="Due Date">
+          <Field label="Due Date (optional)">
             <DateField
               value={invoice.dueDate}
               onChange={(value) => update("dueDate", value)}
@@ -901,20 +989,25 @@ const [lineItems, setLineItems] = useState(
             color={VIOLET}
             icon={<Building2 size={17} color={VIOLET} />}
             title="Bill To"
-            subtitle="Who's paying this invoice?"
+            subtitle="Who's paying this invoice? Only the client name is required."
             done={steps[3].done}
           />
 
           <Field label="Client Name">
             <input
-              className="dp-input"
+              className={`dp-input ${attemptedPreview && clientNameMissing ? "dp-input-error" : ""}`}
               value={invoice.clientName}
               onChange={(e) => update("clientName", e.target.value)}
               placeholder="John Doe"
             />
           </Field>
+          {attemptedPreview && clientNameMissing && (
+            <div style={{ fontSize: 12, color: DANGER, fontWeight: 600, marginTop: -10, marginBottom: 14 }}>
+              Client name is required.
+            </div>
+          )}
 
-          <Field label="Company Name">
+          <Field label="Company Name (optional)">
             <input
               className="dp-input"
               value={invoice.companyName}
@@ -923,7 +1016,7 @@ const [lineItems, setLineItems] = useState(
             />
           </Field>
 
-          <Field label="Email">
+          <Field label="Email (optional)">
             <input
               type="email"
               className="dp-input"
@@ -933,7 +1026,7 @@ const [lineItems, setLineItems] = useState(
             />
           </Field>
 
-          <Field label="Phone">
+          <Field label="Phone (optional)">
             <input
               className="dp-input dp-inv-mono"
               value={invoice.clientPhone}
@@ -944,7 +1037,7 @@ const [lineItems, setLineItems] = useState(
             />
           </Field>
 
-          <Field label="Billing Address">
+          <Field label="Billing Address (optional)">
             <textarea
               rows={4}
               className="dp-input"
@@ -954,7 +1047,7 @@ const [lineItems, setLineItems] = useState(
             />
           </Field>
 
-          <Field label="GST Number">
+          <Field label="GST Number (optional)">
             <input
               className="dp-input dp-inv-mono"
               value={invoice.gstNumber}
@@ -985,7 +1078,7 @@ const [lineItems, setLineItems] = useState(
             color={AMBER}
             icon={<Package size={17} color="#B87A00" />}
             title="Deliverables"
-            subtitle="Pulled from the deal — set a rate for each item."
+            subtitle="Pulled from the deal — set a rate for each item. Leave a rate at 0 to mark it as included."
             done={steps[4].done}
           />
 
@@ -1055,7 +1148,7 @@ const [lineItems, setLineItems] = useState(
                     }}
                   />
                   <span className="dp-inv-mono" style={{ textAlign: "right", fontWeight: 700, color: INK }}>
-                    {formatAmount(item.qty * item.rate)}
+                    {item.rate === 0 ? "Included" : formatAmount(item.qty * item.rate)}
                   </span>
                 </div>
               ))
@@ -1126,6 +1219,75 @@ const [lineItems, setLineItems] = useState(
               </div>
             )}
           </div>
+
+          {/* Section 6: Digital Signature */}
+          <SectionHeading
+            index={6}
+            color={VIOLET}
+            icon={<PenTool size={17} color={VIOLET} />}
+            title="Digital Signature"
+            subtitle="Type your name and pick a style — it'll appear on the invoice."
+            done={Boolean(signatureName && signatureFontId)}
+            optional
+          />
+
+          <Field label="Add Signature">
+            <input
+              className="dp-input"
+              value={signatureName}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSignatureName(value);
+                // Auto-select the first style the moment a name is typed,
+                // so a preview shows up immediately; the user can still
+                // switch styles afterward.
+                if (value.trim() && !signatureFontId) {
+                  setSignatureFontId(SIGNATURE_FONTS[0].id);
+                }
+                if (!value.trim()) {
+                  setSignatureFontId("");
+                }
+              }}
+              placeholder="e.g. Priya Sharma"
+            />
+          </Field>
+
+          {signatureName.trim() && (
+            <div
+              className="dp-inv-fade"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: 12,
+                marginBottom: 22,
+              }}
+            >
+              {SIGNATURE_FONTS.map((font) => (
+                <div
+                  key={font.id}
+                  className={`dp-inv-sig-option ${signatureFontId === font.id ? "selected" : ""}`}
+                  onClick={() => setSignatureFontId(font.id)}
+                >
+                  <div
+                    style={{
+                      fontFamily: font.family,
+                      fontSize: 28,
+                      color: INK,
+                      lineHeight: 1.3,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {signatureName}
+                  </div>
+                  <div style={{ fontSize: 11, color: SLATE, marginTop: 6, fontWeight: 600 }}>
+                    {font.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Summary */}
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
@@ -1226,9 +1388,420 @@ const [lineItems, setLineItems] = useState(
           gstEnabled={gstEnabled}
           gstPercent={gstPercent}
           total={total}
+          signatureName={signatureName}
+          signatureFont={selectedSignatureFont}
           onClose={() => setShowPreview(false)}
         />
       )}
+    </div>
+  );
+}
+
+/* =====================================================================
+   Premium invoice document — a brand-new, print-perfect layout used only
+   for the preview/PDF. Fixed A4 dimensions, desktop-only (no responsive
+   breakpoints), font sizing that gradually tightens as line items grow
+   so the invoice never spills past a single page.
+   ===================================================================== */
+function PremiumInvoiceDocument({
+  invoice,
+  billingProfile,
+  lineItems,
+  subtotal,
+  gst,
+  gstEnabled,
+  gstPercent,
+  total,
+  qrImage,
+  signatureName,
+  signatureFont,
+  docRef,
+}) {
+  // Density scale: as more line items are added, text and spacing shrink
+  // step-wise so the fixed-height A4 canvas below never overflows.
+  const itemCount = lineItems.length;
+  const scale =
+    itemCount <= 6 ? 1 : itemCount <= 10 ? 0.9 : itemCount <= 14 ? 0.82 : 0.72;
+
+  const fs = (px) => `${(px * scale).toFixed(1)}px`;
+  const sp = (px) => `${Math.max(px * scale, px * 0.6).toFixed(1)}px`;
+
+  const from = {
+    name: billingProfile?.full_name,
+    address: billingProfile?.address,
+    phone: billingProfile?.phone,
+    email: billingProfile?.email,
+    pan: billingProfile?.pan_number,
+    gst: billingProfile?.gst_number,
+  };
+
+  const billTo = {
+    name: invoice.companyName || invoice.clientName,
+    attn: invoice.companyName && invoice.clientName ? invoice.clientName : "",
+    address: invoice.billingAddress,
+    email: invoice.clientEmail,
+    phone: invoice.clientPhone,
+    gst: invoice.gstNumber,
+  };
+
+  return (
+    <div
+      ref={docRef}
+      className="dp-inv-premium"
+      style={{
+        width: "794px",
+        height: "1123px",
+        overflow: "hidden",
+        position: "relative",
+        background: DOC_PAPER,
+        color: DOC_INK,
+        fontFamily: "'Inter', -apple-system, sans-serif",
+        padding: "52px 60px",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          borderBottom: `2px solid ${DOC_GOLD}`,
+          paddingBottom: sp(22),
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontFamily: "'Fraunces', serif",
+              fontWeight: 600,
+              fontSize: fs(34),
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              color: DOC_INK,
+            }}
+          >
+            Invoice
+          </div>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          <div
+            style={{
+              fontSize: fs(10.5),
+              color: DOC_SLATE,
+              letterSpacing: 2,
+              textTransform: "uppercase",
+              fontWeight: 700,
+            }}
+          >
+            Invoice No.
+          </div>
+          <div
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: fs(19),
+              fontWeight: 700,
+              color: DOC_INK,
+              marginTop: 2,
+            }}
+          >
+            {invoice.invoiceNumber}
+          </div>
+          <div style={{ fontSize: fs(11.5), color: DOC_SLATE, marginTop: 6 }}>
+            Issued {formatDisplayDate(invoice.invoiceDate)}
+          </div>
+          {invoice.dueDate && (
+            <div style={{ fontSize: fs(11.5), color: DOC_SLATE }}>
+              Due {formatDisplayDate(invoice.dueDate)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* From / Bill To */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 48,
+          marginTop: sp(28),
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: fs(10.5),
+              fontWeight: 700,
+              letterSpacing: 1.6,
+              color: DOC_GOLD,
+              textTransform: "uppercase",
+              marginBottom: 8,
+            }}
+          >
+            Billed By
+          </div>
+          {from.name && (
+            <div style={{ fontSize: fs(14.5), fontWeight: 700, color: DOC_INK }}>{from.name}</div>
+          )}
+          {from.address && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 4, whiteSpace: "pre-line" }}>
+              {from.address}
+            </div>
+          )}
+          {from.phone && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 4 }}>
+              <span className="dp-inv-mono">{from.phone}</span>
+            </div>
+          )}
+          {from.email && <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 2 }}>{from.email}</div>}
+          {from.pan && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 2 }}>
+              PAN <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{from.pan}</span>
+            </div>
+          )}
+          {from.gst && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 2 }}>
+              GSTIN <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{from.gst}</span>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: fs(10.5),
+              fontWeight: 700,
+              letterSpacing: 1.6,
+              color: DOC_GOLD,
+              textTransform: "uppercase",
+              marginBottom: 8,
+            }}
+          >
+            Billed To
+          </div>
+          <div style={{ fontSize: fs(14.5), fontWeight: 700, color: DOC_INK }}>{billTo.name}</div>
+          {billTo.attn && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 3 }}>Attn: {billTo.attn}</div>
+          )}
+          {billTo.address && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 4, whiteSpace: "pre-line" }}>
+              {billTo.address}
+            </div>
+          )}
+          {billTo.email && <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 4 }}>{billTo.email}</div>}
+          {billTo.phone && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 2 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{billTo.phone}</span>
+            </div>
+          )}
+          {billTo.gst && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginTop: 2 }}>
+              GSTIN <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{billTo.gst}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Line items */}
+      <div style={{ marginTop: sp(32) }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 60px 110px 120px",
+            gap: 8,
+            paddingBottom: sp(9),
+            borderBottom: `1.5px solid ${DOC_INK}`,
+            fontSize: fs(10.5),
+            fontWeight: 700,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: DOC_SLATE,
+          }}
+        >
+          <span>Description</span>
+          <span style={{ textAlign: "center" }}>Qty</span>
+          <span style={{ textAlign: "right" }}>Rate</span>
+          <span style={{ textAlign: "right" }}>Amount</span>
+        </div>
+
+        {lineItems.length === 0 ? (
+          <div style={{ padding: `${sp(14)} 0`, color: DOC_SLATE, fontSize: fs(12.5) }}>
+            No deliverables added.
+          </div>
+        ) : (
+          lineItems.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 60px 110px 120px",
+                gap: 8,
+                padding: `${sp(11)} 0`,
+                borderBottom: `1px solid ${DOC_LINE}`,
+                fontSize: fs(12.5),
+                alignItems: "center",
+              }}
+            >
+              <span style={{ color: DOC_INK, fontWeight: 500, overflowWrap: "anywhere" }}>{item.label}</span>
+              <span style={{ textAlign: "center", color: DOC_SLATE, fontFamily: "'IBM Plex Mono', monospace" }}>
+                {item.qty}
+              </span>
+              <span style={{ textAlign: "right", color: DOC_SLATE, fontFamily: "'IBM Plex Mono', monospace" }}>
+                {item.rate === 0 ? "Included" : formatAmount(item.rate)}
+              </span>
+              <span style={{ textAlign: "right", color: DOC_INK, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" }}>
+                {item.rate === 0 ? "Included" : formatAmount(item.qty * item.rate)}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Totals */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: sp(18) }}>
+        <div style={{ width: 280 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: `${sp(6)} 0`, fontSize: fs(12.5), color: DOC_SLATE }}>
+            <span>Subtotal</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{formatAmount(subtotal)}</span>
+          </div>
+          {gstEnabled && (
+            <div style={{ display: "flex", justifyContent: "space-between", padding: `${sp(6)} 0`, fontSize: fs(12.5), color: DOC_SLATE }}>
+              <span>GST ({gstPercent}%)</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{formatAmount(gst)}</span>
+            </div>
+          )}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: sp(8),
+              paddingTop: sp(12),
+              borderTop: `2px solid ${DOC_GOLD}`,
+              fontSize: fs(19),
+              fontWeight: 700,
+              color: DOC_INK,
+            }}
+          >
+            <span style={{ fontFamily: "'Fraunces', serif" }}>Total</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{formatAmount(total)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment + Signature */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 40,
+          marginTop: sp(34),
+          paddingTop: sp(20),
+          borderTop: `1px solid ${DOC_LINE}`,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: fs(10.5), fontWeight: 700, letterSpacing: 1.6, color: DOC_GOLD, textTransform: "uppercase", marginBottom: 8 }}>
+            Payment Details
+          </div>
+          {billingProfile?.bank_name && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginBottom: 3 }}>Bank: {billingProfile.bank_name}</div>
+          )}
+          {billingProfile?.account_number && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginBottom: 3 }}>
+              A/C: <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{billingProfile.account_number}</span>
+            </div>
+          )}
+          {billingProfile?.ifsc && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE, marginBottom: 3 }}>
+              IFSC: <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{billingProfile.ifsc}</span>
+            </div>
+          )}
+          {billingProfile?.upi_id && (
+            <div style={{ fontSize: fs(12), color: DOC_SLATE }}>
+              UPI: <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{billingProfile.upi_id}</span>
+            </div>
+          )}
+
+          {qrImage && (
+            <div style={{ marginTop: 14 }}>
+              <img
+                src={qrImage}
+                alt="UPI QR"
+                style={{
+                  width: 84,
+                  height: 84,
+                  border: `1px solid ${DOC_LINE}`,
+                  borderRadius: 6,
+                  padding: 4,
+                  background: "#fff",
+                }}
+              />
+              <div style={{ fontSize: fs(10), color: DOC_SLATE, marginTop: 5, opacity: 0.85 }}>
+                Scan using any UPI app to pay
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: fs(10.5), fontWeight: 700, letterSpacing: 1.6, color: DOC_GOLD, textTransform: "uppercase", marginBottom: 8 }}>
+            Authorized Signature
+          </div>
+          {signatureName && signatureFont ? (
+            <div style={{ marginTop: 6 }}>
+              <div
+                style={{
+                  fontFamily: signatureFont.family,
+                  fontSize: fs(32),
+                  color: DOC_INK,
+                }}
+              >
+                {signatureName}
+              </div>
+              <div
+                style={{
+                  borderTop: `1px solid ${DOC_INK}`,
+                  marginTop: 4,
+                  paddingTop: 4,
+                  fontSize: fs(11),
+                  color: DOC_SLATE,
+                }}
+              >
+                {signatureName}
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: 24,
+                borderTop: `1px solid ${DOC_LINE}`,
+                paddingTop: 4,
+                fontSize: fs(11),
+                color: DOC_SLATE,
+              }}
+            >
+              Signature not provided
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Watermark / footer */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 24,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: 9,
+          letterSpacing: 0.5,
+          color: DOC_SLATE,
+          opacity: 0.45,
+        }}
+      >
+        Invoice generated using DealPass
+      </div>
     </div>
   );
 }
@@ -1243,6 +1816,8 @@ function InvoicePreviewModal({
   gstEnabled,
   gstPercent,
   total,
+  signatureName,
+  signatureFont,
   onClose,
 }) {
   const invoiceRef = useRef(null);
@@ -1284,24 +1859,32 @@ function InvoicePreviewModal({
 
     html2pdf()
       .set({
-        margin: 10,
+        margin: 0,
         filename: `${invoice.invoiceNumber}.pdf`,
         image: { type: "jpeg", quality: 1 },
         html2canvas: {
           scale: 2,
           useCORS: true,
-          // Force html2canvas to evaluate the document's CSS media queries
-          // as if the viewport were this wide. Without this, on a phone
-          // (viewport < 640px) the mobile breakpoints in .dp-inv-modal-doc
-          // / .dp-inv-line-grid kick in and the PDF comes out looking
-          // different from the desktop version. Pinning windowWidth above
-          // every breakpoint used here makes the exported PDF identical —
-          // fixed A4, desktop-style layout — regardless of device.
-          windowWidth: 900,
+          // Capture exactly the document's own fixed A4 box (794x1123),
+          // not the browser's current window size. Without an explicit
+          // windowHeight/height, html2canvas defaults to window.innerHeight
+          // for its render viewport — which is usually shorter than the
+          // invoice — and silently clips whatever falls below that,
+          // which is what was causing the exported PDF to look cropped.
+          width: 794,
+          height: 1123,
+          windowWidth: 794,
+          windowHeight: 1123,
+          x: 0,
+          y: 0,
           scrollX: 0,
-          scrollY: -window.scrollY,
+          scrollY: 0,
         },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        jsPDF: { unit: "px", format: [794, 1123], orientation: "portrait" },
+        // The document's own fixed height + internal font scaling keep it
+        // to one page; this just makes sure html2pdf never tries to slice
+        // a block across a page boundary.
+        pagebreak: { mode: ["avoid-all"] },
       })
       .from(element)
       .save();
@@ -1336,8 +1919,8 @@ function InvoicePreviewModal({
         <div
           className="dp-inv-fade"
           style={{
-            width: "100%",
-            maxWidth: 680,
+            width: "fit-content",
+            maxWidth: "100%",
             background: "#fff",
             borderRadius: 18,
             boxShadow: "0 30px 80px rgba(0,0,0,.35)",
@@ -1396,202 +1979,21 @@ function InvoicePreviewModal({
             </div>
           </div>
 
-          {/* Ledger-style invoice document — Manrope for text, monospace
-              (via dp-inv-mono spans) for anything numeric. */}
-          <div
-            ref={invoiceRef}
-            className="dp-inv-display dp-inv-modal-doc"
-            style={{
-              lineHeight: 1.7,
-              color: "#1f2937",
-              background: "#fff",
-              overflowWrap: "break-word",
-            }}
-          >
-            <div
-              style={{
-                textAlign: "center",
-                fontWeight: 700,
-                letterSpacing: 3,
-                fontSize: 15,
-                color: INK,
-              }}
-            >
-              TAX INVOICE
-            </div>
-
-            <Divider />
-
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontWeight: 700, color: VIOLET }}>DealPass</span>
-              <span>
-                Invoice #<span className="dp-inv-mono">{invoice.invoiceNumber}</span>
-              </span>
-            </div>
-            <div>
-              Invoice Date:{" "}
-              <span className="dp-inv-mono">{formatDisplayDate(invoice.invoiceDate)}</span>
-            </div>
-            <div>
-              Due Date:{" "}
-              <span className="dp-inv-mono">
-                {invoice.dueDate ? formatDisplayDate(invoice.dueDate) : displayValue("", "date")}
-              </span>
-            </div>
-
-            <Divider />
-
-            <div style={{ fontWeight: 700 }}>FROM</div>
-            <div>{displayValue(billingProfile?.full_name, "billing")}</div>
-            <div>{displayValue(billingProfile?.address, "billing")}</div>
-            <div>
-              Phone: <span className="dp-inv-mono">{billingProfile?.phone || "-"}</span>
-            </div>
-            <div>Email: {displayValue(billingProfile?.email, "billing")}</div>
-            <div>
-              PAN:{" "}
-              <span className="dp-inv-mono">{displayValue(billingProfile?.pan_number, "optional")}</span>
-            </div>
-            <div>
-              GST:{" "}
-              <span className="dp-inv-mono">{displayValue(billingProfile?.gst_number, "optional")}</span>
-            </div>
-
-            <Divider />
-
-            <div style={{ fontWeight: 700 }}>BILL TO</div>
-            <div>{displayValue(invoice.companyName || invoice.clientName)}</div>
-            {invoice.clientName && invoice.companyName && (
-              <div>Attn: {invoice.clientName}</div>
-            )}
-            <div style={{ whiteSpace: "pre-line" }}>
-              {displayValue(invoice.billingAddress)}
-            </div>
-            {invoice.clientEmail && <div>Email: {invoice.clientEmail}</div>}
-            {invoice.clientPhone && (
-              <div>
-                Phone: <span className="dp-inv-mono">{invoice.clientPhone}</span>
-              </div>
-            )}
-            <div>
-              GST: <span className="dp-inv-mono">{displayValue(invoice.gstNumber, "optional")}</span>
-            </div>
-
-            <Divider />
-
-            <div className="dp-inv-line-grid" style={{ fontWeight: 700 }}>
-              <span>Description</span>
-              <span style={{ textAlign: "center" }}>Qty</span>
-              <span style={{ textAlign: "right" }}>Rate</span>
-              <span style={{ textAlign: "right" }}>Amount</span>
-            </div>
-
-            {lineItems.length === 0 ? (
-              <div style={{ color: "#9ca3af", padding: "6px 0" }}>
-                No deliverables added.
-              </div>
-            ) : (
-              lineItems.map((item, i) => (
-                <div key={i} className="dp-inv-line-grid">
-                  <span style={{ overflowWrap: "anywhere" }}>{item.label}</span>
-                  <span className="dp-inv-mono" style={{ textAlign: "center" }}>{item.qty}</span>
-                  <span className="dp-inv-mono" style={{ textAlign: "right" }}>
-                    {item.rate ? formatAmount(item.rate) : "Included"}
-                  </span>
-                  <span className="dp-inv-mono" style={{ textAlign: "right" }}>
-                    {formatAmount(item.qty * item.rate)}
-                  </span>
-                </div>
-              ))
-            )}
-
-            <Divider />
-
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Subtotal</span>
-              <span className="dp-inv-mono">{formatAmount(subtotal)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>GST{gstEnabled ? ` (${gstPercent}%)` : ""}</span>
-              <span className="dp-inv-mono">{formatAmount(gst)}</span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontWeight: 700,
-                color: INK,
-                fontSize: 15,
-              }}
-            >
-              <span>TOTAL</span>
-              <span className="dp-inv-mono">{formatAmount(total)}</span>
-            </div>
-
-            <Divider />
-
-            <div style={{ fontWeight: 700 }}>Payment Details</div>
-            <div className="dp-inv-payment-row">
-              <div>
-                <div>Bank: {billingProfile?.bank_name || "-"}</div>
-                <div>
-                  Account: <span className="dp-inv-mono">{billingProfile?.account_number || "-"}</span>
-                </div>
-                <div>
-                  IFSC: <span className="dp-inv-mono">{billingProfile?.ifsc || "-"}</span>
-                </div>
-                <div>
-                  UPI: <span className="dp-inv-mono">{billingProfile?.upi_id || "-"}</span>
-                </div>
-              </div>
-
-              <div className="dp-inv-qr-wrap" style={{ textAlign: "center", flexShrink: 0 }}>
-                {qrImage ? (
-                  <img
-                    src={qrImage}
-                    alt="UPI QR"
-                    className="dp-inv-qr"
-                    style={{
-                      width: 76,
-                      height: 76,
-                      border: `1.5px dashed ${VIOLET}88`,
-                      borderRadius: 10,
-                      padding: 4,
-                      background: "#fff",
-                      objectFit: "contain",
-                      flexShrink: 0,
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="dp-inv-qr"
-                    style={{
-                      width: 76,
-                      height: 76,
-                      flexShrink: 0,
-                      border: `1.5px dashed ${VIOLET}88`,
-                      borderRadius: 10,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      color: VIOLET,
-                    }}
-                  >
-                    No QR
-                  </div>
-                )}
-                {qrImage && (
-                  <div style={{ fontSize: 10.5, color: SLATE, marginTop: 4 }}>
-                    Pay using QR
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Divider />
-
-            <div style={{ textAlign: "center", color: SLATE }}>Thank you.</div>
+          <div className="dp-inv-modal-scroll" style={{ padding: 24, background: "#EFF1F9" }}>
+            <PremiumInvoiceDocument
+              invoice={invoice}
+              billingProfile={billingProfile}
+              lineItems={lineItems}
+              subtotal={subtotal}
+              gst={gst}
+              gstEnabled={gstEnabled}
+              gstPercent={gstPercent}
+              total={total}
+              qrImage={qrImage}
+              signatureName={signatureName}
+              signatureFont={signatureFont}
+              docRef={invoiceRef}
+            />
           </div>
         </div>
       </div>
