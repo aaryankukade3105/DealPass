@@ -40,6 +40,7 @@ import InvoiceEditorPage from "./pages/InvoiceEditorPage";
 import { exportDealsExcel } from "./utils/exportExcel";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DeleteAccountRequestSheet from "./components/profile/DeleteAccountRequestSheet";
+
 /* ---------------------------------- constants ---------------------------------- */
 
 const STORAGE_KEYS = {
@@ -57,33 +58,19 @@ const DELIVERABLE_OPTIONS = [
 function emptyDeal() {
   return {
     brand_id: "",
-
     deal_title: "",
-
     collaboration_type: "Paid",
-
     confirmation_mode: "Email",
-
     confirmation_date: "",
-
     deal_status: "Negotiation",
-
     commercials: "",
-
     payment_mode: "UPI",
-
     payment_status: "Pending",
-
     payment_deadline: "",
-
     deliverables: [],
-
     invoice_sent: false,
-
     invoice_number: "",
-
     transaction_id: "",
-
     notes: "",
   };
 }
@@ -111,879 +98,621 @@ function nextDealId(deals) {
   return "DP-" + String(max + 1).padStart(4, "0");
 }
 
-function daysAgoISO(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
+/* ---------------------------------- auth / app ---------------------------------- */
 
-function seedDemoDeals() {
-  return [
-    {
-      id: "DP-0001", brandName: "Mamaearth", pocName: "Riya Kapoor", contactNumber: "+91 98765 43210",
-      confirmationDate: daysAgoISO(3), confirmationMode: "Instagram Chat",
-      commercials: "45000", paymentMode: "UPI", paymentDeadline: daysAgoISO(-7),
-      paymentStatus: "pending", deliverables: ["Reel", "Story"],
-      deliverablesCompletionDate: "", paymentCompletionDate: "", invoiceSent: "no", transactionId: "", notes: "",
-    },
-    {
-      id: "DP-0002", brandName: "boAt", pocName: "Karan Mehta", contactNumber: "+91 91234 56789",
-      confirmationDate: daysAgoISO(10), confirmationMode: "Email",
-      commercials: "60000", paymentMode: "Bank Transfer", paymentDeadline: daysAgoISO(2),
-      paymentStatus: "completed", deliverables: ["Reel", "Carousel"],
-      deliverablesCompletionDate: daysAgoISO(6), paymentCompletionDate: daysAgoISO(2),
-      invoiceSent: "yes", transactionId: "UTR2208841", notes: "",
-    },
-    {
-      id: "DP-0003", brandName: "Nykaa", pocName: "Simran Bhatia", contactNumber: "+91 99887 76655",
-      confirmationDate: daysAgoISO(25), confirmationMode: "Call",
-      commercials: "30000", paymentMode: "UPI", paymentDeadline: daysAgoISO(20),
-      paymentStatus: "completed", deliverables: ["Static Post", "Review"],
-      deliverablesCompletionDate: daysAgoISO(22), paymentCompletionDate: daysAgoISO(20),
-      invoiceSent: "yes", transactionId: "UTR1190034", notes: "",
-    },
-    {
-      id: "DP-0004", brandName: "Tripoto", pocName: "Devika Rao", contactNumber: "+91 90909 12345",
-      confirmationDate: daysAgoISO(45), confirmationMode: "WhatsApp",
-      commercials: "80000", paymentMode: "Bank Transfer", paymentDeadline: daysAgoISO(-5),
-      paymentStatus: "pending", deliverables: ["YouTube Video"],
-      deliverablesCompletionDate: daysAgoISO(40), paymentCompletionDate: "",
-      invoiceSent: "yes", transactionId: "", notes: "Awaiting brand finance approval.",
-    },
-    {
-      id: "DP-0005", brandName: "Sugar Cosmetics", pocName: "Naveen Iyer", contactNumber: "+91 98989 11223",
-      confirmationDate: daysAgoISO(70), confirmationMode: "Email",
-      commercials: "20000", paymentMode: "UPI", paymentDeadline: daysAgoISO(64),
-      paymentStatus: "completed", deliverables: ["Reel"],
-      deliverablesCompletionDate: daysAgoISO(67), paymentCompletionDate: daysAgoISO(65),
-      invoiceSent: "yes", transactionId: "UTR0098123", notes: "",
-    },
-  ];
-}
-
-
-
-/* ---------------------------------- global styles ---------------------------------- */
-
-
-/* ---------------------------------- small UI bits ---------------------------------- */
-
-
-
-
-/* ---------------------------------- header / drawer ---------------------------------- */
-
-
-
-
-/* ---------------------------------- auth ---------------------------------- */
 export default function DealPassApp() {
- const [loading, setLoading] = useState(true);
-const [account, setAccount] = useState(null);
-const [deals, setDeals] = useState([]);
-const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-const [loggedIn, setLoggedIn] = useState(false);
-const [logoutOpen, setLogoutOpen] = useState(false);
-const [authMode, setAuthMode] = useState("signup");
-const [authBusy, setAuthBusy] = useState(false);
-const [feedbackOpen, setFeedbackOpen] = useState(false);
-const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
-const [feedbackType, setFeedbackType] = useState("bug");
-const [isResetPasswordPage, setIsResetPasswordPage] = useState(false);
-const [resetBusy, setResetBusy] = useState(false);
-const [darkMode, setDarkMode] = useState(() => {
-  return localStorage.getItem("theme") === "dark";
-});
-useEffect(() => {
-  const root = document.querySelector(".dp-root");
-
-  if (root) {
-    root.setAttribute(
-      "data-theme",
-      darkMode ? "dark" : "light"
-    );
-  }
-
-  localStorage.setItem(
-    "theme",
-    darkMode ? "dark" : "light"
-  );
-}, [darkMode]);
-const [alert, setAlert] = useState({
-
-  open: false,
-  type: "warning",
-  title: "",
-  message: "",
-});
-function showAlert(type, title, message) {
-  setAlert({
-    open: true,
-    type,
-    title,
-    message,
+  const [loading, setLoading] = useState(true);
+  const [account, setAccount] = useState(null);
+  const [deals, setDeals] = useState([]);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [authMode, setAuthMode] = useState("signup");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState("bug");
+  const [isResetPasswordPage, setIsResetPasswordPage] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("theme") === "dark";
   });
-}
-useEffect(() => {
-  let lastTouchEnd = 0;
 
-  const preventZoom = (e) => {
-    const now = Date.now();
+  useEffect(() => {
+    const root = document.querySelector(".dp-root");
 
-    if (now - lastTouchEnd <= 300) {
-      e.preventDefault();
+    if (root) {
+      root.setAttribute("data-theme", darkMode ? "dark" : "light");
     }
 
-    lastTouchEnd = now;
-  };
+    localStorage.setItem("theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
-  document.addEventListener("touchend", preventZoom, {
-    passive: false,
+  const [alert, setAlert] = useState({
+    open: false,
+    type: "warning",
+    title: "",
+    message: "",
   });
 
-  return () => {
-    document.removeEventListener("touchend", preventZoom);
-  };
-}, []);
+  function showAlert(type, title, message) {
+    setAlert({ open: true, type, title, message });
+  }
 
-useEffect(() => {
-  async function loadDeals() {
-    if (!loggedIn) return;
+  useEffect(() => {
+    let lastTouchEnd = 0;
 
+    const preventZoom = (e) => {
+      const now = Date.now();
+
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+
+      lastTouchEnd = now;
+    };
+
+    document.addEventListener("touchend", preventZoom, { passive: false });
+
+    return () => {
+      document.removeEventListener("touchend", preventZoom);
+    };
+  }, []);
+
+  useEffect(() => {
+    async function loadDeals() {
+      if (!loggedIn) return;
+
+      try {
+        const data = await getDeals();
+        setDeals(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadDeals();
+  }, [loggedIn]);
+
+  async function handleChangePassword({ currentPassword, newPassword, confirmPassword }) {
     try {
-      const data = await getDeals();
-      setDeals(data);
+      if (!currentPassword.trim()) {
+        return showAlert("warning", "Current Password", "Please enter your current password.");
+      }
+
+      if (!newPassword.trim()) {
+        return showAlert("warning", "New Password", "Please enter a new password.");
+      }
+
+      if (newPassword.length < 8) {
+        return showAlert("warning", "Weak Password", "Password must be at least 8 characters.");
+      }
+
+      if (newPassword !== confirmPassword) {
+        return showAlert(
+          "warning",
+          "Passwords Don't Match",
+          "New password and confirmation password must match."
+        );
+      }
+
+      await changePassword(currentPassword, newPassword);
+
+      setChangePasswordOpen(false);
+
+      showAlert("success", "Password Updated", "Your password has been updated successfully.");
     } catch (err) {
-      console.error(err);
+      showAlert("error", "Update Failed", err.message);
     }
   }
 
-  loadDeals();
-}, [loggedIn]);
+  function handleExportCSV() {
+    if (deals.length === 0) {
+      return showInfo("No Deals", "You don't have any deals to export.");
+    }
 
+    exportDealsCSV(deals);
 
-async function handleChangePassword({
-  currentPassword,
-  newPassword,
-  confirmPassword,
-}) {
-  try {
-    if (!currentPassword.trim()) {
-      return showAlert(
-        "warning",
-        "Current Password",
-        "Please enter your current password."
+    showSuccess("CSV Exported", "Your deals have been downloaded successfully.");
+  }
+
+  function handleExportExcel() {
+    if (deals.length === 0) {
+      return showInfo("No Deals", "You don't have any deals to export.");
+    }
+
+    exportDealsExcel(deals);
+
+    showSuccess("Excel Exported", "Your Excel file has been downloaded successfully.");
+  }
+
+  function handleDownloadBackup() {
+    downloadBackup(account, deals);
+
+    showSuccess("Backup Downloaded", "Your DealPass backup has been downloaded successfully.");
+  }
+
+  function openBackupPicker() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleImportBackup(file) {
+    try {
+      const backup = await importBackup(file);
+
+      setDeals(backup.deals);
+
+      if (backup.account) {
+        setAccount(backup.account);
+      }
+
+      showSuccess("Backup Restored", `${backup.deals.length} deals imported successfully.`);
+    } catch (err) {
+      showError("Import Failed", err.message);
+    }
+  }
+
+  async function handleSubmitFeedback({ type, title, message }) {
+    try {
+      if (!title.trim()) {
+        return showAlert("warning", "Title Required", "Please enter a title.");
+      }
+
+      if (!message.trim()) {
+        return showAlert("warning", "Message Required", "Please enter your message.");
+      }
+
+      await submitFeedback({ type, title, message });
+
+      setFeedbackOpen(false);
+
+      showSuccess(
+        "Thank You!",
+        type === "bug"
+          ? "Your bug report has been submitted."
+          : type === "feature"
+          ? "Your feature request has been submitted."
+          : "Your message has been sent."
       );
+    } catch (err) {
+      console.error("Feedback Error:", err);
+
+      showError("Submission Failed", err.message);
     }
-
-    if (!newPassword.trim()) {
-      return showAlert(
-        "warning",
-        "New Password",
-        "Please enter a new password."
-      );
-    }
-
-    if (newPassword.length < 8) {
-      return showAlert(
-        "warning",
-        "Weak Password",
-        "Password must be at least 8 characters."
-      );
-    }
-
-    if (newPassword !== confirmPassword) {
-      return showAlert(
-        "warning",
-        "Passwords Don't Match",
-        "New password and confirmation password must match."
-      );
-    }
-
-await changePassword(
-  currentPassword,
-  newPassword
-);
-
-    setChangePasswordOpen(false);
-
-    showAlert(
-      "success",
-      "Password Updated",
-      "Your password has been updated successfully."
-    );
-
-  } catch (err) {
-    showAlert(
-      "error",
-      "Update Failed",
-      err.message
-    );
-  }
-}
-function handleExportCSV() {
-  if (deals.length === 0) {
-    return showInfo(
-      "No Deals",
-      "You don't have any deals to export."
-    );
   }
 
-  exportDealsCSV(deals);
+  const [page, setPage] = useState("dashboard");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingDeal, setEditingDeal] = useState(null);
+  const [deletingDeal, setDeletingDeal] = useState(null);
+  const [toast, setToast] = useState("");
+  const [selectedDeal, setSelectedDeal] = useState(null);
+  const fileInputRef = useRef(null);
 
-  showSuccess(
-    "CSV Exported",
-    "Your deals have been downloaded successfully."
-  );
-}
+  useEffect(() => {
+    const checkSession = async () => {
+      const hash = window.location.hash;
 
-function handleExportExcel() {
-  if (deals.length === 0) {
-    return showInfo(
-      "No Deals",
-      "You don't have any deals to export."
-    );
-  }
+      if (hash.includes("type=recovery") || window.location.pathname === "/reset-password") {
+        setIsResetPasswordPage(true);
+      }
 
-  exportDealsExcel(deals);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  showSuccess(
-    "Excel Exported",
-    "Your Excel file has been downloaded successfully."
-  );
-}
+      if (session) {
+        const user = session.user;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
 
-function handleDownloadBackup() {
-  downloadBackup(account, deals);
+        if (
+          user.user_metadata?.avatar_url &&
+          profile?.avatar_url !== user.user_metadata.avatar_url
+        ) {
+          await supabase
+            .from("profiles")
+            .update({ avatar_url: user.user_metadata.avatar_url })
+            .eq("id", user.id);
 
-  showSuccess(
-    "Backup Downloaded",
-    "Your DealPass backup has been downloaded successfully."
-  );
-}
-function openBackupPicker() {
-  fileInputRef.current?.click();
-}
-async function handleImportBackup(file) {
-  try {
-    const backup = await importBackup(file);
+          profile.avatar_url = user.user_metadata.avatar_url;
+        }
 
-    setDeals(backup.deals);
+        setAccount({
+          id: user.id,
+          full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+          email: user.email,
+          avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
+          created_at: profile?.created_at,
+        });
 
-    if (backup.account) {
-      setAccount(backup.account);
-    }
+        setLoggedIn(true);
+      }
 
-    showSuccess(
-      "Backup Restored",
-      `${backup.deals.length} deals imported successfully.`
-    );
+      setLoading(false);
+    };
 
-  } catch (err) {
-    showError(
-      "Import Failed",
-      err.message
-    );
-  }
-}
-async function handleSubmitFeedback({
-  type,
-  title,
-  message,
-}) {
-  try {
-if (!title.trim()) {
-  return showAlert(
-    "warning",
-    "Title Required",
-    "Please enter a title."
-  );
-}
-
-if (!message.trim()) {
-  return showAlert(
-    "warning",
-    "Message Required",
-    "Please enter your message."
-  );
-}
-
-    await submitFeedback({
-      type,
-      title,
-      message,
-    });
-
-    setFeedbackOpen(false);
-
-    showSuccess(
-      "Thank You!",
-      type === "bug"
-        ? "Your bug report has been submitted."
-        : type === "feature"
-        ? "Your feature request has been submitted."
-        : "Your message has been sent."
-    );
-}catch (err) {
-  console.error("Feedback Error:", err);
-
-  showError(
-    "Submission Failed",
-    err.message
-  );
-}
-}
-const [page, setPage] = useState("dashboard");
-const [drawerOpen, setDrawerOpen] = useState(false);
-const [formOpen, setFormOpen] = useState(false);
-const [editingDeal, setEditingDeal] = useState(null);
-const [deletingDeal, setDeletingDeal] = useState(null);
-const [toast, setToast] = useState("");
-const [selectedDeal, setSelectedDeal] = useState(null);
-const fileInputRef = useRef(null);
-
-useEffect(() => {
-const checkSession = async () => {
-  const hash = window.location.hash;
-
-  if (
-    hash.includes("type=recovery") ||
-    window.location.pathname === "/reset-password"
-  ) {
-    setIsResetPasswordPage(true);
-  }
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-    if (session) {
-      const user = session.user;
- const { data: profile } = await supabase
-  .from("profiles")
-  .select("*")
-  .eq("id", user.id)
-  .single();
-
-if (
-  user.user_metadata?.avatar_url &&
-  profile?.avatar_url !== user.user_metadata.avatar_url
-) {
-  await supabase
-    .from("profiles")
-    .update({
-      avatar_url: user.user_metadata.avatar_url,
-    })
-    .eq("id", user.id);
-
-  profile.avatar_url = user.user_metadata.avatar_url;
-}
-
-setAccount({
-  id: user.id,
-  full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
-  email: user.email,
-  avatar_url:
-    profile?.avatar_url ||
-    user.user_metadata?.avatar_url ||
-    null,
-  created_at: profile?.created_at,
-});
-
-      setLoggedIn(true);
-    }
-
-    setLoading(false);
-  };
-console.log("CHECK SESSION RUNNING");
-  checkSession();
-}, []);
+    checkSession();
+  }, []);
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2200);
   };
 
-
   const persistAccount = async (next) => {
     setAccount(next);
-    try { await window.storage.set(STORAGE_KEYS.account, JSON.stringify(next)); } catch (e) {}
+    try {
+      await window.storage.set(STORAGE_KEYS.account, JSON.stringify(next));
+    } catch (e) {}
   };
+
   const persistSession = async (loggedInVal) => {
     setLoggedIn(loggedInVal);
-    try { await window.storage.set(STORAGE_KEYS.session, JSON.stringify({ loggedIn: loggedInVal })); } catch (e) {}
+    try {
+      await window.storage.set(STORAGE_KEYS.session, JSON.stringify({ loggedIn: loggedInVal }));
+    } catch (e) {}
   };
-const handleSignup = async ({
-  name,
-  identifier,
-  password,
-  confirm,
-}) => {
-  if (!name.trim()) {
-  showAlert(
-    "warning",
-    "Full Name Required",
-    "Please enter your full name."
-  );
-  return;
-}
 
-if (!identifier.trim()) {
-  showAlert(
-    "warning",
-    "Email Required",
-    "Please enter your email address."
-  );
-  return;
-}
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-if (!emailRegex.test(identifier.trim())) {
-  showAlert(
-    "warning",
-    "Invalid Email",
-    "Please enter a valid email address."
-  );
-  return;
-}
-
-if (!password.trim()) {
-  showAlert(
-    "warning",
-    "Password Required",
-    "Please enter your password."
-  );
-  return;
-}
-
-if (password.length < 8) {
-  showAlert(
-    "warning",
-    "Weak Password",
-    "Password must be at least 8 characters."
-  );
-  return;
-}
-
-if (!confirm.trim()) {
-  showAlert(
-    "warning",
-    "Confirm Password Required",
-    "Please confirm your password."
-  );
-  return;
-}
-
-if (password !== confirm) {
-  showAlert(
-    "warning",
-    "Passwords Don't Match",
-    "Password and Confirm Password must match."
-  );
-  return;
-}
-  try {
-    setAuthBusy(true);
-
-    const { data, error } = await supabase.auth.signUp({
-      email: identifier.trim().toLowerCase(),
-      password,
-    });
-
-    if (error) throw error;
-
-    if (!data.user) {
-      throw new Error("Unable to create your account.");
+  const handleSignup = async ({ name, identifier, password, confirm }) => {
+    if (!name.trim()) {
+      showAlert("warning", "Full Name Required", "Please enter your full name.");
+      return;
     }
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert({
+    if (!identifier.trim()) {
+      showAlert("warning", "Email Required", "Please enter your email address.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(identifier.trim())) {
+      showAlert("warning", "Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+
+    if (!password.trim()) {
+      showAlert("warning", "Password Required", "Please enter your password.");
+      return;
+    }
+
+    if (password.length < 8) {
+      showAlert("warning", "Weak Password", "Password must be at least 8 characters.");
+      return;
+    }
+
+    if (!confirm.trim()) {
+      showAlert("warning", "Confirm Password Required", "Please confirm your password.");
+      return;
+    }
+
+    if (password !== confirm) {
+      showAlert("warning", "Passwords Don't Match", "Password and Confirm Password must match.");
+      return;
+    }
+
+    try {
+      setAuthBusy(true);
+
+      const { data, error } = await supabase.auth.signUp({
+        email: identifier.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) throw error;
+
+      if (!data.user) {
+        throw new Error("Unable to create your account.");
+      }
+
+      const { error: profileError } = await supabase.from("profiles").insert({
         id: data.user.id,
         full_name: name.trim(),
         email: identifier.trim().toLowerCase(),
       });
 
-    if (profileError) throw profileError;
+      if (profileError) throw profileError;
 
-    setAuthBusy(false);
+      setAuthBusy(false);
 
-    // Switch to Login screen
-    setAuthMode("login");
+      setAuthMode("login");
 
-    // Show success popup
-    showSuccess(
-      "Account Created",
-      "Your account has been created successfully. Please log in."
-    );
+      showSuccess(
+        "Account Created",
+        "Your account has been created successfully. Please log in."
+      );
+    } catch (err) {
+      setAuthBusy(false);
 
-  } catch (err) {
-    setAuthBusy(false);
-
-    if (
-      err.message?.toLowerCase().includes("already") ||
-      err.message?.toLowerCase().includes("registered")
-    ) {
-      showAlert(
-  "warning",
-  "Email Already Registered",
-  "An account with this email already exists."
-);
-    } else {
-    showAlert(
-  "error",
-  "Signup Failed",
-  err.message
-);
+      if (
+        err.message?.toLowerCase().includes("already") ||
+        err.message?.toLowerCase().includes("registered")
+      ) {
+        showAlert("warning", "Email Already Registered", "An account with this email already exists.");
+      } else {
+        showAlert("error", "Signup Failed", err.message);
+      }
     }
-  }
-};
-const handleLogin = async ({ identifier, password }) => {
+  };
 
-  try {
-    setAuthBusy(true);
+  const handleLogin = async ({ identifier, password }) => {
+    try {
+      setAuthBusy(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: identifier,
-      password,
-    });
-
-    if (error) throw error;
-
-    const user = data.user;
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError && profileError.code === "PGRST116") {
-      await supabase.from("profiles").insert({
-        id: user.id,
-        full_name: user.user_metadata?.full_name || "Creator",
-        email: user.email,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password,
       });
-    } else if (profileError) {
-      throw profileError;
+
+      if (error) throw error;
+
+      const user = data.user;
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError && profileError.code === "PGRST116") {
+        await supabase.from("profiles").insert({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || "Creator",
+          email: user.email,
+        });
+      } else if (profileError) {
+        throw profileError;
+      }
+
+      setAccount({
+        id: user.id,
+        full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+        email: user.email,
+        created_at: profile?.created_at,
+      });
+
+      setLoggedIn(true);
+      setAuthBusy(false);
+    } catch (err) {
+      setAuthBusy(false);
+      showAlert("error", "Login Failed", err.message);
     }
+  };
 
-   setAccount({
-  id: user.id,
-  full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
-  email: user.email,
-  created_at: profile?.created_at,
-});
-
-    setLoggedIn(true);
-    setAuthBusy(false);
-
-  } catch (err) {
-    setAuthBusy(false);
-    showAlert(
-  "error",
-  "Login Failed",
-  err.message
-);
-  }
-};
-
-const handleGoogleLogin = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: window.location.origin,
-    },
-  });
-
-  if (error) {
-    showAlert(
-      "error",
-      "Google Sign-In Failed",
-      error.message
-    );
-  }
-};
-const handleForgotPassword = async (email) => {
-  try {
-    if (!email.trim()) {
-  return showAlert(
-    "warning",
-    "Email Required",
-    "Please enter your email address first."
-  );
-}
-
-const emailRegex =
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-if (!emailRegex.test(email.trim())) {
-  return showAlert(
-    "warning",
-    "Invalid Email",
-    "Please enter a valid email address."
-  );
-}
-    const { error } =
-      await supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
-        {
-          redirectTo:
-            window.location.origin + "/reset-password",
-        }
-      );
-
-    if (error) throw error;
-
-    showAlert(
-      "success",
-      "Reset Email Sent",
-      "We've sent you a password reset link. Please check your inbox."
-    );
-  } catch (err) {
-    showAlert(
-      "error",
-      "Failed",
-      err.message
-    );
-  }
-};
-
-const handleResetPassword = async ({
-  password,
-  confirm,
-}) => {
-  try {
-    if (!password.trim()) {
-      return showAlert(
-        "warning",
-        "Password Required",
-        "Please enter your new password."
-      );
-    }
-
-    if (password.length < 8) {
-      return showAlert(
-        "warning",
-        "Weak Password",
-        "Password must be at least 8 characters."
-      );
-    }
-
-    if (password !== confirm) {
-      return showAlert(
-        "warning",
-        "Passwords Don't Match",
-        "Please make sure both passwords match."
-      );
-    }
-
-    setResetBusy(true);
-
-    const { error } = await supabase.auth.updateUser({
-      password,
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
 
-    if (error) throw error;
+    if (error) {
+      showAlert("error", "Google Sign-In Failed", error.message);
+    }
+  };
 
-    setResetBusy(false);
+  const handleForgotPassword = async (email) => {
+    try {
+      if (!email.trim()) {
+        return showAlert("warning", "Email Required", "Please enter your email address first.");
+      }
 
-await supabase.auth.signOut();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-setIsResetPasswordPage(false);
-setLoggedIn(false);
-setAccount(null);
-setAuthMode("login");
+      if (!emailRegex.test(email.trim())) {
+        return showAlert("warning", "Invalid Email", "Please enter a valid email address.");
+      }
 
-window.history.replaceState({}, "", "/");
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: window.location.origin + "/reset-password",
+      });
 
-showAlert(
-  "success",
-  "Password Updated",
-  "Your password has been changed successfully. You can now return to the app and log in with your new password."
-);
+      if (error) throw error;
 
-  } catch (err) {
-    setResetBusy(false);
+      showAlert(
+        "success",
+        "Reset Email Sent",
+        "We've sent you a password reset link. Please check your inbox."
+      );
+    } catch (err) {
+      showAlert("error", "Failed", err.message);
+    }
+  };
 
-    showAlert(
-      "error",
-      "Update Failed",
-      err.message
-    );
-  }
-};
-const handleLogout = async () => {
-  await supabase.auth.signOut();
+  const handleResetPassword = async ({ password, confirm }) => {
+    try {
+      if (!password.trim()) {
+        return showAlert("warning", "Password Required", "Please enter your new password.");
+      }
 
-  setLoggedIn(false);
-  setAccount(null);
-  setDeals([]);
-  setDrawerOpen(false);
-  setPage("dashboard");
-};
-const handleDeleteRequest = async (reason) => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+      if (password.length < 8) {
+        return showAlert("warning", "Weak Password", "Password must be at least 8 characters.");
+      }
 
-  const { error } = await supabase
-    .from("account_deletion_requests")
-    .insert({
+      if (password !== confirm) {
+        return showAlert("warning", "Passwords Don't Match", "Please make sure both passwords match.");
+      }
+
+      setResetBusy(true);
+
+      const { error } = await supabase.auth.updateUser({ password });
+
+      if (error) throw error;
+
+      setResetBusy(false);
+
+      await supabase.auth.signOut();
+
+      setIsResetPasswordPage(false);
+      setLoggedIn(false);
+      setAccount(null);
+      setAuthMode("login");
+
+      window.history.replaceState({}, "", "/");
+
+      showAlert(
+        "success",
+        "Password Updated",
+        "Your password has been changed successfully. You can now return to the app and log in with your new password."
+      );
+    } catch (err) {
+      setResetBusy(false);
+
+      showAlert("error", "Update Failed", err.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+
+    setLoggedIn(false);
+    setAccount(null);
+    setDeals([]);
+    setDrawerOpen(false);
+    setPage("dashboard");
+  };
+
+  const handleDeleteRequest = async (reason) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from("account_deletion_requests").insert({
       user_id: user.id,
       reason,
     });
 
-  if (error) {
-    showAlert(
-      "error",
-      "Request Failed",
-      error.message
-    );
-    return;
-  }
+    if (error) {
+      showAlert("error", "Request Failed", error.message);
+      return;
+    }
 
-  setDeleteRequestOpen(false);
+    setDeleteRequestOpen(false);
 
-  showAlert(
-    "success",
-    "Request Submitted",
-    "Your account deletion request has been submitted successfully."
-  );
-};
+    showAlert("success", "Request Submitted", "Your account deletion request has been submitted successfully.");
+  };
 
-const handleSaveDeal = async (deal) => {
-  try {
-    const duplicateDeal = deals.find(
-  (d) =>
-    d.id !== editingDeal?.id &&
-    d.brand_name.trim().toLowerCase() ===
-      deal.brand_name.trim().toLowerCase() &&
-    d.deal_title.trim().toLowerCase() ===
-      deal.deal_title.trim().toLowerCase() &&
-    d.confirmation_date === deal.confirmation_date
-);
+  // ---- FIXED: instant local update on both add and edit, no more waiting on the network ----
+  const handleSaveDeal = async (deal) => {
+    try {
+      const duplicateDeal = deals.find(
+        (d) =>
+          d.id !== editingDeal?.id &&
+          (d.brand_name || "").trim().toLowerCase() === deal.brand_name.trim().toLowerCase() &&
+          (d.deal_title || "").trim().toLowerCase() === deal.deal_title.trim().toLowerCase() &&
+          d.confirmation_date === deal.confirmation_date
+      );
 
-if (duplicateDeal) {
-  return showAlert(
-    "warning",
-    "Duplicate Deal",
-    "A collaboration with the same brand, deal title and confirmation date already exists."
-  );
-}
+      if (duplicateDeal) {
+        return showAlert(
+          "warning",
+          "Duplicate Deal",
+          "A collaboration with the same brand, deal title and confirmation date already exists."
+        );
+      }
 
-let newDeal;
-let tempDeal = null;
+      if (editingDeal) {
+        const editedId = editingDeal.id;
+        const optimisticDeal = { ...editingDeal, ...deal, id: editedId };
 
-if (editingDeal) {
-  await updateDeal(editingDeal.id, deal);
-} else {
-tempDeal = {
-  ...deal,
-  id: crypto.randomUUID(),
-  saving: true,
-};
+        // Reflect the edit instantly and close the sheet right away.
+        setDeals((prev) => prev.map((d) => (d.id === editedId ? optimisticDeal : d)));
+        setEditingDeal(null);
+        setFormOpen(false);
 
-setDeals((prev) => [tempDeal, ...prev]);
+        const updated = await updateDeal(editedId, deal);
 
-setEditingDeal(null);
-setFormOpen(false);
+        // Reconcile with the server's copy once it lands (server-side
+        // defaults/derived columns), without blocking the UI on it.
+        if (updated) {
+          setDeals((prev) => prev.map((d) => (d.id === editedId ? updated : d)));
+        }
 
-newDeal = await addDeal(deal);
-}
+        showAlert("success", "Deal Updated", "Your collaboration has been updated successfully.");
+      } else {
+        const tempDeal = {
+          ...deal,
+          id: crypto.randomUUID(),
+          saving: true,
+        };
 
-// Instantly show the new deal (only for new deals)
-if (newDeal && tempDeal) {
-  setDeals((prev) =>
-    prev.map((d) =>
-      d.id === tempDeal.id ? newDeal : d
-    )
-  );
-}
-// Close immediately
-setEditingDeal(null);
-setFormOpen(false);
+        setDeals((prev) => [tempDeal, ...prev]);
+        setFormOpen(false);
 
+        const newDeal = await addDeal(deal);
 
-showAlert(
-  "success",
-  editingDeal ? "Deal Updated" : "Deal Added",
-  editingDeal
-    ? "Your collaboration has been updated successfully."
-    : "Your collaboration has been added successfully."
-);
+        setDeals((prev) =>
+          prev.map((d) => (d.id === tempDeal.id ? (newDeal || { ...deal, id: tempDeal.id }) : d))
+        );
 
-  } catch (err) {
-    console.error(err);
-  
-    showAlert(
-      "error",
-      "Failed to Save Deal",
-      err.message
-    );
-  }
-};
+        showAlert("success", "Deal Added", "Your collaboration has been added successfully.");
+      }
+    } catch (err) {
+      console.error(err);
 
-const handleDeleteDeal = async () => {
-  if (!deletingDeal) return;
+      showAlert("error", "Failed to Save Deal", err.message);
 
-  try {
-    await deleteDeal(deletingDeal.id);
+      // Something went wrong server-side — resync with the source of truth
+      // rather than leaving stale optimistic data on screen.
+      try {
+        const latest = await getDeals();
+        setDeals(latest);
+      } catch (_) {}
+    }
+  };
 
-    const latestDeals = await getDeals();
-    setDeals(latestDeals);
+  const handleDeleteDeal = async () => {
+    if (!deletingDeal) return;
 
-    setDeletingDeal(null);
+    const deletedId = deletingDeal.id;
 
-    showToast("Deal deleted successfully.");
+    try {
+      // Optimistic removal too, so deletes feel instant.
+      setDeals((prev) => prev.filter((d) => d.id !== deletedId));
+      setDeletingDeal(null);
 
-  } catch (err) {
-    console.error(err);
-  
-    showAlert(
-      "error",
-      "Failed to Delete Deal",
-      err.message
-    );
-  }
-};
+      await deleteDeal(deletedId);
 
-const showValidation = (field) => {
-  setAlert({
-    open: true,
-    type: "warning",
-    title: "Missing Required Field",
-    message: `Please enter ${field} before continuing.`,
-  });
-};
+      showToast("Deal deleted successfully.");
+    } catch (err) {
+      console.error(err);
 
-const showSuccess = (title, message) => {
-  setAlert({
-    open: true,
-    type: "success",
-    title,
-    message,
-  });
-};
+      showAlert("error", "Failed to Delete Deal", err.message);
 
-const showError = (title, message) => {
-  setAlert({
-    open: true,
-    type: "error",
-    title,
-    message,
-  });
-};
+      // Resync in case the delete actually failed server-side.
+      try {
+        const latest = await getDeals();
+        setDeals(latest);
+      } catch (_) {}
+    }
+  };
 
-const showInfo = (title, message) => {
-  setAlert({
-    open: true,
-    type: "info",
-    title,
-    message,
-  });
-};
+  const showValidation = (field) => {
+    setAlert({
+      open: true,
+      type: "warning",
+      title: "Missing Required Field",
+      message: `Please enter ${field} before continuing.`,
+    });
+  };
+
+  const showSuccess = (title, message) => {
+    setAlert({ open: true, type: "success", title, message });
+  };
+
+  const showError = (title, message) => {
+    setAlert({ open: true, type: "error", title, message });
+  };
+
+  const showInfo = (title, message) => {
+    setAlert({ open: true, type: "info", title, message });
+  };
 
   const PAGE_TITLES = { dashboard: "Dashboard", deals: "Your deals", profile: "Profile" };
 
@@ -997,46 +726,37 @@ const showInfo = (title, message) => {
       </div>
     );
   }
-if (isResetPasswordPage) {
-  return (
-    <ResetPasswordPage
-  busy={resetBusy}
-  onSave={handleResetPassword}
-/>
-  );
-}
+
+  if (isResetPasswordPage) {
+    return <ResetPasswordPage busy={resetBusy} onSave={handleResetPassword} />;
+  }
+
   if (!loggedIn || !account) {
     return (
-      
-     <div className="dp-root">
-  <div className="dp-canvas">
-   <AuthPage
-  mode={authMode}
-  setMode={setAuthMode}
-  onSignup={handleSignup}
-  onLogin={handleLogin}
-    onGoogleLogin={handleGoogleLogin}
-  busy={authBusy}
-  showAlert={showAlert}
-    onForgotPassword={handleForgotPassword}
-/>
-  </div>
+      <div className="dp-root">
+        <div className="dp-canvas">
+          <AuthPage
+            mode={authMode}
+            setMode={setAuthMode}
+            onSignup={handleSignup}
+            onLogin={handleLogin}
+            onGoogleLogin={handleGoogleLogin}
+            busy={authBusy}
+            showAlert={showAlert}
+            onForgotPassword={handleForgotPassword}
+          />
+        </div>
 
-  <AlertModal
-    open={alert.open}
-    type={alert.type}
-    title={alert.title}
-    message={alert.message}
-    onClose={() =>
-      setAlert((prev) => ({
-        ...prev,
-        open: false,
-      }))
-    }
-  />
+        <AlertModal
+          open={alert.open}
+          type={alert.type}
+          title={alert.title}
+          message={alert.message}
+          onClose={() => setAlert((prev) => ({ ...prev, open: false }))}
+        />
 
-  <GlobalStyles />
-</div>
+        <GlobalStyles />
+      </div>
     );
   }
 
@@ -1046,191 +766,188 @@ if (isResetPasswordPage) {
         <Header onMenu={() => setDrawerOpen(true)} title={PAGE_TITLES[page]} account={account} />
 
         {page === "dashboard" && (
-     <DashboardPage
-  deals={deals}
-  account={account}
-  onAddDeal={() => {
-    setEditingDeal(null);
-    setFormOpen(true);
-  }}
-  onOpenDeal={(d) => setSelectedDeal(d)}
-/>
+          <DashboardPage
+            deals={deals}
+            account={account}
+            onAddDeal={() => {
+              setEditingDeal(null);
+              setFormOpen(true);
+            }}
+            onOpenDeal={(d) => setSelectedDeal(d)}
+          />
         )}
-  {page === "deals" && (
-  <DealsPage
-    deals={deals}
-    onAdd={() => {
-      setEditingDeal(null);
-      setFormOpen(true);
-    }}
-    onEdit={(d) => {
-      setEditingDeal(d);
-      setFormOpen(true);
-    }}
-    onDelete={(d) => setDeletingDeal(d)}
-    onOpenDeal={(d) => setSelectedDeal(d)}
 
-    onGenerateInvoice={(deal) => {
-      setSelectedDeal(deal);
-      setPage("invoice-editor");
-    }}
-  />
-)}
-{deleteRequestOpen && (
+        {page === "deals" && (
+          <DealsPage
+            deals={deals}
+            onAdd={() => {
+              setEditingDeal(null);
+              setFormOpen(true);
+            }}
+            onEdit={(d) => {
+              setEditingDeal(d);
+              setFormOpen(true);
+            }}
+            onDelete={(d) => setDeletingDeal(d)}
+            onOpenDeal={(d) => setSelectedDeal(d)}
+            onGenerateInvoice={(deal) => {
+              setSelectedDeal(deal);
+              setPage("invoice-editor");
+            }}
+          />
+        )}
 
-<DeleteAccountRequestSheet
+        {deleteRequestOpen && (
+          <DeleteAccountRequestSheet
+            onClose={() => setDeleteRequestOpen(false)}
+            onSubmit={handleDeleteRequest}
+          />
+        )}
 
-onClose={()=>
-setDeleteRequestOpen(false)
-}
+        {page === "profile" && (
+          <ProfilePage
+            account={account}
+            deals={deals}
+            stats={computeStats(deals)}
+            onChangePassword={() => setChangePasswordOpen(true)}
+            onLogout={() => setLogoutOpen(true)}
+            onDeleteAccount={() => setDeleteRequestOpen(true)}
+            onExportCSV={handleExportCSV}
+            onExportExcel={handleExportExcel}
+            onDownloadBackup={handleDownloadBackup}
+            onOpenBillingProfile={() => setPage("billing-profile")}
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+            onImportBackup={openBackupPicker}
+            onReportBug={() => {
+              setFeedbackType("bug");
+              setFeedbackOpen(true);
+            }}
+            onSuggestFeature={() => {
+              setFeedbackType("feature");
+              setFeedbackOpen(true);
+            }}
+            onContactUs={() => {
+              setFeedbackType("contact");
+              setFeedbackOpen(true);
+            }}
+          />
+        )}
 
-onSubmit={handleDeleteRequest}
+        {page === "billing-profile" && <BillingProfilePage account={account} />}
 
-/>
+        {page === "invoice-editor" && (
+          <InvoiceEditorPage
+            deal={selectedDeal}
+            onBack={() => {
+              setSelectedDeal(null);
+              setPage("deals");
+            }}
+          />
+        )}
 
-)}
-{page === "profile" && (
-  <ProfilePage
-    account={account}
-    deals={deals}
-    stats={computeStats(deals)}
-      onChangePassword={() => setChangePasswordOpen(true)}
-    onLogout={() => setLogoutOpen(true)}
-   onDeleteAccount={() =>setDeleteRequestOpen(true)}
-    onExportCSV={handleExportCSV}
-    onExportExcel={handleExportExcel}
-    onDownloadBackup={handleDownloadBackup}
-    onOpenBillingProfile={() => setPage("billing-profile")}
-      darkMode={darkMode}
-  setDarkMode={setDarkMode}
-    onImportBackup={openBackupPicker}
-  onReportBug={() => {
-    setFeedbackType("bug");
-    setFeedbackOpen(true);
-  }}
-  onSuggestFeature={() => {
-    setFeedbackType("feature");
-    setFeedbackOpen(true);
-  }}
-  onContactUs={() => {
-    setFeedbackType("contact");
-    setFeedbackOpen(true);
-  }}
-  />
-)}
-{page === "billing-profile" && (
- <BillingProfilePage
-  account={account}
-/>
-)}
-{page === "invoice-editor" && (
-  <InvoiceEditorPage
-    deal={selectedDeal}
-    onBack={() => {
-      setSelectedDeal(null);
-      setPage("deals");
-    }}
-  />
-)}
+        <Drawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          page={page}
+          setPage={setPage}
+          onLogout={handleLogout}
+          account={account}
+        />
 
-        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} page={page} setPage={setPage} onLogout={handleLogout} account={account} />
-{page === "deals" && (
-  <button
-    className="dp-fab"
-    onClick={() => {
-      setEditingDeal(null);
-      setFormOpen(true);
-    }}
-  >
-    <Plus size={24} />
-  </button>
-)}
+        {page === "deals" && (
+          <button
+            className="dp-fab"
+            onClick={() => {
+              setEditingDeal(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus size={24} />
+          </button>
+        )}
+
         {formOpen && (
           <DealFormSheet
-  initial={editingDeal}
-  onSave={handleSaveDeal}
-  onClose={() => {
-    setFormOpen(false);
-    setEditingDeal(null);
-  }}
-  showAlert={showAlert}
-/>
+            initial={editingDeal}
+            onSave={handleSaveDeal}
+            onClose={() => {
+              setFormOpen(false);
+              setEditingDeal(null);
+            }}
+            showAlert={showAlert}
+          />
         )}
+
         {changePasswordOpen && (
- <ChangePasswordSheet
-    onClose={() => setChangePasswordOpen(false)}
-    onSave={handleChangePassword}
-/>
-)}
-{selectedDeal && page !== "invoice-editor" && (
-  <DealPreview
-    deal={selectedDeal}
-    account={account}
-    onClose={() => setSelectedDeal(null)}
-  />
-)}
-        {deletingDeal && (
-  <ConfirmDialog
-  title="Delete Deal?"
-  message={`Are you sure you want to delete your collaboration with\n${deletingDeal.brand_name}?\n\nThis action cannot be undone.`}
-  confirmText="Delete"
-  cancelText="Cancel"
-  danger={true}
-  onConfirm={handleDeleteDeal}
-  onCancel={() => setDeletingDeal(null)}
-/>
+          <ChangePasswordSheet
+            onClose={() => setChangePasswordOpen(false)}
+            onSave={handleChangePassword}
+          />
         )}
-{logoutOpen && (
-  <ConfirmDialog
-    title="Sign Out"
-    message="Are you sure you want to sign out of DealPass?"
-    confirmText="Sign Out"
-    cancelText="Stay Logged In"
-    danger={false}
-    onConfirm={async () => {
-      setLogoutOpen(false);
-      await handleLogout();
-    }}
-    onCancel={() => setLogoutOpen(false)}
-  />
-)}
+
+        {selectedDeal && page !== "invoice-editor" && (
+          <DealPreview deal={selectedDeal} account={account} onClose={() => setSelectedDeal(null)} />
+        )}
+
+        {deletingDeal && (
+          <ConfirmDialog
+            title="Delete Deal?"
+            message={`Are you sure you want to delete your collaboration with\n${deletingDeal.brand_name}?\n\nThis action cannot be undone.`}
+            confirmText="Delete"
+            cancelText="Cancel"
+            danger={true}
+            onConfirm={handleDeleteDeal}
+            onCancel={() => setDeletingDeal(null)}
+          />
+        )}
+
+        {logoutOpen && (
+          <ConfirmDialog
+            title="Sign Out"
+            message="Are you sure you want to sign out of DealPass?"
+            confirmText="Sign Out"
+            cancelText="Stay Logged In"
+            danger={false}
+            onConfirm={async () => {
+              setLogoutOpen(false);
+              await handleLogout();
+            }}
+            onCancel={() => setLogoutOpen(false)}
+          />
+        )}
+
         {toast && <div className="dp-toast">{toast}</div>}
       </div>
 
-<AlertModal
-  open={alert.open}
-  type={alert.type}
-  title={alert.title}
-  message={alert.message}
-  onClose={() =>
-    setAlert((prev) => ({
-      ...prev,
-      open: false,
-    }))
-  }
-/>
-<input
-  ref={fileInputRef}
-  type="file"
-  accept=".dealpass,.json"
-  style={{ display: "none" }}
-  onChange={async (e) => {
-    const file = e.target.files?.[0];
+      <AlertModal
+        open={alert.open}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert((prev) => ({ ...prev, open: false }))}
+      />
 
-    if (!file) return;
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".dealpass,.json"
+        style={{ display: "none" }}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
 
-    await handleImportBackup(file);
+          if (!file) return;
 
-    e.target.value = "";
-  }}
-/>
-{feedbackOpen && (
-  <FeedbackSheet
-    type={feedbackType}
-    onClose={() => setFeedbackOpen(false)}
-    onSubmit={handleSubmitFeedback}
-  />
-)}
+          await handleImportBackup(file);
+
+          e.target.value = "";
+        }}
+      />
+
+      {feedbackOpen && (
+        <FeedbackSheet type={feedbackType} onClose={() => setFeedbackOpen(false)} onSubmit={handleSubmitFeedback} />
+      )}
+
       <GlobalStyles />
     </div>
   );

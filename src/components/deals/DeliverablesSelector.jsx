@@ -1,41 +1,70 @@
+import { useState } from "react";
 import { DELIVERABLES } from "../constants/deliverables";
+import { DELIVERABLE_DETAIL_CONFIG } from "../constants/deliverableDetails";
+import DeliverableDetailPopup from "./DeliverableDetailPopup";
 import { Minus } from "lucide-react";
+
 function DeliverablesSelector({ value = [], onChange }) {
+  const [popupItem, setPopupItem] = useState(null); // the DELIVERABLES item awaiting a detail
+
+  const addWithDetail = (detail) => {
+    onChange([
+      ...value,
+      {
+        id: popupItem.id,
+        type: popupItem.label,
+        detail,
+        qty: 1,
+      },
+    ]);
+    setPopupItem(null);
+  };
+
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        flexWrap: "wrap",
-      }}
-    >
-      {[...DELIVERABLES]
-        .sort((a, b) => {
-          const aSelected = value.some((d) => d.id === a.id);
-          const bSelected = value.some((d) => d.id === b.id);
+    <>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        {[...DELIVERABLES]
+          .sort((a, b) => {
+            const aSelected = value.some((d) => d.id === a.id);
+            const bSelected = value.some((d) => d.id === b.id);
 
-          if (aSelected === bSelected) return 0;
-          return aSelected ? -1 : 1;
-        })
-        .map((item) => {
-          const selected = value.find((d) => d.id === item.id);
+            if (aSelected === bSelected) return 0;
+            return aSelected ? -1 : 1;
+          })
+          .map((item) => {
+            const selected = value.find((d) => d.id === item.id);
+            const detailConfig = DELIVERABLE_DETAIL_CONFIG[item.id];
 
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                const existing = value.find((d) => d.id === item.id);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  const existing = value.find((d) => d.id === item.id);
 
-                if (existing) {
-                  onChange(
-                    value.map((d) =>
-                      d.id === item.id
-                        ? { ...d, qty: d.qty + 1 }
-                        : d
-                    )
-                  );
-                } else {
+                  if (existing) {
+                    onChange(
+                      value.map((d) =>
+                        d.id === item.id
+                          ? { ...d, qty: d.qty + 1 }
+                          : d
+                      )
+                    );
+                    return;
+                  }
+
+                  // First time selecting this item — if it needs a detail, ask for it first
+                  if (detailConfig) {
+                    setPopupItem(item);
+                    return;
+                  }
+
                   onChange([
                     ...value,
                     {
@@ -44,100 +73,111 @@ function DeliverablesSelector({ value = [], onChange }) {
                       qty: 1,
                     },
                   ]);
-                }
-              }}
-              style={{
-                padding: "9px 14px",
-                borderRadius: 999,
-                border: selected
-                  ? "1px solid var(--signal)"
-                  : "1px solid var(--line)",
-                background: selected
-                  ? "rgba(236,72,153,.12)"
-                  : "#fff",
-                color: selected
-                  ? "var(--signal)"
-                  : "var(--ink)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                transition: "all .2s ease",
-                userSelect: "none",
-              }}
-            >
-              <item.icon
-                size={16}
-                color={selected ? "var(--signal)" : "currentColor"}
-              />
+                }}
+                style={{
+                  padding: "9px 14px",
+                  borderRadius: 999,
+                  border: selected
+                    ? "1px solid var(--signal)"
+                    : "1px solid var(--line)",
+                  background: selected
+                    ? "rgba(236,72,153,.12)"
+                    : "#fff",
+                  color: selected
+                    ? "var(--signal)"
+                    : "var(--ink)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  transition: "all .2s ease",
+                  userSelect: "none",
+                }}
+              >
+                <item.icon
+                  size={16}
+                  color={selected ? "var(--signal)" : "currentColor"}
+                />
 
-              <span>{item.label}</span>
+                <span>
+                  {item.label}
+                  {selected?.detail ? ` · ${selected.detail}` : ""}
+                </span>
 
-              {selected && (
-                <>
-                  <span
-                    style={{
-                      background: "var(--signal)",
-                      color: "#fff",
-                      minWidth: 22,
-                      height: 22,
-                      borderRadius: 999,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "0 7px",
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {selected.qty}
-                  </span>
+                {selected && (
+                  <>
+                    <span
+                      style={{
+                        background: "var(--signal)",
+                        color: "#fff",
+                        minWidth: 22,
+                        height: 22,
+                        borderRadius: 999,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 7px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {selected.qty}
+                    </span>
 
-                  <span
-                  onClick={(e) => {
-  e.stopPropagation();
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
 
-  const existing = value.find((d) => d.id === item.id);
+                        const existing = value.find((d) => d.id === item.id);
 
-  if (existing.qty > 1) {
-    onChange(
-      value.map((d) =>
-        d.id === item.id
-          ? { ...d, qty: d.qty - 1 }
-          : d
-      )
-    );
-  } else {
-    onChange(
-      value.filter((d) => d.id !== item.id)
-    );
-  }
-}}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      background: "rgba(236,72,153,.12)",
-                      color: "var(--signal)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      transition: "all .15s ease",
-                    }}
-                  >
-                    <Minus size={12} strokeWidth={3} />
-                  </span>
-                </>
-              )}
-            </button>
-          );
-        })}
-    </div>
+                        if (existing.qty > 1) {
+                          onChange(
+                            value.map((d) =>
+                              d.id === item.id
+                                ? { ...d, qty: d.qty - 1 }
+                                : d
+                            )
+                          );
+                        } else {
+                          onChange(
+                            value.filter((d) => d.id !== item.id)
+                          );
+                        }
+                      }}
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        background: "rgba(236,72,153,.12)",
+                        color: "var(--signal)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all .15s ease",
+                      }}
+                    >
+                      <Minus size={12} strokeWidth={3} />
+                    </span>
+                  </>
+                )}
+              </button>
+            );
+          })}
+      </div>
+
+      {popupItem && (
+        <DeliverableDetailPopup
+          config={DELIVERABLE_DETAIL_CONFIG[popupItem.id]}
+          onConfirm={addWithDetail}
+          onCancel={() => setPopupItem(null)}
+        />
+      )}
+    </>
   );
 }
 

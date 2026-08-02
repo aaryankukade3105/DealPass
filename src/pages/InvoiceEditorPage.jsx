@@ -1785,22 +1785,6 @@ function PremiumInvoiceDocument({
           )}
         </div>
       </div>
-
-      {/* Watermark / footer */}
-      <div
-        style={{
-          marginTop: sp(30),
-          paddingTop: sp(14),
-          borderTop: `1px solid ${DOC_LINE}`,
-          textAlign: "center",
-          fontSize: 9,
-          letterSpacing: 0.5,
-          color: DOC_SLATE,
-          opacity: 0.45,
-        }}
-      >
-        Invoice generated using DealPass
-      </div>
     </div>
   );
 }
@@ -1864,6 +1848,13 @@ function InvoicePreviewModal({
       return;
     }
 
+    // Used as the document <title> inside the print iframe — browsers use
+    // this as the suggested filename when saving the print output as a PDF.
+    const brandSlug = (deal?.brand_name || "invoice")
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, "_");
+    const fileTitle = `invoice_${brandSlug}`;
+
     const frame = document.createElement("iframe");
     frame.style.cssText =
       "position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;";
@@ -1875,7 +1866,7 @@ function InvoicePreviewModal({
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>${invoice.invoiceNumber}</title>
+    <title>${fileTitle}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Dancing+Script:wght@500;600;700&family=Great+Vibes&family=Sacramento&family=Alex+Brush&family=Allura&display=swap');
       * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -2009,7 +2000,9 @@ function InvoicePreviewModal({
               textAlign: "center",
             }}
           >
-            💡 "Download PDF" opens your browser's print dialog — pick <strong>Save as PDF</strong> as the destination.
+            💡 "Download PDF" opens your browser's print dialog — pick <strong>Save as PDF</strong> as
+            the destination. For a clean copy with no page number or URL at the bottom, open{" "}
+            <strong>More settings</strong> and uncheck <strong>Headers and footers</strong>.
           </div>
 
           <div
