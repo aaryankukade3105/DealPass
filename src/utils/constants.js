@@ -45,7 +45,11 @@ export const PAYMENT_STATUS = [
 export const DEAL_STATUS = [
   "Negotiation",
   "Confirmed",
-  "Content Submitted",
+  "Content Shot",
+  "Editing",
+  "Submitted for Approval",
+  "Approved",
+  "Posted",
   "Completed",
   "Cancelled",
 ];

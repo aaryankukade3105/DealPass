@@ -1271,7 +1271,6 @@ export default function InvoiceEditorPage({ deal, onBack }) {
               className={`dp-input ${(attemptedPreview || attemptedSave) && clientNameMissing ? "dp-input-error" : ""}`}
               value={invoice.clientName}
               onChange={(e) => update("clientName", e.target.value)}
-              placeholder="John Doe"
             />
           </Field>
           {(attemptedPreview || attemptedSave) && clientNameMissing && (
@@ -1285,7 +1284,6 @@ export default function InvoiceEditorPage({ deal, onBack }) {
               className="dp-input"
               value={invoice.companyName}
               onChange={(e) => update("companyName", e.target.value)}
-              placeholder="Marvel Studios"
             />
           </Field>
 
@@ -1295,7 +1293,6 @@ export default function InvoiceEditorPage({ deal, onBack }) {
               className="dp-input"
               value={invoice.clientEmail}
               onChange={(e) => update("clientEmail", e.target.value)}
-              placeholder="billing@company.com"
             />
           </Field>
 
@@ -1306,7 +1303,6 @@ export default function InvoiceEditorPage({ deal, onBack }) {
               onChange={(e) =>
                 update("clientPhone", e.target.value.replace(/\D/g, "").slice(0, 10))
               }
-              placeholder="+91 9876543210"
             />
           </Field>
 
@@ -1525,7 +1521,7 @@ export default function InvoiceEditorPage({ deal, onBack }) {
                   setSignatureFontId("");
                 }
               }}
-              placeholder="e.g. Priya Sharma"
+              placeholder="enter your name"
             />
           </Field>
 

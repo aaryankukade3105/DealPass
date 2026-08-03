@@ -281,7 +281,6 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
               className="dp-input"
               value={form.brand_name}
               onChange={(e) => update("brand_name", e.target.value)}
-              placeholder="Nike India"
             />
           </Field>
 
@@ -290,7 +289,6 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
               className="dp-input"
               value={form.poc_name}
               onChange={(e) => update("poc_name", e.target.value)}
-              placeholder="John Doe"
             />
           </Field>
 
@@ -301,7 +299,6 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
               onChange={(e) =>
                 update("contact_number", e.target.value.replace(/\D/g, "").slice(0, 10))
               }
-              placeholder="+91 9876543210"
             />
           </Field>
 
@@ -312,7 +309,6 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
               className="dp-input"
               value={form.deal_title}
               onChange={(e) => update("deal_title", e.target.value)}
-              placeholder="Instagram Reel Campaign"
             />
           </Field>
 
@@ -389,7 +385,8 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
               className="dp-input"
               value={form.campaign_links}
               onChange={(e) => update("campaign_links", e.target.value)}
-              placeholder="Paste one or more links separated by spaces"
+              placeholder="Paste Instagram/YouTube links separated by spaces"
+            
             />
           </Field>
 
@@ -488,7 +485,7 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
 
           <SectionLabel>Status</SectionLabel>
 
-          <Field label="Deal Status">
+          <Field label="select your current Deal Status">
             <ChipSelect
               options={DEAL_STATUS}
               value={form.deal_status}
@@ -498,7 +495,7 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
 
           <SectionLabel>Invoice</SectionLabel>
 
-          <Field label="Invoice Sent">
+          <Field label="Invoice Sent?">
             <ChipSelect
               options={[true, false]}
               labels={{ true: "Yes", false: "No" }}
@@ -529,7 +526,7 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
 
           <SectionLabel>Notes</SectionLabel>
 
-          <Field label="Notes">
+          <Field label="Enter notes if any">
             <textarea
               rows={4}
               className="dp-input"
