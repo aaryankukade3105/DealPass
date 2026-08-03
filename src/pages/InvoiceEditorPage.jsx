@@ -559,7 +559,11 @@ function SignaturePad({ value, onChange }) {
   );
 }
 
-export default function InvoiceEditorPage({ deal, onBack }) {
+export default function InvoiceEditorPage({
+  deal,
+  invoice: selectedInvoice,
+  onBack,
+}) {
   const today = new Date();
   const year = today.getFullYear();
   const randomNumber = String(Math.floor(Math.random() * 9000) + 1000);
@@ -577,7 +581,9 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     billingAddress: "",
     gstNumber: "",
   });
-  const STORAGE_KEY = `invoice_draft_${deal?.id}`;
+  const STORAGE_KEY = selectedInvoice
+  ? `invoice_${selectedInvoice.id}`
+  : `invoice_draft_${deal?.id}`;
   const [billingProfile, setBillingProfile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [attemptedPreview, setAttemptedPreview] = useState(false);
@@ -619,15 +625,18 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   // If this deal already has a saved invoice, the database is the source
   // of truth and we load straight from it (ignoring any local draft).
   // Otherwise we fall back to whatever draft is sitting in localStorage.
-  useEffect(() => {
-    loadBillingProfile();
-    if (deal?.invoice_id) {
-      loadExistingInvoice(deal.invoice_id);
-    } else {
-      loadDraft();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+ useEffect(() => {
+  loadBillingProfile();
+
+  if (selectedInvoice?.id) {
+    loadExistingInvoice(selectedInvoice.id);
+  } else if (deal?.invoice_id) {
+    loadExistingInvoice(deal.invoice_id);
+  } else {
+    loadDraft();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   async function loadBillingProfile() {
     const {

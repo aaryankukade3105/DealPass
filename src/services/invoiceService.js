@@ -122,3 +122,13 @@ export async function deleteInvoice(invoiceId) {
 
   if (invoiceError) throw invoiceError;
 }
+export async function getInvoices() {
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("*")
+    .order("invoice_date", { ascending: false });
+
+  if (error) throw error;
+
+  return data ?? [];
+}

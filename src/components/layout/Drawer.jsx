@@ -3,15 +3,17 @@ import {
   Briefcase,
   User,
   LogOut,
-} from "lucide-react";
+  FileText,
+} from "lucide-react";  
 
 function Drawer({ open, onClose, page, setPage, onLogout, account }) {
   if (!open) return null;
-  const items = [
-    { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { key: "deals", label: "Your deals", icon: Briefcase },
-    { key: "profile", label: "Profile", icon: User },
-  ];
+ const items = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "deals", label: "Your deals", icon: Briefcase },
+  { key: "invoices", label: "Invoices", icon: FileText },
+  { key: "profile", label: "Profile", icon: User },
+];
   return (
     <>
       <div className="dp-drawer-backdrop" onClick={onClose} />

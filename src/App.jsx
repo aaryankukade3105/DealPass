@@ -39,6 +39,7 @@ import FeedbackSheet from "./components/profile/FeedbackSheet";
 import InvoiceEditorPage from "./pages/InvoiceEditorPage";
 import { exportDealsExcel } from "./utils/exportExcel";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import DeleteAccountRequestSheet from "./components/profile/DeleteAccountRequestSheet";
 
 /* ---------------------------------- constants ---------------------------------- */
@@ -288,6 +289,7 @@ export default function DealPassApp() {
   const [deletingDeal, setDeletingDeal] = useState(null);
   const [toast, setToast] = useState("");
   const [selectedDeal, setSelectedDeal] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -714,7 +716,12 @@ export default function DealPassApp() {
     setAlert({ open: true, type: "info", title, message });
   };
 
-  const PAGE_TITLES = { dashboard: "Dashboard", deals: "Your deals", profile: "Profile" };
+ const PAGE_TITLES = {
+  dashboard: "Dashboard",
+  deals: "Your deals",
+  invoices: "Invoices",
+  profile: "Profile",
+};
 
   if (loading) {
     return (
@@ -803,7 +810,15 @@ export default function DealPassApp() {
             onSubmit={handleDeleteRequest}
           />
         )}
-
+{page === "invoices" && (
+  <InvoicesPage
+    onOpenInvoice={(invoice) => {
+      setSelectedInvoice(invoice);
+      setSelectedDeal(null);
+      setPage("invoice-editor");
+    }}
+  />
+)}
         {page === "profile" && (
           <ProfilePage
             account={account}
@@ -837,13 +852,15 @@ export default function DealPassApp() {
         {page === "billing-profile" && <BillingProfilePage account={account} />}
 
         {page === "invoice-editor" && (
-          <InvoiceEditorPage
-            deal={selectedDeal}
-            onBack={() => {
-              setSelectedDeal(null);
-              setPage("deals");
-            }}
-          />
+         <InvoiceEditorPage
+  deal={selectedDeal}
+  invoice={selectedInvoice}
+  onBack={() => {
+    setSelectedDeal(null);
+    setSelectedInvoice(null);
+    setPage(selectedInvoice ? "invoices" : "deals");
+  }}
+/>
         )}
 
         <Drawer
