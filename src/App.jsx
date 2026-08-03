@@ -811,13 +811,14 @@ export default function DealPassApp() {
           />
         )}
 {page === "invoices" && (
-  <InvoicesPage
-    onOpenInvoice={(invoice) => {
-      setSelectedInvoice(invoice);
-      setSelectedDeal(null);
-      setPage("invoice-editor");
-    }}
-  />
+<InvoicesPage
+  deals={deals}
+  onOpenInvoice={(deal) => {
+    setSelectedDeal(deal);
+    setSelectedInvoice(null);
+    setPage("invoice-editor");
+  }}
+/>
 )}
         {page === "profile" && (
           <ProfilePage
