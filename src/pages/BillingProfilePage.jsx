@@ -97,6 +97,18 @@ function Section({ icon: Icon, title, required, complete, open, onToggle, childr
   );
 }
 
+/* Lightweight shimmer placeholder shown while the session/profile load —
+   keeps the topbar chrome real (so the page doesn't feel blank) and
+   fakes the shape of the sections below it so nothing "pops in". */
+function SkeletonBlock({ height, width = "100%", radius = 8 }) {
+  return (
+    <div
+      className="bp-skel"
+      style={{ height, width, borderRadius: radius }}
+    />
+  );
+}
+
 const STYLE = `
 .bp-app {
   --bp-bg: #F7F7F5;
@@ -327,6 +339,19 @@ const STYLE = `
 .bp-save:disabled { opacity: 0.6; }
 .bp-spin { animation: bp-spin 0.8s linear infinite; }
 @keyframes bp-spin { to { transform: rotate(360deg); } }
+
+.bp-skel {
+  background: linear-gradient(90deg, #EDEDEA 25%, #F5F5F2 37%, #EDEDEA 63%);
+  background-size: 400% 100%;
+  animation: bp-shimmer 1.4s ease infinite;
+}
+@keyframes bp-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-skel { animation: none; background: #EDEDEA; }
+}
 `;
 
 export default function BillingProfilePage({ account }) {
@@ -346,11 +371,22 @@ export default function BillingProfilePage({ account }) {
   }, []);
 
   async function loadProfile() {
+    // getSession() resolves from the already-verified local session
+    // (memory/localStorage) with no network round-trip. getUser() instead
+    // calls out to Supabase to re-validate the JWT every time it's called,
+    // which was adding a full extra network hop before this page could
+    // even start fetching the profile it actually needs. RLS on the
+    // billing_profiles query still enforces real access control, so this
+    // is just as safe for reading "which user am I" here.
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!user) return;
+    const user = session?.user;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const { data } = await supabase
       .from("billing_profiles")
@@ -424,10 +460,14 @@ export default function BillingProfilePage({ account }) {
     try {
       setSaving(true);
 
+      // Same reasoning as loadProfile: getSession() avoids an unnecessary
+      // network call to re-validate the token right before a save that's
+      // about to hit the network anyway for the actual upsert.
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
+      const user = session?.user;
       if (!user) {
         flashBanner({ type: "error", text: "Please login again." });
         return;
@@ -459,7 +499,30 @@ export default function BillingProfilePage({ account }) {
     return (
       <div className="bp-app">
         <style>{STYLE}</style>
-        <div style={{ margin: "auto", fontSize: 13.5, color: "var(--bp-text-soft, #767A85)" }}>Loading...</div>
+
+        <div className="bp-topbar">
+          <div className="bp-topbar-row">
+            <div>
+              <p className="bp-title">Payout profile</p>
+              <p className="bp-subtitle">Fill this once. Every invoice uses these details.</p>
+            </div>
+          </div>
+          <div className="bp-track">
+            <div className="bp-track-fill" style={{ width: "0%" }} />
+          </div>
+        </div>
+
+        <div className="bp-scroll">
+          {[64, 96, 96, 140].map((h, i) => (
+            <div key={i} style={{ marginBottom: 10 }}>
+              <SkeletonBlock height={h} radius={14} />
+            </div>
+          ))}
+        </div>
+
+        <div className="bp-bottombar">
+          <SkeletonBlock height={48} radius={12} />
+        </div>
       </div>
     );
   }

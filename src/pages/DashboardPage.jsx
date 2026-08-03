@@ -166,7 +166,7 @@ const highestDealAmount = useMemo(() => {
         color: "var(--slate)",
       }}
     >
-      Welcome, 
+      Welcome,
     </div>
 
     <div
