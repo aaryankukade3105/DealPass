@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { DELIVERABLES } from "../constants/deliverables";
-import { DELIVERABLE_DETAIL_CONFIG } from "../constants/deliverableDetails";
+import {
+  DELIVERABLE_DETAIL_CONFIG,
+  resolveDeliverableDetail,
+} from "../constants/deliverableDetails";
 import DeliverableDetailPopup from "./DeliverableDetailPopup";
 import { Minus } from "lucide-react";
 
 function DeliverablesSelector({ value = [], onChange }) {
-  const [popupItem, setPopupItem] = useState(null); // the DELIVERABLES item awaiting a detail
+  const [popupItem, setPopupItem] = useState(null);
 
-  const addWithDetail = (detail) => {
+  const addWithDetail = (rawValue) => {
+    if (!popupItem) return;
+
+    const config = DELIVERABLE_DETAIL_CONFIG[popupItem.id];
+    const detail = resolveDeliverableDetail(config, rawValue);
+
     onChange([
       ...value,
       {
@@ -17,6 +25,7 @@ function DeliverablesSelector({ value = [], onChange }) {
         qty: 1,
       },
     ]);
+
     setPopupItem(null);
   };
 
@@ -59,7 +68,6 @@ function DeliverablesSelector({ value = [], onChange }) {
                     return;
                   }
 
-                  // First time selecting this item — if it needs a detail, ask for it first
                   if (detailConfig) {
                     setPopupItem(item);
                     return;
@@ -130,9 +138,7 @@ function DeliverablesSelector({ value = [], onChange }) {
                       onClick={(e) => {
                         e.stopPropagation();
 
-                        const existing = value.find((d) => d.id === item.id);
-
-                        if (existing.qty > 1) {
+                        if (selected.qty > 1) {
                           onChange(
                             value.map((d) =>
                               d.id === item.id
@@ -155,10 +161,7 @@ function DeliverablesSelector({ value = [], onChange }) {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 11,
-                        fontWeight: 700,
                         cursor: "pointer",
-                        transition: "all .15s ease",
                       }}
                     >
                       <Minus size={12} strokeWidth={3} />

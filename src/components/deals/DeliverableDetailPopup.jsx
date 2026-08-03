@@ -8,14 +8,15 @@ function DeliverableDetailPopup({ config, onConfirm, onCancel }) {
   const isOther = value === "__other__";
   const canConfirm = value && (!isOther || customValue.trim().length > 0);
 
-  const handleConfirm = () => {
-    if (!canConfirm) return;
-    const detail = isOther
-      ? config.formatDetail(customValue.trim())
-      : config.formatDetail(value);
-    onConfirm(detail);
-  };
+const handleConfirm = () => {
+  if (!canConfirm) return;
 
+  const rawValue = isOther
+    ? customValue.trim()
+    : value;
+
+  onConfirm(rawValue);
+};
   return (
     <>
       <div className="dp-sheet-backdrop" onClick={onCancel} />
@@ -75,6 +76,7 @@ function DeliverableDetailPopup({ config, onConfirm, onCancel }) {
               marginBottom: isOther ? 12 : 0,
             }}
           >
+            
             {config.options.map((opt) => {
               const selected = value === opt.value;
               return (

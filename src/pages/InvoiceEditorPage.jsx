@@ -1,6 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
 import {
+  createInvoice,
+  updateInvoice,
+  deleteInvoice,
+} from "../services/invoiceService";
+import {
   ArrowLeft,
   FileText,
   Eye,
@@ -15,10 +20,12 @@ import {
   AlertTriangle,
   PenTool,
   Trash2,
+  Save,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import Field from "../components/common/Field";
 import DateField from "../components/common/DateField";
+import { formatDeliverableLabel } from "../components/constants/deliverables";
 
 function formatDisplayDate(dateStr) {
   if (!dateStr) return "-";
@@ -254,6 +261,15 @@ const GlobalStyle = () => (
       box-shadow: 0 8px 24px rgba(255,177,0,0.5);
       transform: translateY(-1px);
     }
+    .dp-inv-btn-success {
+      background: linear-gradient(135deg, ${SUCCESS}, #22C55E);
+      color: #fff;
+      box-shadow: 0 6px 18px rgba(22,163,74,0.35);
+    }
+    .dp-inv-btn-success:hover:not(:disabled) {
+      box-shadow: 0 8px 24px rgba(22,163,74,0.45);
+      transform: translateY(-1px);
+    }
     .dp-inv-step {
       display: flex;
       align-items: center;
@@ -409,10 +425,24 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   const [billingProfile, setBillingProfile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [attemptedPreview, setAttemptedPreview] = useState(false);
+  const [attemptedSave, setAttemptedSave] = useState(false);
+
+  // The persisted invoice this deal is bound to. `null` means nothing has
+  // been saved yet — Save Invoice will INSERT. Once set, it never changes
+  // for the lifetime of this invoice, and Save Invoice always UPDATEs.
+  const [invoiceId, setInvoiceId] = useState(deal?.invoice_id || null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  // `detail` (e.g. "Collab", "90 Days", "3 Stories") is carried over from
+  // the deal's deliverables so it survives into the invoice and is shown
+  // via formatDeliverableLabel everywhere below.
   const [lineItems, setLineItems] = useState(
     (deal?.deliverables || []).map((item) => ({
       id: item.id || crypto.randomUUID(),
       label: item.type,
+      detail: item.detail || "",
       qty: Number(item.qty || 1),
       rate: Number(item.rate || 0),
     }))
@@ -426,12 +456,17 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   const [signatureName, setSignatureName] = useState("");
   const [signatureFontId, setSignatureFontId] = useState("");
 
-  // Load the saved draft (if any) before anything else touches localStorage,
-  // so re-opening this page after navigating away restores exactly what
-  // was typed — invoice fields, line item rates, GST settings, and signature.
+  // If this deal already has a saved invoice, the database is the source
+  // of truth and we load straight from it (ignoring any local draft).
+  // Otherwise we fall back to whatever draft is sitting in localStorage.
   useEffect(() => {
     loadBillingProfile();
-    loadDraft();
+    if (deal?.invoice_id) {
+      loadExistingInvoice(deal.invoice_id);
+    } else {
+      loadDraft();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadBillingProfile() {
@@ -448,6 +483,59 @@ export default function InvoiceEditorPage({ deal, onBack }) {
       .maybeSingle();
 
     setBillingProfile(data);
+  }
+
+  async function loadExistingInvoice(id) {
+    const { data: invoiceRow, error: invoiceErr } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (invoiceErr) {
+      console.error(invoiceErr);
+      return;
+    }
+    if (!invoiceRow) return;
+
+    setInvoice({
+      invoiceNumber: invoiceRow.invoice_number,
+      invoiceDate: invoiceRow.invoice_date,
+      dueDate: invoiceRow.due_date || "",
+      clientName: invoiceRow.client_name || "",
+      companyName: invoiceRow.company_name || "",
+      clientEmail: invoiceRow.client_email || "",
+      clientPhone: invoiceRow.client_phone || "",
+      billingAddress: invoiceRow.billing_address || "",
+      gstNumber: invoiceRow.client_gst || "",
+    });
+    setGstEnabled(Boolean(invoiceRow.gst_enabled));
+    setGstPercent(invoiceRow.gst_percent ?? 18);
+    setSignatureName(invoiceRow.signature_name || "");
+    setSignatureFontId(invoiceRow.signature_font || "");
+    setInvoiceId(invoiceRow.id);
+
+    const { data: itemRows, error: itemsErr } = await supabase
+      .from("invoice_items")
+      .select("*")
+      .eq("invoice_id", id);
+
+    if (itemsErr) {
+      console.error(itemsErr);
+      return;
+    }
+
+    if (itemRows && itemRows.length) {
+      setLineItems(
+        itemRows.map((it) => ({
+          id: it.id,
+          label: it.deliverable,
+          detail: it.detail || "",
+          qty: Number(it.qty || 1),
+          rate: Number(it.rate || 0),
+        }))
+      );
+    }
   }
 
   function saveDraft() {
@@ -467,6 +555,8 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   // Debounced autosave while the user is actively editing — every keystroke
   // resets a 500ms timer, so the draft is written to localStorage shortly
   // after the user pauses, without hammering storage on every character.
+  // This is still just the local draft, separate from the persisted
+  // invoice — Save Invoice is the only thing that writes to Supabase.
   useEffect(() => {
     const timer = setTimeout(() => {
       saveDraft();
@@ -511,8 +601,9 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   }
 
   // Explicit "clear draft" — wipes the saved copy and resets the form back
-  // to defaults. This is the only way old data goes away; simply
-  // navigating back always restores the draft.
+  // to defaults. This only touches the local draft; it never touches a
+  // persisted invoice. This is the only way old draft data goes away;
+  // simply navigating back always restores the draft.
   function clearDraft() {
     localStorage.removeItem(STORAGE_KEY);
     setInvoice({
@@ -530,6 +621,7 @@ export default function InvoiceEditorPage({ deal, onBack }) {
       (deal?.deliverables || []).map((item) => ({
         id: item.id || crypto.randomUUID(),
         label: item.type,
+        detail: item.detail || "",
         qty: Number(item.qty || 1),
         rate: Number(item.rate || 0),
       }))
@@ -560,6 +652,7 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   // and simply won't render on the invoice if left blank.
   const clientNameMissing = !invoice.clientName.trim();
   const canPreview = !amountMismatch && !clientNameMissing;
+  const canSave = !amountMismatch && !clientNameMissing;
 
   // completion tracking — drives the step rail
   const steps = [
@@ -599,6 +692,114 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     setAttemptedPreview(true);
     if (canPreview) setShowPreview(true);
   };
+
+  // Save Invoice: create on first save, update on every save after that.
+  // The invoice number is only ever assigned inside createInvoice — this
+  // function never generates or overwrites it.
+  async function handleSaveInvoice() {
+    setAttemptedSave(true);
+    setSaveError(null);
+    if (!canSave) return;
+
+    setSaving(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setSaveError("Please login again.");
+        return;
+      }
+
+      const invoicePayload = {
+        deal_id: deal.id,
+
+        invoice_date: invoice.invoiceDate,
+        due_date: invoice.dueDate || null,
+
+        client_name: invoice.clientName,
+        company_name: invoice.companyName,
+        client_email: invoice.clientEmail,
+        client_phone: invoice.clientPhone,
+        billing_address: invoice.billingAddress,
+        client_gst: invoice.gstNumber,
+
+        subtotal,
+        gst_enabled: gstEnabled,
+        gst_percent: gstPercent,
+        gst_amount: gst,
+        total,
+
+        signature_name: signatureName,
+        signature_font: signatureFontId || null,
+      };
+
+      if (!invoiceId) {
+        // First save for this deal — create it, and remember it on the deal.
+        const created = await createInvoice(user.id, invoicePayload, lineItems);
+
+        const { error: dealError } = await supabase
+          .from("deals")
+          .update({ invoice_id: created.id })
+          .eq("id", deal.id);
+
+        if (dealError) throw dealError;
+
+        if (deal) deal.invoice_id = created.id;
+
+        setInvoiceId(created.id);
+        // The invoice number is now fixed — reflect it in the form, but
+        // never regenerate it again.
+        setInvoice((prev) => ({ ...prev, invoiceNumber: created.invoice_number }));
+      } else {
+        // Already has an invoice — update in place, same invoice number.
+        await updateInvoice(invoiceId, invoicePayload, lineItems);
+      }
+
+      setLastSaved(new Date());
+    } catch (err) {
+      console.error(err);
+      setSaveError("Failed to save invoice. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Delete Invoice: removes the invoice + its items, clears the deal's
+  // reference, and does NOT touch profiles.next_invoice_number, so the
+  // number this invoice used is never reused for anything else.
+  async function handleDeleteInvoice() {
+    if (!invoiceId) return;
+
+    const confirmed = window.confirm(
+      "Delete this invoice? This can't be undone, and the invoice number won't be reused."
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setSaveError(null);
+    try {
+      await deleteInvoice(invoiceId);
+
+      const { error: dealError } = await supabase
+        .from("deals")
+        .update({ invoice_id: null })
+        .eq("id", deal.id);
+
+      if (dealError) throw dealError;
+
+      if (deal) deal.invoice_id = null;
+
+      setInvoiceId(null);
+      setInvoice((prev) => ({ ...prev, invoiceNumber: defaultInvoiceNumber }));
+    } catch (err) {
+      console.error(err);
+      setSaveError("Failed to delete invoice. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const selectedSignatureFont = SIGNATURE_FONTS.find((f) => f.id === signatureFontId);
 
@@ -658,6 +859,15 @@ export default function InvoiceEditorPage({ deal, onBack }) {
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
+          <button
+            className="dp-inv-btn dp-inv-btn-success"
+            onClick={handleSaveInvoice}
+            disabled={saving}
+          >
+            <Save size={17} />
+            {saving ? "Saving..." : invoiceId ? "Update Invoice" : "Save Invoice"}
+          </button>
+
           <button className="dp-inv-btn dp-inv-btn-primary" onClick={handlePreviewClick}>
             <Eye size={17} />
             Preview & Send
@@ -758,7 +968,7 @@ export default function InvoiceEditorPage({ deal, onBack }) {
               }}
             >
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              Fix deliverable totals to unlock preview.
+              Fix deliverable totals to unlock preview and saving.
             </div>
           )}
 
@@ -779,7 +989,45 @@ export default function InvoiceEditorPage({ deal, onBack }) {
               }}
             >
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              Add a client name to unlock preview.
+              Add a client name to unlock preview and saving.
+            </div>
+          )}
+
+          {saveError && (
+            <div
+              style={{
+                marginTop: 18,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#FEF2F2",
+                border: "1px solid #FECACA",
+                color: DANGER,
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                gap: 8,
+                alignItems: "flex-start",
+              }}
+            >
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+              {saveError}
+            </div>
+          )}
+
+          {invoiceId && (
+            <div
+              style={{
+                marginTop: 18,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#F0FDF4",
+                border: "1px solid #BBF7D0",
+                color: "#166534",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              Saved as <span className="dp-inv-mono">{invoice.invoiceNumber}</span>
             </div>
           )}
 
@@ -791,6 +1039,18 @@ export default function InvoiceEditorPage({ deal, onBack }) {
             <Trash2 size={13} />
             Clear saved draft
           </button>
+
+          {invoiceId && (
+            <button
+              className="dp-inv-btn-text"
+              style={{ marginTop: 4 }}
+              onClick={handleDeleteInvoice}
+              disabled={deleting}
+            >
+              <Trash2 size={13} />
+              {deleting ? "Deleting invoice..." : "Delete invoice"}
+            </button>
+          )}
         </div>
 
         {/* ---------- Right: the form ---------- */}
@@ -860,7 +1120,9 @@ export default function InvoiceEditorPage({ deal, onBack }) {
                 INVOICE NO.
               </div>
               <div className="dp-inv-mono" style={{ fontSize: 19, fontWeight: 700, color: AMBER }}>
-                {invoice.invoiceNumber}
+               <span data-invoice-number>
+  {invoice.invoiceNumber}
+</span>
               </div>
             </div>
           </div>
@@ -879,9 +1141,21 @@ export default function InvoiceEditorPage({ deal, onBack }) {
             <input
               className="dp-input dp-inv-mono"
               value={invoice.invoiceNumber}
-              onChange={(e) => update("invoiceNumber", e.target.value)}
+              // Once an invoice has been saved, its number is permanent —
+              // lock the field so it can never be edited away from what
+              // createInvoice() assigned.
+              readOnly={Boolean(invoiceId)}
+              onChange={(e) => {
+                if (invoiceId) return;
+                update("invoiceNumber", e.target.value);
+              }}
             />
           </Field>
+          {invoiceId && (
+            <div style={{ fontSize: 12, color: SLATE, marginTop: -10, marginBottom: 14 }}>
+              Locked — invoice numbers never change once saved.
+            </div>
+          )}
 
           <Field label="Invoice Date">
             <DateField
@@ -994,13 +1268,13 @@ export default function InvoiceEditorPage({ deal, onBack }) {
 
           <Field label="Client Name">
             <input
-              className={`dp-input ${attemptedPreview && clientNameMissing ? "dp-input-error" : ""}`}
+              className={`dp-input ${(attemptedPreview || attemptedSave) && clientNameMissing ? "dp-input-error" : ""}`}
               value={invoice.clientName}
               onChange={(e) => update("clientName", e.target.value)}
               placeholder="John Doe"
             />
           </Field>
-          {attemptedPreview && clientNameMissing && (
+          {(attemptedPreview || attemptedSave) && clientNameMissing && (
             <div style={{ fontSize: 12, color: DANGER, fontWeight: 600, marginTop: -10, marginBottom: 14 }}>
               Client name is required.
             </div>
@@ -1123,8 +1397,12 @@ export default function InvoiceEditorPage({ deal, onBack }) {
                   }}
                 >
                   <span className="dp-inv-mono" style={{ color: SLATE }}>{index + 1}</span>
+                  {/* formatDeliverableLabel is the single source of truth
+                      for label + detail formatting — keeps this table,
+                      the PDF, and every other surface in sync. Qty is
+                      excluded here since this table has its own Qty column. */}
                   <span style={{ fontWeight: 600, color: INK, overflowWrap: "anywhere" }}>
-                    {item.label}
+                    {formatDeliverableLabel(item, { includeQty: false })}
                   </span>
                   <span className="dp-inv-mono" style={{ textAlign: "center", color: SLATE }}>{item.qty}</span>
                   <input
@@ -1505,7 +1783,9 @@ function PremiumInvoiceDocument({
               marginTop: 2,
             }}
           >
-            {invoice.invoiceNumber}
+            <span data-invoice-number>
+  {invoice.invoiceNumber}
+</span>
           </div>
           <div style={{ fontSize: fs(11.5), color: DOC_SLATE, marginTop: 6 }}>
             Issued {formatDisplayDate(invoice.invoiceDate)}
@@ -1642,7 +1922,12 @@ function PremiumInvoiceDocument({
                 alignItems: "center",
               }}
             >
-              <span style={{ color: DOC_INK, fontWeight: 500, overflowWrap: "anywhere" }}>{item.label}</span>
+              {/* Same formatter as the editable table above — the PDF/
+                  preview always matches exactly what the deal configured,
+                  e.g. "Ad Usage Rights (90 Days)". */}
+              <span style={{ color: DOC_INK, fontWeight: 500, overflowWrap: "anywhere" }}>
+                {formatDeliverableLabel(item, { includeQty: false })}
+              </span>
               <span style={{ textAlign: "center", color: DOC_SLATE, fontFamily: "'IBM Plex Mono', monospace" }}>
                 {item.qty}
               </span>
@@ -1834,13 +2119,14 @@ function InvoicePreviewModal({
   }, [billingProfile, total]);
 
   // Renders the invoice through the browser's own print pipeline instead of
-  // rasterizing it with html2canvas. A screenshot-based export has to guess
-  // at viewport/overflow and can silently clip whatever falls outside that
-  // guess (which is what kept cropping content). Printing hands the exact
-  // same markup to the browser's layout + pagination engine that's already
-  // rendering it correctly on screen, so nothing gets lost — and if an
-  // invoice is ever too tall for one page, it flows onto a second page
-  // instead of being cut off.
+  // rasterizing it with html2canvas. Printing hands the exact same markup
+  // to the browser's layout + pagination engine that's already rendering
+  // it correctly on screen, so nothing gets lost.
+  //
+  // This function is PDF export only — it has no database logic at all.
+  // It never creates, updates, or reads any invoice row; it only prints
+  // whatever is currently in the form. Saving/updating an invoice is
+  // handled entirely by the "Save Invoice" button on the editor page.
   const downloadPDF = () => {
     const element = invoiceRef.current;
     if (!element) {
@@ -2000,9 +2286,7 @@ function InvoicePreviewModal({
               textAlign: "center",
             }}
           >
-            💡 "Download PDF" opens your browser's print dialog — pick <strong>Save as PDF</strong> as
-            the destination. For a clean copy with no page number or URL at the bottom, open{" "}
-            <strong>More settings</strong> and uncheck <strong>Headers and footers</strong>.
+           💡 <strong>Download PDF</strong> opens your device's print screen. On <strong>Android</strong>, select <strong>Save as PDF</strong>. On <strong>iPhone</strong>, tap <strong>Share → Save to Files</strong>. Rename the file if needed before saving.
           </div>
 
           <div
