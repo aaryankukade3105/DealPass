@@ -21,6 +21,8 @@ import {
   PenTool,
   Trash2,
   Save,
+  Type,
+  Eraser,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import Field from "../components/common/Field";
@@ -322,6 +324,41 @@ const GlobalStyle = () => (
       box-shadow: 0 0 0 4px rgba(108,92,231,0.12);
       background: #FAF9FF;
     }
+    .dp-inv-sig-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border-radius: 10px;
+      border: 1.5px solid #E2E5EE;
+      background: #fff;
+      color: ${SLATE};
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .dp-inv-sig-tab.active {
+      border-color: ${VIOLET};
+      color: ${VIOLET};
+      background: #FAF9FF;
+      box-shadow: 0 0 0 4px rgba(108,92,231,0.1);
+    }
+    .dp-inv-sigpad-canvas {
+      touch-action: none;
+      display: block;
+      width: 100%;
+      height: 180px;
+      border-radius: 12px;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 39px,
+        #E2E5EE 39px,
+        #E2E5EE 40px
+      ), #fff;
+      cursor: crosshair;
+    }
     @keyframes dpFadeUp {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
@@ -403,6 +440,125 @@ function Toggle({ checked, onChange, color = VIOLET }) {
   );
 }
 
+/* =====================================================================
+   SignaturePad — a simple canvas the user draws on with mouse, pen, or
+   finger. Emits a PNG data URL (white background) via onChange whenever
+   a stroke ends, and exposes a Clear button. This is what gets persisted
+   to the DB as "signature drawn" (the signature_drawn column).
+   ===================================================================== */
+function SignaturePad({ value, onChange }) {
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+  const lastPointRef = useRef(null);
+  const hasStrokesRef = useRef(false);
+
+  // Restore a previously drawn signature (e.g. loaded from an existing
+  // invoice, or from the local draft) onto the canvas once on mount /
+  // whenever the incoming value changes to something new we haven't drawn.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    if (!value) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasStrokesRef.current = false;
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      hasStrokesRef.current = true;
+    };
+    img.src = value;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function getCanvasPoint(e) {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: ((clientX - rect.left) / rect.width) * canvas.width,
+      y: ((clientY - rect.top) / rect.height) * canvas.height,
+    };
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    drawingRef.current = true;
+    lastPointRef.current = getCanvasPoint(e);
+  }
+
+  function moveDraw(e) {
+    if (!drawingRef.current) return;
+    e.preventDefault();
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const point = getCanvasPoint(e);
+    const last = lastPointRef.current;
+
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+
+    lastPointRef.current = point;
+    hasStrokesRef.current = true;
+  }
+
+  function endDraw() {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+
+    if (hasStrokesRef.current) {
+      const canvas = canvasRef.current;
+      onChange(canvas.toDataURL("image/png"));
+    }
+  }
+
+  function handleClear() {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasStrokesRef.current = false;
+    onChange("");
+  }
+
+  return (
+    <div>
+      <canvas
+        ref={canvasRef}
+        className="dp-inv-sigpad-canvas"
+        width={600}
+        height={180}
+        onMouseDown={startDraw}
+        onMouseMove={moveDraw}
+        onMouseUp={endDraw}
+        onMouseLeave={endDraw}
+        onTouchStart={startDraw}
+        onTouchMove={moveDraw}
+        onTouchEnd={endDraw}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+        <span style={{ fontSize: 12, color: SLATE }}>Draw using your mouse, stylus, or finger.</span>
+        <button type="button" className="dp-inv-btn-text" onClick={handleClear}>
+          <Eraser size={13} />
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function InvoiceEditorPage({ deal, onBack }) {
   const today = new Date();
   const year = today.getFullYear();
@@ -451,10 +607,14 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   const [gstPercent, setGstPercent] = useState(18);
   const [lastSaved, setLastSaved] = useState(null);
 
-  // Digital signature — a typed name plus one of five selectable script
-  // font styles. Both are persisted with the rest of the draft.
+  // Digital signature — two mutually exclusive modes:
+  //   "typed": a typed name rendered in one of five script fonts
+  //   "drawn": a hand-drawn signature captured from a canvas, stored as a
+  //            PNG data URL in the "signature_drawn" DB column
+  const [signatureMode, setSignatureMode] = useState("typed");
   const [signatureName, setSignatureName] = useState("");
   const [signatureFontId, setSignatureFontId] = useState("");
+  const [signatureDrawnData, setSignatureDrawnData] = useState("");
 
   // If this deal already has a saved invoice, the database is the source
   // of truth and we load straight from it (ignoring any local draft).
@@ -511,8 +671,10 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     });
     setGstEnabled(Boolean(invoiceRow.gst_enabled));
     setGstPercent(invoiceRow.gst_percent ?? 18);
+    setSignatureMode(invoiceRow.signature_mode || (invoiceRow.signature_drawn ? "drawn" : "typed"));
     setSignatureName(invoiceRow.signature_name || "");
     setSignatureFontId(invoiceRow.signature_font || "");
+    setSignatureDrawnData(invoiceRow.signature_drawn || "");
     setInvoiceId(invoiceRow.id);
 
     const { data: itemRows, error: itemsErr } = await supabase
@@ -544,8 +706,10 @@ export default function InvoiceEditorPage({ deal, onBack }) {
       lineItems,
       gstEnabled,
       gstPercent,
+      signatureMode,
       signatureName,
       signatureFontId,
+      signatureDrawnData,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
@@ -563,12 +727,21 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [invoice, lineItems, gstEnabled, gstPercent, signatureName, signatureFontId]);
+  }, [invoice, lineItems, gstEnabled, gstPercent, signatureMode, signatureName, signatureFontId, signatureDrawnData]);
 
   // Always-current snapshot of form state, so we can flush a save
   // synchronously (e.g. on unmount) without waiting on the debounce timer.
   const draftRef = useRef();
-  draftRef.current = { invoice, lineItems, gstEnabled, gstPercent, signatureName, signatureFontId };
+  draftRef.current = {
+    invoice,
+    lineItems,
+    gstEnabled,
+    gstPercent,
+    signatureMode,
+    signatureName,
+    signatureFontId,
+    signatureDrawnData,
+  };
 
   // Safety-net: flush the latest draft to localStorage whenever this
   // page unmounts, so navigating back mid-edit (or closing/reopening the
@@ -593,8 +766,10 @@ export default function InvoiceEditorPage({ deal, onBack }) {
       if (draft.lineItems) setLineItems(draft.lineItems);
       if (draft.gstEnabled !== undefined) setGstEnabled(draft.gstEnabled);
       if (draft.gstPercent !== undefined) setGstPercent(draft.gstPercent);
+      if (draft.signatureMode !== undefined) setSignatureMode(draft.signatureMode);
       if (draft.signatureName !== undefined) setSignatureName(draft.signatureName);
       if (draft.signatureFontId !== undefined) setSignatureFontId(draft.signatureFontId);
+      if (draft.signatureDrawnData !== undefined) setSignatureDrawnData(draft.signatureDrawnData);
     } catch (err) {
       console.error(err);
     }
@@ -628,8 +803,10 @@ export default function InvoiceEditorPage({ deal, onBack }) {
     );
     setGstEnabled(false);
     setGstPercent(18);
+    setSignatureMode("typed");
     setSignatureName("");
     setSignatureFontId("");
+    setSignatureDrawnData("");
   }
 
   const update = (field, value) => {
@@ -653,6 +830,10 @@ export default function InvoiceEditorPage({ deal, onBack }) {
   const clientNameMissing = !invoice.clientName.trim();
   const canPreview = !amountMismatch && !clientNameMissing;
   const canSave = !amountMismatch && !clientNameMissing;
+
+  const signatureProvided =
+    (signatureMode === "typed" && Boolean(signatureName.trim() && signatureFontId)) ||
+    (signatureMode === "drawn" && Boolean(signatureDrawnData));
 
   // completion tracking — drives the step rail
   const steps = [
@@ -731,8 +912,12 @@ export default function InvoiceEditorPage({ deal, onBack }) {
         gst_amount: gst,
         total,
 
-        signature_name: signatureName,
-        signature_font: signatureFontId || null,
+        signature_mode: signatureMode,
+        // Only persist the fields relevant to the active mode, so switching
+        // modes doesn't leave stale data from the other mode in the DB.
+        signature_name: signatureMode === "typed" ? signatureName : "",
+        signature_font: signatureMode === "typed" ? (signatureFontId || null) : null,
+        signature_drawn: signatureMode === "drawn" ? (signatureDrawnData || null) : null,
       };
 
       if (!invoiceId) {
@@ -1499,66 +1684,102 @@ export default function InvoiceEditorPage({ deal, onBack }) {
             color={VIOLET}
             icon={<PenTool size={17} color={VIOLET} />}
             title="Digital Signature"
-            subtitle="Type your name and pick a style — it'll appear on the invoice."
-            done={Boolean(signatureName && signatureFontId)}
+            subtitle="Type your name or draw it by hand — it'll appear on the invoice."
+            done={signatureProvided}
             optional
           />
 
-          <Field label="Add Signature">
-            <input
-              className="dp-input"
-              value={signatureName}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSignatureName(value);
-                // Auto-select the first style the moment a name is typed,
-                // so a preview shows up immediately; the user can still
-                // switch styles afterward.
-                if (value.trim() && !signatureFontId) {
-                  setSignatureFontId(SIGNATURE_FONTS[0].id);
-                }
-                if (!value.trim()) {
-                  setSignatureFontId("");
-                }
-              }}
-              placeholder="enter your name"
-            />
-          </Field>
+          <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+            <button
+              type="button"
+              className={`dp-inv-sig-tab ${signatureMode === "typed" ? "active" : ""}`}
+              onClick={() => setSignatureMode("typed")}
+            >
+              <Type size={14} />
+              Type
+            </button>
+            <button
+              type="button"
+              className={`dp-inv-sig-tab ${signatureMode === "drawn" ? "active" : ""}`}
+              onClick={() => setSignatureMode("drawn")}
+            >
+              <PenTool size={14} />
+              Draw
+            </button>
+          </div>
 
-          {signatureName.trim() && (
+          {signatureMode === "typed" ? (
+            <>
+              <Field label="Add Signature">
+                <input
+                  className="dp-input"
+                  value={signatureName}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSignatureName(value);
+                    // Auto-select the first style the moment a name is typed,
+                    // so a preview shows up immediately; the user can still
+                    // switch styles afterward.
+                    if (value.trim() && !signatureFontId) {
+                      setSignatureFontId(SIGNATURE_FONTS[0].id);
+                    }
+                    if (!value.trim()) {
+                      setSignatureFontId("");
+                    }
+                  }}
+                  placeholder="Enter your name"
+                />
+              </Field>
+
+              {signatureName.trim() && (
+                <div
+                  className="dp-inv-fade"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                    gap: 12,
+                    marginBottom: 22,
+                  }}
+                >
+                  {SIGNATURE_FONTS.map((font) => (
+                    <div
+                      key={font.id}
+                      className={`dp-inv-sig-option ${signatureFontId === font.id ? "selected" : ""}`}
+                      onClick={() => setSignatureFontId(font.id)}
+                    >
+                      <div
+                        style={{
+                          fontFamily: font.family,
+                          fontSize: 28,
+                          color: INK,
+                          lineHeight: 1.3,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {signatureName}
+                      </div>
+                      <div style={{ fontSize: 11, color: SLATE, marginTop: 6, fontWeight: 600 }}>
+                        {font.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
             <div
               className="dp-inv-fade"
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: 12,
+                border: "1px solid #E7E9F3",
+                borderRadius: 14,
+                padding: 16,
                 marginBottom: 22,
+                background: "#FAFAFE",
               }}
             >
-              {SIGNATURE_FONTS.map((font) => (
-                <div
-                  key={font.id}
-                  className={`dp-inv-sig-option ${signatureFontId === font.id ? "selected" : ""}`}
-                  onClick={() => setSignatureFontId(font.id)}
-                >
-                  <div
-                    style={{
-                      fontFamily: font.family,
-                      fontSize: 28,
-                      color: INK,
-                      lineHeight: 1.3,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {signatureName}
-                  </div>
-                  <div style={{ fontSize: 11, color: SLATE, marginTop: 6, fontWeight: 600 }}>
-                    {font.label}
-                  </div>
-                </div>
-              ))}
+              <SignaturePad value={signatureDrawnData} onChange={setSignatureDrawnData} />
             </div>
           )}
 
@@ -1661,8 +1882,10 @@ export default function InvoiceEditorPage({ deal, onBack }) {
           gstEnabled={gstEnabled}
           gstPercent={gstPercent}
           total={total}
+          signatureMode={signatureMode}
           signatureName={signatureName}
           signatureFont={selectedSignatureFont}
+          signatureDrawnData={signatureDrawnData}
           onClose={() => setShowPreview(false)}
         />
       )}
@@ -1689,8 +1912,10 @@ function PremiumInvoiceDocument({
   gstPercent,
   total,
   qrImage,
+  signatureMode,
   signatureName,
   signatureFont,
+  signatureDrawnData,
   docRef,
 }) {
   // Density scale: as more line items are added, text and spacing shrink
@@ -1719,6 +1944,10 @@ function PremiumInvoiceDocument({
     phone: invoice.clientPhone,
     gst: invoice.gstNumber,
   };
+
+  const hasSignature =
+    (signatureMode === "typed" && signatureName && signatureFont) ||
+    (signatureMode === "drawn" && signatureDrawnData);
 
   return (
     <div
@@ -2028,29 +2257,52 @@ function PremiumInvoiceDocument({
           <div style={{ fontSize: fs(10.5), fontWeight: 700, letterSpacing: 1.6, color: DOC_GOLD, textTransform: "uppercase", marginBottom: 8 }}>
             Authorized Signature
           </div>
-          {signatureName && signatureFont ? (
-            <div style={{ marginTop: 6 }}>
-              <div
-                style={{
-                  fontFamily: signatureFont.family,
-                  fontSize: fs(32),
-                  color: DOC_INK,
-                }}
-              >
-                {signatureName}
+          {hasSignature ? (
+            signatureMode === "drawn" ? (
+              <div style={{ marginTop: 6, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                <img
+                  src={signatureDrawnData}
+                  alt="Signature"
+                  style={{ maxWidth: 220, maxHeight: 80, objectFit: "contain" }}
+                />
+                <div
+                  style={{
+                    borderTop: `1px solid ${DOC_INK}`,
+                    marginTop: 4,
+                    paddingTop: 4,
+                    width: 220,
+                    textAlign: "right",
+                    fontSize: fs(11),
+                    color: DOC_SLATE,
+                  }}
+                >
+                  Signed
+                </div>
               </div>
-              <div
-                style={{
-                  borderTop: `1px solid ${DOC_INK}`,
-                  marginTop: 4,
-                  paddingTop: 4,
-                  fontSize: fs(11),
-                  color: DOC_SLATE,
-                }}
-              >
-                {signatureName}
+            ) : (
+              <div style={{ marginTop: 6 }}>
+                <div
+                  style={{
+                    fontFamily: signatureFont.family,
+                    fontSize: fs(32),
+                    color: DOC_INK,
+                  }}
+                >
+                  {signatureName}
+                </div>
+                <div
+                  style={{
+                    borderTop: `1px solid ${DOC_INK}`,
+                    marginTop: 4,
+                    paddingTop: 4,
+                    fontSize: fs(11),
+                    color: DOC_SLATE,
+                  }}
+                >
+                  {signatureName}
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div
               style={{
@@ -2080,8 +2332,10 @@ function InvoicePreviewModal({
   gstEnabled,
   gstPercent,
   total,
+  signatureMode,
   signatureName,
   signatureFont,
+  signatureDrawnData,
   onClose,
 }) {
   const invoiceRef = useRef(null);
@@ -2304,8 +2558,10 @@ function InvoicePreviewModal({
               gstPercent={gstPercent}
               total={total}
               qrImage={qrImage}
+              signatureMode={signatureMode}
               signatureName={signatureName}
               signatureFont={signatureFont}
+              signatureDrawnData={signatureDrawnData}
               docRef={invoiceRef}
             />
           </div>
