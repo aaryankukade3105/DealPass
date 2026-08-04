@@ -2,79 +2,35 @@ import { useEffect, useMemo, useState } from "react";
 import EmptyState from "../components/common/EmptyState";
 import { getInvoices } from "../services/invoiceService";
 import InvoiceCard from "../components/invoices/InvoiceCard";
-import { Search, Receipt, TrendingUp, Clock3, AlertTriangle, X } from "lucide-react";
+import { Search, Receipt, TrendingUp, Clock3, X, Wallet, AlertTriangle, Handshake} from "lucide-react";
 
-const STATUS_FILTERS = ["All", "Draft", "Sent", "Partially Paid", "Paid", "Overdue", "Cancelled"];
-
-// Normalize status text so "paid", "Paid ", "PAID" all match the same bucket —
-// this alone was likely why Paid wasn't showing: a case/whitespace mismatch
-// means `=== "Paid"` silently fails and the invoice falls through to nowhere.
-const normalizeStatus = (inv) => (inv.status || "Draft").toString().trim();
-const statusIs = (inv, target) => normalizeStatus(inv).toLowerCase() === target.toLowerCase();
-
-// Invoice objects aren't guaranteed to use the same field name for their
-// total everywhere. This checks every likely top-level name, then a few
-// common nested shapes, then finally falls back to summing line items —
-// so a mismatched field name doesn't just silently show ₹0.
-const getInvoiceTotal = (inv) => {
-  const direct =
+const STATUS_FILTERS = [
+  "All",
+  "Pending",
+  "Partially Paid",
+  "Paid",
+  "Overdue",
+  "Barter",
+];
+// Invoice objects coming from the API/service aren't guaranteed to use the
+// same field name for their total everywhere (total vs grand_total vs
+// amount), which is why Paid/Pending were showing ₹0 before — this pulls
+// whichever one actually has a value.
+const getInvoiceTotal = (inv) =>
+  Number(
     inv.total ??
-    inv.grand_total ??
-    inv.grandTotal ??
-    inv.amount ??
-    inv.invoice_total ??
-    inv.total_amount ??
-    inv.amount_total ??
-    inv.summary?.total ??
-    inv.totals?.grand_total ??
-    inv.pricing?.total;
-
-  if (direct !== undefined && direct !== null && direct !== "") {
-    const n = Number(direct);
-    if (!Number.isNaN(n)) return n;
-  }
-
-  const items = inv.items || inv.line_items || inv.lineItems || [];
-  if (Array.isArray(items) && items.length) {
-    return items.reduce((sum, it) => {
-      const qty = Number(it.quantity ?? it.qty ?? 1);
-      const rate = Number(it.rate ?? it.price ?? it.unit_price ?? it.amount ?? 0);
-      return sum + qty * rate;
-    }, 0);
-  }
-
-  return 0;
-};
+      inv.grand_total ??
+      inv.amount ??
+      inv.invoice_total ??
+      inv.total_amount ??
+      0
+  ) || 0;
 
 const PageStyle = () => (
   <style>{`
-    .dp-invp-wrap {
-      position: relative;
-      min-height: 100%;
-    }
-    .dp-invp-blob {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(70px);
-      z-index: 0;
-      opacity: 0.5;
-      pointer-events: none;
-    }
-    .dp-invp-blob.a {
-      width: 260px; height: 260px;
-      top: -80px; right: -70px;
-      background: radial-gradient(circle, rgba(108,92,231,0.28), transparent 70%);
-    }
-    .dp-invp-blob.b {
-      width: 240px; height: 240px;
-      top: 420px; left: -90px;
-      background: radial-gradient(circle, rgba(255,59,92,0.22), transparent 70%);
-    }
-    .dp-invp-content { position: relative; z-index: 1; }
-
     .dp-invp-stat {
       flex: 1;
-      min-width: 140px;
+      min-width: 128px;
       border-radius: 18px;
       padding: 14px 16px;
       display: flex;
@@ -227,7 +183,10 @@ function InvoicesPage({ deals, onOpenInvoice }) {
   const [invoices, setInvoices] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-
+const dealMap = useMemo(
+  () => Object.fromEntries(deals.map((d) => [d.id, d])),
+  [deals]
+);
   useEffect(() => {
     async function loadInvoices() {
       try {
@@ -243,37 +202,120 @@ function InvoicesPage({ deals, onOpenInvoice }) {
     loadInvoices();
   }, []);
 
-  const stats = useMemo(() => {
-    const paid = invoices.filter((inv) => statusIs(inv, "Paid"));
-    const partiallyPaid = invoices.filter((inv) => statusIs(inv, "Partially Paid"));
-    const overdue = invoices.filter((inv) => statusIs(inv, "Overdue"));
-    // "Pending" = everything still awaiting payment that isn't already
-    // broken out above and isn't cancelled (i.e. Draft + Sent).
-    const pending = invoices.filter((inv) => {
-      const s = normalizeStatus(inv).toLowerCase();
-      return !["paid", "partially paid", "overdue", "cancelled"].includes(s);
-    });
+const stats = useMemo(() => {
+  const counts = {
+    total: invoices.length,
+    pending: 0,
+    partiallyPaid: 0,
+    paid: 0,
+    overdue: 0,
+    barter: 0,
+  };
 
-    const sumOf = (arr) => arr.reduce((sum, inv) => sum + getInvoiceTotal(inv), 0);
+  invoices.forEach((inv) => {
+    const status =
+      dealMap[inv.deal_id]?.payment_status || "Pending";
 
-    return {
-      count: invoices.length,
-      paidCount: paid.length,
-      paidTotal: sumOf(paid),
-      partiallyPaidCount: partiallyPaid.length,
-      partiallyPaidTotal: sumOf(partiallyPaid),
-      overdueCount: overdue.length,
-      overdueTotal: sumOf(overdue),
-      pendingCount: pending.length,
-      pendingTotal: sumOf(pending),
-    };
-  }, [invoices]);
+    switch (status) {
+      case "Pending":
+        counts.pending++;
+        break;
 
+      case "Partially Paid":
+        counts.partiallyPaid++;
+        break;
+
+      case "Paid":
+        counts.paid++;
+        break;
+
+      case "Overdue":
+        counts.overdue++;
+        break;
+
+      case "Barter":
+        counts.barter++;
+        break;
+    }
+  });
+
+  return counts;
+}, [invoices, dealMap]);
+const statCards = [
+  {
+    key: "total",
+    label: "Total",
+    value: stats.total,
+    icon: <Receipt size={17} color="#6C5CE7" />,
+    iconBg: "rgba(108,92,231,0.16)",
+    accent: "rgba(108,92,231,0.45)",
+    bg: "rgba(237,233,254,0.65)",
+    shadow: "rgba(108,92,231,0.18)",
+    highlight: true,
+  },
+  {
+    key: "paid",
+    label: "Paid",
+    value: stats.paid,
+    icon: <TrendingUp size={17} color="#16A34A" />,
+    iconBg: "rgba(22,163,74,0.16)",
+    accent: "rgba(22,163,74,0.45)",
+    bg: "rgba(220,252,231,0.65)",
+    shadow: "rgba(22,163,74,0.18)",
+  },
+  {
+    key: "pending",
+    label: "Pending",
+    value: stats.pending,
+    icon: <Clock3 size={17} color="#D97706" />,
+    iconBg: "rgba(217,119,6,0.16)",
+    accent: "rgba(217,119,6,0.45)",
+    bg: "rgba(254,243,199,0.65)",
+    shadow: "rgba(217,119,6,0.18)",
+  },
+  {
+    key: "partiallyPaid",
+    label: "Partial",
+    value: stats.partiallyPaid,
+    icon: <Wallet size={17} color="#2563EB" />,
+    iconBg: "rgba(37,99,235,0.16)",
+    accent: "rgba(37,99,235,0.45)",
+    bg: "rgba(219,234,254,0.65)",
+    shadow: "rgba(37,99,235,0.18)",
+  },
+  {
+    key: "overdue",
+    label: "Overdue",
+    value: stats.overdue,
+    icon: <AlertTriangle size={17} color="#DC2626" />,
+    iconBg: "rgba(220,38,38,0.16)",
+    accent: "rgba(220,38,38,0.45)",
+    bg: "rgba(254,226,226,0.65)",
+    shadow: "rgba(220,38,38,0.18)",
+  },
+  {
+    key: "barter",
+    label: "Barter",
+    value: stats.barter,
+    icon: <Handshake size={17} color="#7C3AED" />,
+    iconBg: "rgba(124,58,237,0.16)",
+    accent: "rgba(124,58,237,0.45)",
+    bg: "rgba(237,233,254,0.65)",
+    shadow: "rgba(124,58,237,0.18)",
+  },
+];
   const filteredInvoices = useMemo(() => {
     const q = search.trim().toLowerCase();
 
     return invoices
-      .filter((inv) => (statusFilter === "All" ? true : normalizeStatus(inv) === statusFilter))
+    .filter((inv) => {
+  if (statusFilter === "All") return true;
+
+  const status =
+    dealMap[inv.deal_id]?.payment_status || "Pending";
+
+  return status === statusFilter;
+})  
       .filter((inv) => {
         if (!q) return true;
         return (
@@ -286,180 +328,158 @@ function InvoicesPage({ deals, onOpenInvoice }) {
   }, [invoices, search, statusFilter]);
 
   return (
-    <div className="dp-invp-wrap">
+    <div
+      className="dp-scroll"
+      style={{
+        flex: 1,
+        overflowY: "auto",
+        padding: "18px 18px 100px",
+      }}
+    >
       <PageStyle />
-      <div className="dp-invp-blob a" />
-      <div className="dp-invp-blob b" />
 
       <div
-        className="dp-invp-content dp-scroll"
         style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "18px 18px 100px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 18,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 18,
-          }}
-        >
-          <div>
-            <div className="dp-display" style={{ fontSize: 21, fontWeight: 700 }}>
-              Invoices
-            </div>
-            <div style={{ fontSize: 12.5, color: "var(--slate)", marginTop: 2 }}>
-              Every invoice you've raised, in one place
-            </div>
+        <div>
+          <div className="dp-display" style={{ fontSize: 21, fontWeight: 700 }}>
+            Invoices
           </div>
-
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--slate)",
-              fontWeight: 600,
-              background: "rgba(255,255,255,0.5)",
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(255,255,255,0.6)",
-              borderRadius: 999,
-              padding: "5px 12px",
-            }}
-          >
-            {invoices.length} total
-          </span>
+          <div style={{ fontSize: 12.5, color: "var(--slate)", marginTop: 2 }}>
+            Every invoice you've raised, in one place
+          </div>
         </div>
 
-        {!loading && invoices.length > 0 && (
-          <>
-            {/* Stats row — Paid, Partially Paid, Overdue & Pending are all
-                highlighted since they carry actual invoice money values,
-                not just counts */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-              <StatCard
-                icon={<TrendingUp size={17} color="#16A34A" />}
-                iconBg="rgba(22,163,74,0.16)"
-                label={`Paid (${stats.paidCount})`}
-                value={`₹${stats.paidTotal.toLocaleString("en-IN")}`}
-                accent="rgba(22,163,74,0.45)"
-                bg="rgba(220,252,231,0.55)"
-                shadow="rgba(22,163,74,0.18)"
-                highlight
-              />
-              <StatCard
-                icon={<Receipt size={17} color="#2563EB" />}
-                iconBg="rgba(37,99,235,0.16)"
-                label={`Partially Paid (${stats.partiallyPaidCount})`}
-                value={`₹${stats.partiallyPaidTotal.toLocaleString("en-IN")}`}
-                accent="rgba(37,99,235,0.45)"
-                bg="rgba(219,234,254,0.55)"
-                shadow="rgba(37,99,235,0.18)"
-                highlight
-              />
-              <StatCard
-                icon={<AlertTriangle size={17} color="#DC2626" />}
-                iconBg="rgba(220,38,38,0.16)"
-                label={`Overdue (${stats.overdueCount})`}
-                value={`₹${stats.overdueTotal.toLocaleString("en-IN")}`}
-                accent="rgba(220,38,38,0.45)"
-                bg="rgba(254,226,226,0.55)"
-                shadow="rgba(220,38,38,0.18)"
-                highlight
-              />
-              <StatCard
-                icon={<Clock3 size={17} color="#B45309" />}
-                iconBg="rgba(180,83,9,0.16)"
-                label={`Pending (${stats.pendingCount})`}
-                value={`₹${stats.pendingTotal.toLocaleString("en-IN")}`}
-                accent="rgba(180,83,9,0.45)"
-                bg="rgba(254,243,199,0.55)"
-                shadow="rgba(180,83,9,0.18)"
-                highlight
-              />
-              <StatCard
-                icon={<Receipt size={16} color="#6C5CE7" />}
-                iconBg="rgba(108,92,231,0.14)"
-                label="Total Invoices"
-                value={stats.count}
-              />
-            </div>
-
-            {/* Search */}
-            <div className="dp-invp-search" style={{ marginBottom: 12 }}>
-              <Search size={16} style={{ color: "var(--slate)", flexShrink: 0 }} />
-              <input
-                placeholder="Search by client, company, or invoice number..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  style={{ background: "none", border: "none", cursor: "pointer", display: "flex", color: "var(--slate)" }}
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </div>
-
-            {/* Status filter chips */}
-            <div className="dp-invp-chips" style={{ marginBottom: 18 }}>
-              {STATUS_FILTERS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`dp-invp-chip ${statusFilter === s ? "active" : ""}`}
-                  onClick={() => setStatusFilter(s)}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {loading ? (
-          <>
-            <div className="dp-invp-skel" />
-            <div className="dp-invp-skel" />
-            <div className="dp-invp-skel" />
-          </>
-        ) : invoices.length === 0 ? (
-          <EmptyState text="No invoices yet. Generate your first invoice from a deal." />
-        ) : filteredInvoices.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "40px 16px",
-              color: "var(--slate)",
-              fontSize: 13.5,
-            }}
-          >
-            No invoices match your search or filter.
-          </div>
-        ) : (
-          filteredInvoices.map((invoice) => (
-            <InvoiceCard
-              key={invoice.id}
-              invoice={invoice}
-              paymentStatus={deals.find((d) => d.id === invoice.deal_id)?.payment_status}
-              onClick={() => {
-                const deal = deals.find((d) => d.id === invoice.deal_id);
-
-                if (!deal) {
-                  alert("Associated deal not found.");
-                  return;
-                }
-
-                onOpenInvoice(deal);
-              }}
-            />
-          ))
-        )}
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--slate)",
+            fontWeight: 600,
+            background: "rgba(255,255,255,0.5)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(255,255,255,0.6)",
+            borderRadius: 999,
+            padding: "5px 12px",
+          }}
+        >
+          {invoices.length} total
+        </span>
       </div>
+
+      {!loading && invoices.length > 0 && (
+        <>
+          {/* Stats row — Paid & Pending are highlighted since they carry the
+              actual invoice money values, not just counts */}
+        <div
+  style={{
+    display: "flex",
+    gap: 10,
+    overflowX: "auto",
+    paddingBottom: 6,
+    marginBottom: 18,
+    scrollbarWidth: "none",
+  }}
+>
+  {statCards.map((card) => (
+    <div
+      key={card.key}
+      style={{
+        minWidth: 150,
+        flexShrink: 0,
+      }}
+    >
+      <StatCard
+        icon={card.icon}
+        iconBg={card.iconBg}
+        label={card.label}
+        value={card.value}
+        accent={card.accent}
+        bg={card.bg}
+        shadow={card.shadow}
+        highlight={card.highlight}
+      />
+    </div>
+  ))}
+</div>
+
+          {/* Search */}
+          <div className="dp-invp-search" style={{ marginBottom: 12 }}>
+            <Search size={16} style={{ color: "var(--slate)", flexShrink: 0 }} />
+            <input
+              placeholder="Search by client, company, or invoice number..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                style={{ background: "none", border: "none", cursor: "pointer", display: "flex", color: "var(--slate)" }}
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Status filter chips */}
+          <div className="dp-invp-chips" style={{ marginBottom: 18 }}>
+            {STATUS_FILTERS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`dp-invp-chip ${statusFilter === s ? "active" : ""}`}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {loading ? (
+        <>
+          <div className="dp-invp-skel" />
+          <div className="dp-invp-skel" />
+          <div className="dp-invp-skel" />
+        </>
+      ) : invoices.length === 0 ? (
+        <EmptyState text="No invoices yet. Generate your first invoice from a deal." />
+      ) : filteredInvoices.length === 0 ? (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "40px 16px",
+            color: "var(--slate)",
+            fontSize: 13.5,
+          }}
+        >
+          No invoices match your search or filter.
+        </div>
+      ) : (
+        filteredInvoices.map((invoice) => (
+          <InvoiceCard
+            key={invoice.id}
+            invoice={invoice}
+            paymentStatus={deals.find((d) => d.id === invoice.deal_id)?.payment_status}
+            onClick={() => {
+              const deal = deals.find((d) => d.id === invoice.deal_id);
+
+              if (!deal) {
+                alert("Associated deal not found.");
+                return;
+              }
+
+              onOpenInvoice(deal);
+            }}
+          />
+        ))
+      )}
     </div>
   );
 }
