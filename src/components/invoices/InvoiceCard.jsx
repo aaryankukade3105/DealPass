@@ -179,6 +179,7 @@ function InvoiceCard({ invoice, paymentStatus, onClick }) {
                 color,
                 border: `1px solid ${border}`,
                 fontSize: 11.5,
+                
                 fontWeight: 700,
                 flexShrink: 0,
                 whiteSpace: "nowrap",

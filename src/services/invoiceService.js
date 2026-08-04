@@ -103,7 +103,20 @@ export async function updateInvoice(invoiceId, invoiceData, items = []) {
 
   return invoice;
 }
+export async function deleteInvoiceByDealId(dealId) {
+  const { data: invoice, error } = await supabase
+    .from("invoices")
+    .select("id")
+    .eq("deal_id", dealId)
+    .maybeSingle();
 
+  if (error) throw error;
+
+  // No invoice linked to this deal
+  if (!invoice) return;
+
+  await deleteInvoice(invoice.id);
+}
 // Deletes the invoice and its items. Deliberately does NOT touch
 // profiles.next_invoice_number — invoice numbers are never reused, even
 // for a deleted invoice, so the sequence only ever moves forward.

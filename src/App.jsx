@@ -41,7 +41,7 @@ import { exportDealsExcel } from "./utils/exportExcel";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import DeleteAccountRequestSheet from "./components/profile/DeleteAccountRequestSheet";
-
+import { deleteInvoiceByDealId } from "./services/invoiceService";
 /* ---------------------------------- constants ---------------------------------- */
 
 const STORAGE_KEYS = {
@@ -679,7 +679,11 @@ export default function DealPassApp() {
       setDeals((prev) => prev.filter((d) => d.id !== deletedId));
       setDeletingDeal(null);
 
-      await deleteDeal(deletedId);
+     // Delete linked invoice (if it exists)
+await deleteInvoiceByDealId(deletedId);
+
+// Delete the deal
+await deleteDeal(deletedId);
 
       showToast("Deal deleted successfully.");
     } catch (err) {
@@ -911,7 +915,12 @@ export default function DealPassApp() {
         {deletingDeal && (
           <ConfirmDialog
             title="Delete Deal?"
-            message={`Are you sure you want to delete your collaboration with\n${deletingDeal.brand_name}?\n\nThis action cannot be undone.`}
+            message={`Delete "${deletingDeal.brand_name}"?
+
+This will permanently delete the deal and its linked invoice.
+
+This action cannot be undone.`}
+confirmText="Delete Deal"
             confirmText="Delete"
             cancelText="Cancel"
             danger={true}
