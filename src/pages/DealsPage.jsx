@@ -11,6 +11,37 @@ const DEFAULT_FILTERS = {
   collaboration: "All",
 };
 
+const PageStyle = () => (
+  <style>{`
+    .dp-deals-search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.45);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1.5px solid rgba(255,255,255,0.55);
+      border-radius: 14px;
+      padding: 11px 14px 11px 36px;
+      position: relative;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .dp-deals-search:focus-within {
+      border-color: #6C5CE7;
+      box-shadow: 0 0 0 4px rgba(108,92,231,0.12);
+    }
+    .dp-deals-search input {
+      border: none;
+      outline: none;
+      background: transparent;
+      flex: 1;
+      font-size: 14px;
+      color: inherit;
+      min-width: 0;
+    }
+  `}</style>
+);
+
 function DealsPage({
   deals,
   onAdd,
@@ -21,7 +52,6 @@ function DealsPage({
 }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
-  const [showSort, setShowSort] = useState(false);
   const [sortBy, setSortBy] = useState("Newest");
   const [query, setQuery] = useState("");
 
@@ -52,7 +82,7 @@ function DealsPage({
         return false;
       }
 
-      // Invoice — expects d.invoice_created to be boolean, or an invoice object/id
+      // Invoice
       if (filters.invoice !== "All") {
         const hasInvoice = Boolean(d.invoice_created ?? d.invoice_id ?? d.invoice);
         if (filters.invoice === "Created" && !hasInvoice) return false;
@@ -80,6 +110,8 @@ function DealsPage({
       className="dp-scroll"
       style={{ flex: 1, overflowY: "auto", padding: "18px 18px 100px" }}
     >
+      <PageStyle />
+
       <div
         style={{
           display: "flex",
@@ -91,28 +123,34 @@ function DealsPage({
         <div className="dp-display" style={{ fontSize: 21, fontWeight: 700 }}>
           Your deals
         </div>
-        <span style={{ fontSize: 12, color: "var(--slate)", fontWeight: 600 }}>
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--slate)",
+            fontWeight: 600,
+            background: "rgba(255,255,255,0.5)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(255,255,255,0.6)",
+            borderRadius: 999,
+            padding: "4px 11px",
+          }}
+        >
           {filtered.length} of {deals.length}
         </span>
       </div>
 
-      <div style={{ position: "relative", marginBottom: 12 }}>
-        <Search
-          size={15}
-          style={{
-            position: "absolute",
-            left: 12,
-            top: 11,
-            color: "var(--slate)",
-          }}
-        />
-        <input
-          className="dp-input"
-          style={{ paddingLeft: 34 }}
-          placeholder="Search by brand"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div style={{ marginBottom: 12 }}>
+        <div className="dp-deals-search">
+          <Search
+            size={15}
+            style={{ position: "absolute", left: 12, color: "var(--slate)" }}
+          />
+          <input
+            placeholder="Search by brand"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
@@ -128,10 +166,10 @@ function DealsPage({
               ? "1px solid rgba(108,92,231,0.4)"
               : "1px solid rgba(20,20,30,0.12)",
             background: activeFilterCount
-              ? "rgba(108,92,231,0.10)"
-              : "rgba(255,255,255,0.5)",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
+              ? "rgba(108,92,231,0.14)"
+              : "rgba(255,255,255,0.45)",
+            backdropFilter: "blur(10px) saturate(180%)",
+            WebkitBackdropFilter: "blur(10px) saturate(180%)",
             fontWeight: 600,
             fontSize: 13.5,
             cursor: "pointer",
@@ -168,9 +206,9 @@ function DealsPage({
             padding: "9px 15px",
             borderRadius: 12,
             border: "1px solid rgba(20,20,30,0.12)",
-            background: "rgba(255,255,255,0.5)",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
+            background: "rgba(255,255,255,0.45)",
+            backdropFilter: "blur(10px) saturate(180%)",
+            WebkitBackdropFilter: "blur(10px) saturate(180%)",
             fontWeight: 600,
             fontSize: 13.5,
             cursor: "pointer",
