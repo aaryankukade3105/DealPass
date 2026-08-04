@@ -885,7 +885,10 @@ export default function InvoiceEditorPage({
 
   // Save Invoice: create on first save, update on every save after that.
   // The invoice number is only ever assigned inside createInvoice — this
-  // function never generates or overwrites it.
+  // function never generates or overwrites it. On every successful save
+  // (create or update) the deals.invoice_number column is kept in sync
+  // with whatever invoice number actually ended up persisted, so the
+  // deals table never shows a stale/incorrect invoice number.
   async function handleSaveInvoice() {
     setAttemptedSave(true);
     setSaveError(null);
@@ -933,14 +936,23 @@ export default function InvoiceEditorPage({
         // First save for this deal — create it, and remember it on the deal.
         const created = await createInvoice(user.id, invoicePayload, lineItems);
 
+        // Keep the deals table's invoice_id AND invoice_number in sync with
+        // whatever was actually persisted (createInvoice is the only place
+        // the invoice number is assigned, so this is the corrected value).
         const { error: dealError } = await supabase
           .from("deals")
-          .update({ invoice_id: created.id })
+          .update({
+            invoice_id: created.id,
+            invoice_number: created.invoice_number,
+          })
           .eq("id", deal.id);
 
         if (dealError) throw dealError;
 
-        if (deal) deal.invoice_id = created.id;
+        if (deal) {
+          deal.invoice_id = created.id;
+          deal.invoice_number = created.invoice_number;
+        }
 
         setInvoiceId(created.id);
         // The invoice number is now fixed — reflect it in the form, but
@@ -949,6 +961,18 @@ export default function InvoiceEditorPage({
       } else {
         // Already has an invoice — update in place, same invoice number.
         await updateInvoice(invoiceId, invoicePayload, lineItems);
+
+        // The invoice number itself is locked and never changes after
+        // creation, but make sure the deals row reflects it too (covers
+        // cases where the deal's invoice_number was missing/out of date).
+        const { error: dealSyncError } = await supabase
+          .from("deals")
+          .update({ invoice_number: invoice.invoiceNumber })
+          .eq("id", deal.id);
+
+        if (dealSyncError) throw dealSyncError;
+
+        if (deal) deal.invoice_number = invoice.invoiceNumber;
       }
 
       setLastSaved(new Date());
@@ -961,8 +985,9 @@ export default function InvoiceEditorPage({
   }
 
   // Delete Invoice: removes the invoice + its items, clears the deal's
-  // reference, and does NOT touch profiles.next_invoice_number, so the
-  // number this invoice used is never reused for anything else.
+  // reference (both invoice_id and invoice_number), and does NOT touch
+  // profiles.next_invoice_number, so the number this invoice used is
+  // never reused for anything else.
   async function handleDeleteInvoice() {
     if (!invoiceId) return;
 
@@ -978,12 +1003,15 @@ export default function InvoiceEditorPage({
 
       const { error: dealError } = await supabase
         .from("deals")
-        .update({ invoice_id: null })
+        .update({ invoice_id: null, invoice_number: null })
         .eq("id", deal.id);
 
       if (dealError) throw dealError;
 
-      if (deal) deal.invoice_id = null;
+      if (deal) {
+        deal.invoice_id = null;
+        deal.invoice_number = null;
+      }
 
       setInvoiceId(null);
       setInvoice((prev) => ({ ...prev, invoiceNumber: defaultInvoiceNumber }));

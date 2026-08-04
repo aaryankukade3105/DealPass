@@ -2,7 +2,7 @@ import { useState } from "react";
 import Field from "../common/Field";
 import ChipSelect from "../common/ChipSelect";
 import SectionLabel from "../common/SectionLabel";
-import { X } from "lucide-react";
+import { X, Receipt, Link2, PenLine, CheckCircle2 } from "lucide-react";
 import { formatDate, formatINR } from "../../utils/formatters";
 import DateField from "../common/DateField";
 import DeliverablesSelector from "./DeliverablesSelector";
@@ -16,6 +16,15 @@ import {
 } from "../../utils/constants";
 
 function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
+  // If this deal already has an invoice_number on record, it means an
+  // invoice was created and saved for it via Invoice Studio (InvoiceEditorPage
+  // writes deals.invoice_number automatically on save). In that case the
+  // field below is auto-filled and locked. If there's no invoice_number yet,
+  // the user is free to type one in manually — e.g. if they generated the
+  // invoice using a different app/tool outside DealPass. This is captured
+  // once at mount so it doesn't flip mid-edit as the user types.
+  const [autoInvoiceNumber] = useState(() => (initial?.invoice_number || "").trim());
+
   const [form, setForm] = useState(() => {
     const base = initial ?? {
       brand_name: "",
@@ -39,7 +48,6 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
       payment_received_date: "",
       payment_received_amount: "",
       deal_status: "Negotiation",
-      invoice_sent: false,
       invoice_number: "",
       transaction_id: "",
       notes: "",
@@ -52,6 +60,10 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
       campaign_links: Array.isArray(base.campaign_links)
         ? base.campaign_links.join(" ")
         : base.campaign_links || "",
+      // Make sure the invoice number field always mirrors whatever's on
+      // the deal record (auto-synced by Invoice Studio) rather than
+      // whatever stale value might otherwise be sitting in local state.
+      invoice_number: base.invoice_number || "",
     };
   });
 
@@ -178,15 +190,9 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
       return;
     }
 
-    if (form.invoice_sent && !form.invoice_number.trim()) {
-      showAlert("warning", "Invoice Number Required", "Please enter the invoice number.");
-      return;
-    }
-
-    if (form.invoice_sent && !form.transaction_id.trim()) {
-      showAlert("warning", "Transaction ID Required", "Please enter the transaction ID.");
-      return;
-    }
+    // Invoice number and transaction ID are optional — a deal can exist
+    // without an invoice ever being raised for it, so nothing is enforced
+    // here beyond what's already captured above.
 
     // All validation passed — lock the form so it can't be double-submitted.
     setSaving(true);
@@ -227,8 +233,10 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
           ? form.campaign_links.trim().split(/\s+/).filter(Boolean)
           : form.campaign_links || [],
 
-      // Boolean
-      invoice_sent: form.invoice_sent,
+      // Boolean — there's no manual toggle anymore; a deal is considered
+      // "invoiced" simply when it has an invoice number attached, whether
+      // that came from Invoice Studio automatically or was typed in here.
+      invoice_sent: Boolean(form.invoice_number && form.invoice_number.trim()),
     };
 
     try {
@@ -495,34 +503,158 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
 
           <SectionLabel>Invoice</SectionLabel>
 
-          <Field label="Invoice Sent?">
-            <ChipSelect
-              options={[true, false]}
-              labels={{ true: "Yes", false: "No" }}
-              value={form.invoice_sent}
-              onChange={(v) => update("invoice_sent", v)}
-            />
-          </Field>
+          <div
+            style={{
+              border: "1px solid var(--line)",
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 4,
+              background: "var(--surface, #fff)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                marginBottom: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 9,
+                    background: autoInvoiceNumber ? "#F5F4FF" : "#F1F2F8",
+                    border: `1px solid ${autoInvoiceNumber ? "#DCD6FF" : "var(--line)"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Receipt size={15} color={autoInvoiceNumber ? "#6C5CE7" : "#5B6472"} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>Invoice details</div>
+                  <div style={{ fontSize: 11.5, color: "var(--muted, #5B6472)" }}>
+                    Optional — fill in only once an invoice exists
+                  </div>
+                </div>
+              </div>
 
-          {form.invoice_sent && (
-            <>
-              <Field label="Invoice Number *">
+              {autoInvoiceNumber ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "5px 10px",
+                    borderRadius: 999,
+                    background: "#F5F4FF",
+                    border: "1px solid #DCD6FF",
+                    color: "#4C3FBF",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  <Link2 size={11} />
+                  Synced from Invoice Studio
+                </span>
+              ) : form.invoice_number?.trim() ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "5px 10px",
+                    borderRadius: 999,
+                    background: "#F0FDF4",
+                    border: "1px solid #BBF7D0",
+                    color: "#166534",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  <PenLine size={11} />
+                  Manual entry
+                </span>
+              ) : (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "5px 10px",
+                    borderRadius: 999,
+                    background: "#F7F8FC",
+                    border: "1px solid var(--line)",
+                    color: "var(--muted, #5B6472)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  Not invoiced yet
+                </span>
+              )}
+            </div>
+
+            <Field label="Invoice Number">
+              {autoInvoiceNumber ? (
+                <div style={{ position: "relative" }}>
+                  <input
+                    className="dp-input"
+                    value={form.invoice_number}
+                    readOnly
+                    style={{ paddingRight: 34 }}
+                  />
+                  <CheckCircle2
+                    size={16}
+                    color="#6C5CE7"
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  />
+                </div>
+              ) : (
                 <input
                   className="dp-input"
                   value={form.invoice_number}
                   onChange={(e) => update("invoice_number", e.target.value)}
+                  placeholder="e.g. INV-2026-1042 (optional)"
                 />
-              </Field>
+              )}
+            </Field>
 
-              <Field label="Transaction ID *">
-                <input
-                  className="dp-input"
-                  value={form.transaction_id}
-                  onChange={(e) => update("transaction_id", e.target.value)}
-                />
-              </Field>
-            </>
-          )}
+            <div
+              style={{
+                marginTop: -10,
+                marginBottom: 14,
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: "var(--muted, #5B6472)",
+              }}
+            >
+              {autoInvoiceNumber
+                ? "This invoice was created and saved in Invoice Studio, so its number is synced here automatically and can't be edited."
+                : "Made the invoice somewhere else? Enter its number here. Generate one from Invoice Studio instead and it'll fill in automatically."}
+            </div>
+
+            <Field label="Transaction ID">
+              <input
+                className="dp-input"
+                value={form.transaction_id}
+                onChange={(e) => update("transaction_id", e.target.value)}
+                placeholder="Optional — reference from your payment app or bank"
+              />
+            </Field>
+          </div>
 
           <SectionLabel>Notes</SectionLabel>
 
