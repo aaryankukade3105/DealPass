@@ -115,10 +115,10 @@ export default function DealPassApp() {
   const [feedbackType, setFeedbackType] = useState("bug");
   const [isResetPasswordPage, setIsResetPasswordPage] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
-  // Optional filter applied when landing on the Deals page from a Dashboard
-  // shortcut (e.g. "Pending Payments"). DealsPage can read this prop to
-  // pre-filter its list; if it doesn't use it yet, it's simply ignored.
-  const [dealsPageFilter, setDealsPageFilter] = useState(null);
+  // Set by DashboardPage (via onFilterDeals) when the user clicks a stat
+  // like "Pending Revenue" — DealsPage applies it once, then clears it via
+  // onFiltersApplied so it doesn't stick around on later visits.
+  const [dealsFilterOverride, setDealsFilterOverride] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
@@ -724,34 +724,6 @@ await deleteDeal(deletedId);
     setAlert({ open: true, type: "info", title, message });
   };
 
-  /* ---------------------------------- Dashboard quick-action wiring ---------------------------------- */
-  // These back the new Dashboard "Quick Actions" and clickable Action Center /
-  // deadline rows. They only navigate/select — no new data logic, no changes
-  // to existing save/delete/export behavior above.
-
-  // "Create Invoice" — DealPass generates invoices from a specific deal
-  // (InvoiceEditorPage needs a `deal` prop), so there's no single deal to
-  // jump to from the dashboard. Send the user to the Deals list where they
-  // can pick a deal and hit "Generate Invoice" (already wired on DealsPage).
-  const handleCreateInvoiceShortcut = () => {
-    setDealsPageFilter(null);
-    setPage("deals");
-    showToast("Pick a deal to generate its invoice.");
-  };
-
-  // "Pending Payments" — jump to the Deals list. `dealsPageFilter` is passed
-  // through as a prop so DealsPage can pre-filter by payment status if/when
-  // it supports it; if it doesn't yet, this is a no-op and behaves exactly
-  // like a plain "View Deals" shortcut.
-  const handleViewPendingPayments = () => {
-    setDealsPageFilter({ payment_status: ["Pending", "Overdue", "Partially Paid"] });
-    setPage("deals");
-  };
-
-  const handleViewInvoices = () => {
-    setPage("invoices");
-  };
-
  const PAGE_TITLES = {
   dashboard: "Dashboard",
   deals: "Your deals",
@@ -817,16 +789,16 @@ await deleteDeal(deletedId);
               setFormOpen(true);
             }}
             onOpenDeal={(d) => setSelectedDeal(d)}
-            onCreateInvoice={handleCreateInvoiceShortcut}
-            onViewPendingPayments={handleViewPendingPayments}
-            onViewInvoices={handleViewInvoices}
+            onFilterDeals={(filters) => {
+              setDealsFilterOverride(filters);
+              setPage("deals");
+            }}
           />
         )}
 
         {page === "deals" && (
           <DealsPage
             deals={deals}
-            initialFilter={dealsPageFilter}
             onAdd={() => {
               setEditingDeal(null);
               setFormOpen(true);
@@ -841,6 +813,8 @@ await deleteDeal(deletedId);
               setSelectedDeal(deal);
               setPage("invoice-editor");
             }}
+            initialFilters={dealsFilterOverride}
+            onFiltersApplied={() => setDealsFilterOverride(null)}
           />
         )}
 
@@ -951,11 +925,7 @@ await deleteDeal(deletedId);
         {deletingDeal && (
           <ConfirmDialog
             title="Delete Deal?"
-            message={`Delete "${deletingDeal.brand_name}"?
-
-This will permanently delete the deal and its linked invoice.
-
-This action cannot be undone.`}
+            message={`Are you sure you want to delete your collaboration with ${deletingDeal.brand_name}?\n\nThis will permanently delete the deal and its linked invoice.\n\nThis action cannot be undone.`}
             confirmText="Delete"
             cancelText="Cancel"
             danger={true}

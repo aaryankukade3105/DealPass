@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Search, ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import DealCard from "../components/deals/DealCard";
 import EmptyState from "../components/common/EmptyState";
@@ -49,11 +49,26 @@ function DealsPage({
   onDelete,
   onOpenDeal,
   onGenerateInvoice,
+  // When set by the parent (e.g. clicking "Pending Revenue" on the
+  // Dashboard), these filters are applied on top of DEFAULT_FILTERS the
+  // moment they change. onFiltersApplied lets the parent clear the
+  // override afterwards so it doesn't re-apply on every future visit to
+  // this page (which would otherwise trap the user on a stale filter).
+  initialFilters,
+  onFiltersApplied,
 }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("Newest");
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (initialFilters) {
+      setFilters({ ...DEFAULT_FILTERS, ...initialFilters });
+      onFiltersApplied?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFilters]);
 
   const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
 

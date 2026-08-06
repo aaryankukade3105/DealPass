@@ -13,6 +13,9 @@ import {
   DEAL_STATUS,
   CURRENCIES,
   CONFIRMATION_MODES,
+   PAYMENT_STATUS_COLORS,
+  DEAL_STATUS_COLORS,
+  COLLABORATION_TYPE_COLORS,
 } from "../../utils/constants";
 
 function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
@@ -320,13 +323,14 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
             />
           </Field>
 
-          <Field label="Collaboration Type">
-            <ChipSelect
-              options={COLLABORATION_TYPES}
-              value={form.collaboration_type}
-              onChange={(v) => update("collaboration_type", v)}
-            />
-          </Field>
+      <Field label="Collaboration Type">
+  <ChipSelect
+    options={COLLABORATION_TYPES}
+    value={form.collaboration_type}
+    onChange={(v) => update("collaboration_type", v)}
+    colors={COLLABORATION_TYPE_COLORS}
+  />
+</Field>
 
           <SectionLabel>Confirmation</SectionLabel>
 
@@ -445,15 +449,15 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
             />
           </Field>
 
-          <Field label="Payment Status">
-            <ChipSelect
-              disabled={isBarter}
-              options={PAYMENT_STATUS}
-              value={form.payment_status}
-              onChange={(v) => update("payment_status", v)}
-            />
-          </Field>
-
+    <Field label="Payment Status">
+  <ChipSelect
+    disabled={isBarter}
+    options={PAYMENT_STATUS}
+    value={form.payment_status}
+    onChange={(v) => update("payment_status", v)}
+    colors={PAYMENT_STATUS_COLORS}
+  />
+</Field>
           <Field label="Payment Deadline">
             <DateField
               disabled={isBarter}
@@ -493,13 +497,14 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
 
           <SectionLabel>Status</SectionLabel>
 
-          <Field label="select your current Deal Status">
-            <ChipSelect
-              options={DEAL_STATUS}
-              value={form.deal_status}
-              onChange={(v) => update("deal_status", v)}
-            />
-          </Field>
+         <Field label="select your current Deal Status">
+  <ChipSelect
+    options={DEAL_STATUS}
+    value={form.deal_status}
+    onChange={(v) => update("deal_status", v)}
+    colors={DEAL_STATUS_COLORS}
+  />
+</Field>
 
           <SectionLabel>Invoice</SectionLabel>
 

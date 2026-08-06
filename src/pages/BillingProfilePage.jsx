@@ -19,13 +19,30 @@ import {
 } from "lucide-react";
 
 /* Only these actually gate getting paid correctly — everything else is optional context. */
-const REQUIRED_FIELDS = ["phone", "account_holder", "account_number", "ifsc", "upi_id"];
+const REQUIRED_FIELDS = [
+  "phone",
+  "account_holder",
+  "bank_name",
+  "account_number",
+  "ifsc",
+  "upi_id",
+];
 
 const PANEL_REQUIRED = {
   personal: ["phone"],
   address: [],
   tax: [],
-  bank: ["account_holder", "account_number", "ifsc", "upi_id"],
+  bank: ["account_holder", "bank_name", "account_number", "ifsc", "upi_id"],
+};
+
+/* One accent per section — a visual grouping cue only, never a status
+   signal. Status (required / complete / error) always stays on the
+   semantic amber/green/red so the two systems never collide. */
+const SECTION_COLORS = {
+  personal: "#2563EB", // blue
+  address: "#0D9488", // teal
+  tax: "#D97706", // amber
+  bank: "#4F46E5", // indigo — the section that actually gates payment
 };
 
 const defaultForm = {
@@ -53,6 +70,14 @@ function buzz(ms = 8) {
   }
 }
 
+function hexToRgba(hex, alpha) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function Field({ icon: Icon, label, required = false, error = false, textarea = false, ...props }) {
   return (
     <label className="bp-field">
@@ -73,11 +98,18 @@ function Field({ icon: Icon, label, required = false, error = false, textarea = 
   );
 }
 
-function Section({ icon: Icon, title, required, complete, open, onToggle, children }) {
+function Section({ icon: Icon, title, color, required, complete, open, onToggle, children }) {
   return (
     <div className="bp-sec">
       <button type="button" className="bp-sec-head" onClick={onToggle} aria-expanded={open}>
-        <span className={`bp-sec-icon${complete ? " bp-sec-icon-done" : ""}`}>
+        <span
+          className={`bp-sec-icon${complete ? " bp-sec-icon-done" : ""}`}
+          style={
+            complete
+              ? undefined
+              : { background: hexToRgba(color, 0.12), color }
+          }
+        >
           <Icon size={16} />
         </span>
         <span className="bp-sec-title">{title}</span>
@@ -90,7 +122,9 @@ function Section({ icon: Icon, title, required, complete, open, onToggle, childr
       </button>
       <div className={`bp-sec-wrap${open ? " bp-sec-wrap-open" : ""}`}>
         <div className="bp-sec-inner">
-          <div className="bp-sec-pad">{children}</div>
+          <div className="bp-sec-pad" style={{ borderTopColor: hexToRgba(color, 0.35) }}>
+            {children}
+          </div>
         </div>
       </div>
     </div>
@@ -567,6 +601,7 @@ export default function BillingProfilePage({ account }) {
         <Section
           icon={User}
           title="Personal information"
+          color={SECTION_COLORS.personal}
           required
           complete={isSectionComplete("personal")}
           open={openSections.personal}
@@ -604,6 +639,7 @@ export default function BillingProfilePage({ account }) {
         <Section
           icon={MapPin}
           title="Billing address"
+          color={SECTION_COLORS.address}
           complete={false}
           open={openSections.address}
           onToggle={() => toggleSection("address")}
@@ -622,6 +658,7 @@ export default function BillingProfilePage({ account }) {
         <Section
           icon={Receipt}
           title="Tax information"
+          color={SECTION_COLORS.tax}
           complete={false}
           open={openSections.tax}
           onToggle={() => toggleSection("tax")}
@@ -647,6 +684,7 @@ export default function BillingProfilePage({ account }) {
         <Section
           icon={Landmark}
           title="Bank details"
+          color={SECTION_COLORS.bank}
           required
           complete={isSectionComplete("bank")}
           open={openSections.bank}
@@ -665,6 +703,8 @@ export default function BillingProfilePage({ account }) {
           <Field
             icon={Building2}
             label="Bank name"
+            required
+            error={fieldError("bank_name")}
             name="bank_name"
             value={form.bank_name}
             onChange={handleChange}
