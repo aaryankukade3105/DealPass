@@ -904,14 +904,18 @@ await deleteDeal(deletedId);
 />
         )}
 
-        <Drawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          page={page}
-          setPage={setPage}
-          onLogout={handleLogout}
-          account={account}
-        />
+     <Drawer
+  open={drawerOpen}
+  onClose={() => setDrawerOpen(false)}
+  page={page}
+  setPage={(newPage) => {
+    setSelectedDeal(null);
+    setSelectedInvoice(null);
+    setPage(newPage);
+  }}
+  onLogout={handleLogout}
+  account={account}
+/>
 
         {page === "deals" && (
           <button
