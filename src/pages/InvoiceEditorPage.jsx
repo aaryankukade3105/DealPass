@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
 import ConfirmDialog from "../components/common/ConfirmDialog";
+import AlertModal from "../components/common/AlertModal";
 import {
   createInvoice,
   updateInvoice,
@@ -597,6 +598,7 @@ export default function InvoiceEditorPage({
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState(null);
 const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
+const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
   // `detail` (e.g. "Collab", "90 Days", "3 Stories") is carried over from
   // the deal's deliverables so it survives into the invoice and is shown
   // via formatDeliverableLabel everywhere below.
@@ -723,6 +725,7 @@ const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     setLastSaved(new Date());
+    setSaveSuccessOpen(true);
   }
 
   // Debounced autosave while the user is actively editing — every keystroke
@@ -1077,15 +1080,7 @@ const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            className="dp-inv-btn dp-inv-btn-success"
-            onClick={handleSaveInvoice}
-            disabled={saving}
-          >
-            <Save size={17} />
-            {saving ? "Saving..." : invoiceId ? "Update Invoice" : "Save Invoice"}
-          </button>
-
+         
           <button className="dp-inv-btn dp-inv-btn-primary" onClick={handlePreviewClick}>
             <Eye size={17} />
             Preview & Send
@@ -1901,6 +1896,37 @@ const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
             ✨ Deliverables and totals are synced with the selected deal. Discounts and
             multi-currency support are on the roadmap.
           </div>
+          <div
+  style={{
+    position: "sticky",
+    bottom: 0,
+    background: "#fff",
+    borderTop: "1px solid #E7E9F3",
+    padding: "18px 0",
+    marginTop: 28,
+    zIndex: 100,
+  }}
+>
+  <button
+    className="dp-inv-btn dp-inv-btn-primary"
+    style={{
+      width: "100%",
+      height: 52,
+      fontSize: 16,
+      fontWeight: 700,
+    }}
+    onClick={handleSaveInvoice}
+    disabled={saving}
+  >
+    <Save size={18} />
+
+    {saving
+      ? "Saving Invoice..."
+      : invoiceId
+      ? "Update Invoice"
+      : "Save Invoice"}
+  </button>
+</div>
         </div>
       </div>
 
