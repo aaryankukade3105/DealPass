@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from "react";
 
 import DealCard from "../components/deals/DealCard";
@@ -24,6 +23,9 @@ import {
   Star,
   Receipt,
   User,
+  ChevronDown,
+  Zap,
+  AlertTriangle,
 } from "lucide-react";
 
 import {
@@ -34,6 +36,21 @@ import {
   computeStats,
   buildChartData,
 } from "../utils/dashboard";
+
+/* ------------------------------------------------------------------ */
+/* Purely presentational helpers — no data/behavior changes below.    */
+/* ------------------------------------------------------------------ */
+
+// Time-of-day greeting. Cosmetic only, derived from the clock, doesn't
+// touch any deal/account data or state.
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "Still up,";
+  if (h < 12) return "Good morning,";
+  if (h < 17) return "Good afternoon,";
+  if (h < 21) return "Good evening,";
+  return "Working late,";
+}
 
 function DashboardPage({ deals, account, onAddDeal, onOpenDeal}) {
   const stats = useMemo(() => computeStats(deals), [deals]);
@@ -134,80 +151,151 @@ const highestDealAmount = useMemo(() => {
   );
 }, [analyticsDeals]);
 
+// Cosmetic-only: greeting text, derived purely from the clock.
+const greeting = useMemo(() => getGreeting(), []);
+
+// stats.paymentHealth was already being computed in utils/dashboard.js but
+// never rendered anywhere. Surfacing it here is a display-only addition —
+// no new data, no new computation, nothing else in the app changes.
+const health = stats.paymentHealth;
+
   return (
-    <div className="dp-scroll" style={{ flex: 1, overflowY: "auto", padding: "18px 18px 90px" }}>
-    <div style={{ marginBottom: 18 }}>
+    <div className="dp-scroll" style={{ flex: 1, overflowY: "auto", padding: "16px 16px 90px" }}>
+    <style>{`
+      @keyframes dpxFadeUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes dpxPulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: .55; transform: scale(.8); }
+      }
+      .dpx-card {
+        animation: dpxFadeUp .35s ease both;
+      }
+      .dpx-chip {
+        transition: transform .12s ease, box-shadow .12s ease;
+      }
+      .dpx-chip:active {
+        transform: scale(0.94);
+      }
+      .dpx-row {
+        transition: transform .12s ease, background .12s ease;
+        border-radius: 14px;
+      }
+      .dpx-row:active {
+        transform: scale(0.985);
+        background: rgba(0,0,0,.02);
+      }
+      .dpx-live-dot {
+        animation: dpxPulseDot 1.8s ease-in-out infinite;
+      }
+      .dpx-segbar-seg {
+        transition: width .5s cubic-bezier(.22,1,.36,1);
+      }
+      .dpx-avatar {
+        background: linear-gradient(135deg, #FF3B5C 0%, #FF7A59 100%);
+        box-shadow: 0 6px 16px rgba(255,59,92,.35);
+      }
+    `}</style>
+
+    <div style={{ marginBottom: 20 }} className="dpx-card">
   <div
   style={{
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   }}
 >
   <div
+    className="dpx-avatar"
     style={{
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      background: "rgba(255,59,92,.08)",
-      color: "var(--signal)",
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      color: "#fff",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      flexShrink: 0,
     }}
   >
-    <User size={20} strokeWidth={2.2} />
+    <User size={20} strokeWidth={2.4} />
   </div>
 
   <div>
     <div
       style={{
-        fontSize: 13,
+        fontSize: 12.5,
         color: "var(--slate)",
+        fontWeight: 600,
+        letterSpacing: .2,
       }}
     >
-      Welcome,
+      {greeting}
     </div>
 
     <div
       className="dp-display"
       style={{
-        fontSize: 21,
-        fontWeight: 700,
-        marginTop: 2,
+        fontSize: 22,
+        fontWeight: 800,
+        marginTop: 1,
       }}
     >
-      {(account?.full_name || account?.name || "Creator").split(" ")[0]}
+      {(account?.full_name || account?.name || "Creator").split(" ")[0]} 👋
     </div>
   </div>
 </div>
 </div>
 
-   <div className="dp-card" style={{ padding: 24, marginBottom: 18 }}>
+   <div
+     className="dp-card dpx-card"
+     style={{
+       padding: 24,
+       marginBottom: 16,
+       background: "linear-gradient(135deg, #7C3AED 0%, #DB2777 55%, #F97316 100%)",
+       color: "#fff",
+       border: "none",
+       boxShadow: "0 14px 30px -12px rgba(124,58,237,.55)",
+       position: "relative",
+       overflow: "hidden",
+     }}
+   >
+     <div
+       aria-hidden
+       style={{
+         position: "absolute",
+         top: -40,
+         right: -30,
+         width: 140,
+         height: 140,
+         borderRadius: "50%",
+         background: "rgba(255,255,255,.10)",
+       }}
+     />
 
 <div
   style={{
     display: "flex",
     alignItems: "center",
     gap: 8,
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: 700,
-    color: "var(--ink)",
+    color: "rgba(255,255,255,.9)",
+    position: "relative",
   }}
 >
-  <Wallet
-  size={20}
-  strokeWidth={2.2}
-  color="#D97706"
-/> Earnings Overview
+  <Wallet size={18} strokeWidth={2.4} /> Earnings Overview
 </div>
 
   <div
     className="dp-display dp-mono"
     style={{
-      fontSize: 36,
-      fontWeight: 700,
-      marginTop: 6,
+      fontSize: 38,
+      fontWeight: 800,
+      marginTop: 8,
+      position: "relative",
     }}
   >
     {earningPeriod === "total"
@@ -216,16 +304,17 @@ const highestDealAmount = useMemo(() => {
   </div>
 <div
   style={{
-    marginTop: 10,
+    marginTop: 8,
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    position: "relative",
   }}
 >
   <span
     style={{
-      color: "var(--slate)",
-      fontSize: 13,
+      color: "rgba(255,255,255,.85)",
+      fontSize: 12.5,
       fontWeight: 600,
     }}
   >
@@ -241,15 +330,22 @@ const highestDealAmount = useMemo(() => {
       gap: 8,
       overflowX: "auto",
       paddingBottom: 2,
+      marginTop: 14,
+      position: "relative",
     }}
   >
     {[15, 30, 60, "total"].map((period) => (
       <button
   key={period}
-  className={`dp-chip ${
-    earningPeriod === period ? "active" : ""
-  }`}
+  className={`dp-chip dpx-chip`}
   onClick={() => setEarningPeriod(period)}
+  style={{
+    border: "none",
+    fontWeight: 700,
+    background:
+      earningPeriod === period ? "#fff" : "rgba(255,255,255,.16)",
+    color: earningPeriod === period ? "#7C3AED" : "#fff",
+  }}
 >
   {period === "total"
     ? "All"
@@ -284,9 +380,10 @@ const highestDealAmount = useMemo(() => {
   </select>
 )}
 </div>
-   <div className="dp-card" style={{ padding: 18, marginBottom: 18 }}>
+   <div className="dp-card dpx-card" style={{ padding: 18, marginBottom: 16 }}>
 
-  <div className="dp-label">
+  <div className="dp-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <Handshake size={14} strokeWidth={2.4} color="#2563EB" />
     Brand Deals Made
   </div>
 
@@ -294,8 +391,9 @@ const highestDealAmount = useMemo(() => {
     className="dp-display"
     style={{
       fontSize: 40,
-      fontWeight: 700,
+      fontWeight: 800,
       marginTop: 6,
+      color: "#2563EB",
     }}
   >
     {stats.dealCounts[dealPeriod]}
@@ -307,6 +405,7 @@ const highestDealAmount = useMemo(() => {
       color: "var(--slate)",
       marginTop: 2,
       marginBottom: 14,
+      fontWeight: 600,
     }}
   >
     {dealPeriod === "total"
@@ -326,10 +425,15 @@ const highestDealAmount = useMemo(() => {
    {[7, 15, 30, 60, "total"].map((period) => (
       <button
   key={period}
-  className={`dp-chip ${
+  className={`dp-chip dpx-chip ${
     dealPeriod === period ? "active" : ""
   }`}
   onClick={() => setDealPeriod(period)}
+  style={
+    dealPeriod === period
+      ? { background: "#2563EB", borderColor: "#2563EB", color: "#fff" }
+      : undefined
+  }
 >
   {period === "total"
     ? "All"
@@ -342,7 +446,7 @@ const highestDealAmount = useMemo(() => {
 
 </div>
 
-     <div className="dp-card" style={{ padding: 20, marginBottom: 18 }}>
+     <div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
   <div
     style={{
       display: "flex",
@@ -351,16 +455,25 @@ const highestDealAmount = useMemo(() => {
       marginBottom: 18,
     }}
   >
-    <span style={{ fontSize: 22 }}><HandCoins
-  size={20}
-  strokeWidth={2.2}
-  color="#DC2626"
-/></span>
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        background: "#FEE2E2",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <HandCoins size={18} strokeWidth={2.4} color="#DC2626" />
+    </div>
 
     <div>
       <div
         className="dp-display"
-        style={{ fontSize: 18, fontWeight: 700 }}
+        style={{ fontSize: 18, fontWeight: 800 }}
       >
         Action Center
       </div>
@@ -377,12 +490,15 @@ const highestDealAmount = useMemo(() => {
   </div>
 
   <div
+  className="dpx-row"
   style={{
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "14px 0",
-    borderTop: "1px solid var(--line)",
+    padding: "14px 10px",
+    borderLeft: "4px solid #F59E0B",
+    marginBottom: 8,
+    background: "rgba(245,158,11,.06)",
   }}
 >
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -411,19 +527,22 @@ const highestDealAmount = useMemo(() => {
 
   <div
     className="dp-display"
-    style={{ fontSize: 20, color: "#D97706" }}
+    style={{ fontSize: 20, color: "#D97706", fontWeight: 800 }}
   >
     {formatINR(stats.pendingRevenue[pendingRevenuePeriod])}
   </div>
 </div>
 
 <div
+  className="dpx-row"
   style={{
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "14px 0",
-    borderTop: "1px solid var(--line)",
+    padding: "14px 10px",
+    borderLeft: "4px solid #DC2626",
+    marginBottom: 8,
+    background: "rgba(220,38,38,.06)",
   }}
 >
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -452,19 +571,22 @@ const highestDealAmount = useMemo(() => {
 
   <div
     className="dp-display"
-    style={{ fontSize: 20, color: "#DC2626" }}
+    style={{ fontSize: 20, color: "#DC2626", fontWeight: 800 }}
   >
     {formatINR(stats.overdueRevenue)}
   </div>
 </div>
 
 <div
+  className="dpx-row"
   style={{
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "14px 0",
-    borderTop: "1px solid var(--line)",
+    padding: "14px 10px",
+    borderLeft: "4px solid #2563EB",
+    marginBottom: 8,
+    background: "rgba(37,99,235,.06)",
   }}
 >
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -497,20 +619,21 @@ const highestDealAmount = useMemo(() => {
 
   <div
     className="dp-display"
-    style={{ fontSize: 20, color: "#2563EB" }}
+    style={{ fontSize: 20, color: "#2563EB", fontWeight: 800 }}
   >
     {stats.pendingPayments}
   </div>
 </div>
 
 <div
+  className="dpx-row"
   style={{
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "14px 0",
-    borderTop: "1px solid var(--line)",
-    borderBottom: "1px solid var(--line)",
+    padding: "14px 10px",
+    borderLeft: "4px solid #7C3AED",
+    background: "rgba(124,58,237,.06)",
   }}
 >
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -543,13 +666,140 @@ const highestDealAmount = useMemo(() => {
 
   <div
     className="dp-display"
-    style={{ fontSize: 20, color: "#7C3AED" }}
+    style={{ fontSize: 20, color: "#7C3AED", fontWeight: 800 }}
   >
     {stats.pendingCollabs}
   </div>
 </div>
 </div>
-<div className="dp-card" style={{ padding: 18, marginBottom: 16 }}>
+
+{/* --- NEW: Payment Health gauge. Purely a display of stats.paymentHealth,
+     which was already being computed in utils/dashboard.js but never shown
+     anywhere in the UI. No new data, no new logic. --- */}
+{health && health.score !== null && (
+  <div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 10,
+            background: `${health.color}1A`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Zap size={18} strokeWidth={2.4} color={health.color} />
+        </div>
+        <div className="dp-display" style={{ fontSize: 16, fontWeight: 800 }}>
+          Payment Health
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 5,
+        }}
+      >
+        <span
+          className="dp-display dp-mono"
+          style={{ fontSize: 24, fontWeight: 800, color: health.color }}
+        >
+          {health.score}
+        </span>
+        <span style={{ fontSize: 12, color: "var(--slate)", fontWeight: 700 }}>
+          /100
+        </span>
+      </div>
+    </div>
+
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "4px 10px",
+        borderRadius: 999,
+        background: `${health.color}1A`,
+        color: health.color,
+        fontSize: 12,
+        fontWeight: 700,
+        marginBottom: 14,
+      }}
+    >
+      {health.label}
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        height: 10,
+        borderRadius: 999,
+        overflow: "hidden",
+        background: "var(--line)",
+      }}
+    >
+      <div
+        className="dpx-segbar-seg"
+        style={{ width: `${health.segmentPercents.paid}%`, background: "#16A34A" }}
+      />
+      <div
+        className="dpx-segbar-seg"
+        style={{ width: `${health.segmentPercents.pending}%`, background: "#F59E0B" }}
+      />
+      <div
+        className="dpx-segbar-seg"
+        style={{ width: `${health.segmentPercents.overdue}%`, background: "#DC2626" }}
+      />
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        gap: 14,
+        marginTop: 10,
+        fontSize: 11.5,
+        color: "var(--slate)",
+        fontWeight: 600,
+        flexWrap: "wrap",
+      }}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 999, background: "#16A34A", display: "inline-block" }} />
+        Paid
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 999, background: "#F59E0B", display: "inline-block" }} />
+        Pending
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 999, background: "#DC2626", display: "inline-block" }} />
+        Overdue
+      </span>
+
+      {health.overdueCount > 0 && (
+        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, color: "#DC2626" }}>
+          <AlertTriangle size={12} strokeWidth={2.6} />
+          {health.overdueCount} overdue deal{health.overdueCount === 1 ? "" : "s"}
+        </span>
+      )}
+    </div>
+  </div>
+)}
+
+<div className="dp-card dpx-card" style={{ padding: 18, marginBottom: 16 }}>
 
   <div
     style={{
@@ -567,15 +817,28 @@ const highestDealAmount = useMemo(() => {
   <button
     onClick={() => setShowMonthDropdown((prev) => !prev)}
     style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 4,
       border: "none",
-      background: "transparent",
+      background: "rgba(124,58,237,.08)",
+      padding: "6px 10px",
+      borderRadius: 999,
       cursor: "pointer",
-      color: "var(--ink)",
+      color: "#7C3AED",
       fontWeight: 700,
-      fontSize: 14,
+      fontSize: 13,
     }}
   >
-    {analyticsMonth} ▼
+    {analyticsMonth}
+    <ChevronDown
+      size={14}
+      strokeWidth={2.6}
+      style={{
+        transform: showMonthDropdown ? "rotate(180deg)" : "rotate(0deg)",
+        transition: "transform .15s ease",
+      }}
+    />
   </button>
 
   {showMonthDropdown && (
@@ -604,6 +867,8 @@ const highestDealAmount = useMemo(() => {
             padding: "12px 16px",
             cursor: "pointer",
             fontWeight: month === analyticsMonth ? 700 : 500,
+            color: month === analyticsMonth ? "#7C3AED" : "var(--ink)",
+            background: month === analyticsMonth ? "rgba(124,58,237,.08)" : "transparent",
           }}
         >
           {month}
@@ -628,39 +893,45 @@ const highestDealAmount = useMemo(() => {
       title: "Revenue",
       value: formatINR(monthlyRevenue),
       color: "#DCFCE7",
+      iconColor: "#16A34A",
     },
     {
      icon: Handshake,
       title: "Deals",
       value: analyticsDeals.length,
       color: "#DBEAFE",
+      iconColor: "#2563EB",
     },
     {
       icon: TrendingUp,
       title: "Average Deal",
       value: formatINR(averageDealValue),
       color: "#FEF3C7",
+      iconColor: "#D97706",
     },
     {
       icon: Trophy,
       title: "Highest Deal",
       value: formatINR(highestDealAmount),
       color: "#F3E8FF",
+      iconColor: "#7C3AED",
     },
     {
       icon: Star,
       title: "Top Brand",
       value: topPayingBrand?.brand_name || "—",
       color: "#FCE7F3",
+      iconColor: "#DB2777",
     },
   ].map((item, index) => (
     <div
       key={item.title}
+      className="dpx-row"
       style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "16px 0",
+        padding: "14px 10px",
         borderBottom:
           index === 4 ? "none" : "1px solid var(--line)",
       }}
@@ -681,12 +952,13 @@ const highestDealAmount = useMemo(() => {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   }}
 >
   <item.icon
     size={20}
     strokeWidth={2.2}
-    color="#111827"
+    color={item.iconColor}
   />
 </div>
 
@@ -715,7 +987,10 @@ const highestDealAmount = useMemo(() => {
         className="dp-display"
         style={{
           fontSize: 19,
-          fontWeight: 700,
+          fontWeight: 800,
+          color: item.iconColor,
+          textAlign: "right",
+          maxWidth: "45%",
         }}
       >
         {item.value}
@@ -726,15 +1001,42 @@ const highestDealAmount = useMemo(() => {
 </div>
 </div>
       {hasChartData && (
-        <div className="dp-card" style={{ padding: "16px 8px 8px", marginBottom: 16 }}>
-          <div className="dp-label" style={{ paddingLeft: 10 }}>Earnings received — last 8 weeks</div>
+        <div className="dp-card dpx-card" style={{ padding: "16px 8px 8px", marginBottom: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              paddingLeft: 10,
+            }}
+          >
+            <div className="dp-label" style={{ marginBottom: 0 }}>
+              Earnings received — last 8 weeks
+            </div>
+            <span
+              className="dpx-live-dot"
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: "#16A34A",
+                display: "inline-block",
+              }}
+            />
+          </div>
           <div style={{ height: 110 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="dpxBarGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7C3AED" />
+                    <stop offset="100%" stopColor="#EC4899" />
+                  </linearGradient>
+                </defs>
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--slate)" }} axisLine={false} tickLine={false} />
                 <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {chartData.map((_, i) => <Cell key={i} fill="var(--signal)" />)}
+                  {chartData.map((_, i) => <Cell key={i} fill="url(#dpxBarGradient)" />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -742,15 +1044,28 @@ const highestDealAmount = useMemo(() => {
         </div>
         
       )}
-<div className="dp-card" style={{ flex: 1, padding: 14 }}>
-  <Receipt size={16} color="#16a34a" />
+<div className="dp-card dpx-card" style={{ padding: 16, marginBottom: 16 }}>
+  <div
+    style={{
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: "#DCFCE7",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 8,
+    }}
+  >
+    <Receipt size={16} color="#16a34a" strokeWidth={2.4} />
+  </div>
 
   <div
     className="dp-display"
     style={{
-      fontSize: 20,
-      fontWeight: 700,
-      marginTop: 6,
+      fontSize: 22,
+      fontWeight: 800,
+      color: "#16A34A",
     }}
   >
     {stats.collectionRate}%
