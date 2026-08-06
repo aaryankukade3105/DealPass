@@ -217,7 +217,75 @@ export function computeStats(deals) {
             overdue: (overdueRevenue / healthBarTotal) * 100,
           },
   };
+const today = new Date();
+today.setHours(0, 0, 0, 0);
 
+const upcomingShoots = deals
+  .filter((d) => {
+    if (d.deal_status !== "Confirmed") return false;
+    if (!d.shoot_date) return false;
+
+    const shoot = new Date(d.shoot_date);
+    shoot.setHours(0, 0, 0, 0);
+
+    return shoot >= today;
+  })
+  .sort(
+    (a, b) =>
+      new Date(a.shoot_date) -
+      new Date(b.shoot_date)
+  );
+
+const todaysShoots = upcomingShoots.filter((d) => {
+  const shoot = new Date(d.shoot_date);
+  shoot.setHours(0, 0, 0, 0);
+
+  return shoot.getTime() === today.getTime();
+});
+
+const upcomingThisWeek = upcomingShoots.filter((d) => {
+  const shoot = new Date(d.shoot_date);
+  shoot.setHours(0, 0, 0, 0);
+
+  const diff =
+    (shoot - today) / 86400000;
+
+  return diff >= 0 && diff <= 7;
+});
+
+const overdueShoots = deals.filter((d) => {
+  if (d.deal_status !== "Confirmed") return false;
+  if (!d.shoot_date) return false;
+
+  const shoot = new Date(d.shoot_date);
+  shoot.setHours(0, 0, 0, 0);
+
+  return shoot < today;
+});
+
+const tomorrow = new Date(today);
+tomorrow.setDate(today.getDate() + 1);
+
+const todaysAgenda = upcomingShoots.filter((d) => {
+  const shoot = new Date(d.shoot_date);
+  shoot.setHours(0, 0, 0, 0);
+
+  return shoot.getTime() === today.getTime();
+});
+
+const tomorrowsAgenda = upcomingShoots.filter((d) => {
+  const shoot = new Date(d.shoot_date);
+  shoot.setHours(0, 0, 0, 0);
+
+  return shoot.getTime() === tomorrow.getTime();
+});
+
+const futureAgenda = upcomingShoots.filter((d) => {
+  const shoot = new Date(d.shoot_date);
+  shoot.setHours(0, 0, 0, 0);
+
+  return shoot > tomorrow;
+});
   const recentDeal =
     [...deals].sort(
       (a, b) =>
@@ -225,20 +293,28 @@ export function computeStats(deals) {
         new Date(a.confirmation_date)
     )[0] || null;
 
-  return {
-    totalEarnings,
-    earnings,
-    dealCounts,
-    pendingCollabs,
-    pendingPayments,
-    pendingRevenue,
-    overdueRevenue,
-    overdueCount,
-    partiallyPaidOutstanding,
-    collectionRate,
-    paymentHealth,
-    recentDeal,
-  };
+return {
+  totalEarnings,
+  earnings,
+  dealCounts,
+  pendingCollabs,
+  pendingPayments,
+  pendingRevenue,
+  overdueRevenue,
+  overdueCount,
+  partiallyPaidOutstanding,
+  collectionRate,
+  paymentHealth,
+
+  upcomingShoots,
+  todaysShoots,
+  upcomingThisWeek,
+  overdueShoots,
+todaysAgenda,
+tomorrowsAgenda,
+futureAgenda,
+  recentDeal,
+};
 }
 
 export function buildChartData(deals) {

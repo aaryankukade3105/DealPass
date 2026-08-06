@@ -55,6 +55,13 @@ const PAYMENT_MODES = ["UPI", "Bank Transfer", "PayPal", "Cheque", "Cash", "Othe
 const DELIVERABLE_OPTIONS = [
   "Reel", "Story", "Static Post", "Carousel", "Review", "UGC Video", "YouTube Video", "Other",
 ];
+const SHOOT_STATUS_OPTIONS = [
+  "Not Scheduled",
+  "Scheduled",
+  "Shot",
+  "Cancelled",
+  "Rescheduled",
+];
 
 function emptyDeal() {
   return {
@@ -72,6 +79,11 @@ function emptyDeal() {
     invoice_sent: false,
     invoice_number: "",
     transaction_id: "",
+    shoot_date: "",
+shoot_time: "",
+shoot_status: "Not Scheduled",
+shoot_location: "",
+shoot_notes: "",
     notes: "",
   };
 }

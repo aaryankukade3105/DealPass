@@ -94,35 +94,66 @@ const analyticsDeals = useMemo(() => {
   });
 }, [deals, analyticsMonth]);
 
+const revenueDeals = useMemo(() => {
+  return deals.filter((deal) => {
+    if (deal.payment_status !== "Paid") return false;
+    if (!deal.payment_received_date) return false;
+
+    return (
+      new Date(deal.payment_received_date).toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+      }) === analyticsMonth
+    );
+  });
+}, [deals, analyticsMonth]);
+
 const monthlyRevenue = useMemo(() => {
-  return analyticsDeals.reduce(
-    (sum, deal) => sum + Number(deal.commercials),
+  return revenueDeals.reduce(
+    (sum, deal) =>
+      sum +
+      (Number(deal.payment_received_amount) ||
+        Number(deal.commercials) ||
+        0),
     0
   );
-}, [analyticsDeals]);
+}, [revenueDeals]);
+
 const averageDealValue = useMemo(() => {
   if (analyticsDeals.length === 0) return 0;
 
   return monthlyRevenue / analyticsDeals.length;
 }, [monthlyRevenue, analyticsDeals]);
-const topPayingBrand = useMemo(() => {
-  if (analyticsDeals.length === 0) return null;
 
-  return analyticsDeals.reduce((highest, current) => {
-    const highestAmount = Number(highest.payment_received_amount) || 0;
-    const currentAmount = Number(current.payment_received_amount) || 0;
+const topPayingBrand = useMemo(() => {
+  if (revenueDeals.length === 0) return null;
+
+  return revenueDeals.reduce((highest, current) => {
+    const highestAmount =
+      Number(highest.payment_received_amount) ||
+      Number(highest.commercials) ||
+      0;
+
+    const currentAmount =
+      Number(current.payment_received_amount) ||
+      Number(current.commercials) ||
+      0;
 
     return currentAmount > highestAmount ? current : highest;
   });
-}, [analyticsDeals]);
+}, [revenueDeals]);
 
 const monthlyRevenueChart = useMemo(() => {
   const grouped = {};
 
   deals.forEach((deal) => {
-    if (!deal.confirmation_date) return;
+    // Only count paid deals
+    if (deal.payment_status !== "Paid") return;
 
-    const month = new Date(deal.confirmation_date).toLocaleString(
+    // Revenue belongs to the month payment was received
+    if (!deal.payment_received_date) return;
+
+    const month = new Date(deal.payment_received_date).toLocaleString(
       "default",
       {
         month: "short",
@@ -130,27 +161,32 @@ const monthlyRevenueChart = useMemo(() => {
       }
     );
 
-    grouped[month] =
-      (grouped[month] || 0) +
-      (Number(deal.payment_received_amount) || 0);
+    if (!grouped[month]) grouped[month] = 0;
+
+    grouped[month] +=
+      Number(deal.payment_received_amount) ||
+      Number(deal.commercials) ||
+      0;
   });
 
-  return Object.entries(grouped).map(([label, value]) => ({
-    label,
-    value,
+  return Object.entries(grouped).map(([month, revenue]) => ({
+    month,
+    revenue,
   }));
 }, [deals]);
 
 const highestDealAmount = useMemo(() => {
-  if (analyticsDeals.length === 0) return 0;
+  if (revenueDeals.length === 0) return 0;
 
   return Math.max(
-    ...analyticsDeals.map(
-      (deal) => Number(deal.payment_received_amount) || 0
+    ...revenueDeals.map(
+      (deal) =>
+        Number(deal.payment_received_amount) ||
+        Number(deal.commercials) ||
+        0
     )
   );
-}, [analyticsDeals]);
-
+}, [revenueDeals]);
 // Cosmetic-only: greeting text, derived purely from the clock.
 const greeting = useMemo(() => getGreeting(), []);
 
@@ -158,6 +194,27 @@ const greeting = useMemo(() => getGreeting(), []);
 // never rendered anywhere. Surfacing it here is a display-only addition —
 // no new data, no new computation, nothing else in the app changes.
 const health = stats.paymentHealth;
+
+const nextShoot = stats.upcomingShoots[0] || null;
+
+const formatShootDate = (date) =>
+  new Date(date).toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+
+const formatShootTime = (time) => {
+  if (!time) return "Time not set";
+
+  return new Date(`1970-01-01T${time}`).toLocaleTimeString(
+    "en-IN",
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    }
+  );
+};
 
   return (
     <div className="dp-scroll" style={{ flex: 1, overflowY: "auto", padding: "16px 16px 90px" }}>
@@ -445,7 +502,216 @@ const health = stats.paymentHealth;
   </div>
 
 </div>
+{/* ---------- Upcoming Shoots ---------- */}
 
+<div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
+
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 18,
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: "#EDE9FE",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Clapperboard
+          size={18}
+          strokeWidth={2.2}
+          color="#7C3AED"
+        />
+      </div>
+
+      <div>
+        <div
+          className="dp-display"
+          style={{
+            fontSize: 17,
+            fontWeight: 800,
+          }}
+        >
+          Upcoming Shoots
+        </div>
+
+        <div
+          style={{
+            fontSize: 12,
+            color: "var(--slate)",
+          }}
+        >
+          Your upcoming schedule
+        </div>
+      </div>
+    </div>
+
+    <div
+      className="dp-display"
+      style={{
+        fontSize: 22,
+        color: "#7C3AED",
+        fontWeight: 800,
+      }}
+    >
+      {stats.upcomingShoots.length}
+    </div>
+  </div>
+
+  {!nextShoot ? (
+
+    <div
+      style={{
+        textAlign: "center",
+        color: "var(--slate)",
+        padding: "20px 0",
+      }}
+    >
+      No upcoming shoots 🎉
+    </div>
+
+  ) : (
+<>
+  {[
+    {
+      title: "Today",
+      data: stats.todaysAgenda,
+      color: "#16A34A",
+    },
+    {
+      title: "Tomorrow",
+      data: stats.tomorrowsAgenda,
+      color: "#2563EB",
+    },
+    {
+      title: "Upcoming",
+      data: stats.futureAgenda.slice(0, 3),
+      color: "#7C3AED",
+    },
+  ].map((section) =>
+    section.data.length > 0 ? (
+      <div key={section.title} style={{ marginBottom: 18 }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: 1,
+            color: section.color,
+            textTransform: "uppercase",
+            marginBottom: 10,
+          }}
+        >
+          {section.title}
+        </div>
+
+        {section.data.map((shoot) => (
+          <div
+            key={shoot.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px 0",
+              borderBottom: "1px solid var(--line)",
+            }}
+          >
+            <div>
+              <div
+                className="dp-display"
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                }}
+              >
+                {shoot.brand_name}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--slate)",
+                  marginTop: 3,
+                }}
+              >
+                {shoot.shoot_location || "Location not added"}
+              </div>
+            </div>
+
+            <div style={{ textAlign: "right" }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: 13,
+                }}
+              >
+                {formatShootTime(shoot.shoot_time)}
+              </div>
+
+              <div
+                style={{
+                  color: "var(--slate)",
+                  fontSize: 11,
+                  marginTop: 2,
+                }}
+              >
+                {formatShootDate(shoot.shoot_date)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null
+  )}
+
+  {stats.futureAgenda.length > 3 && (
+    <div
+      style={{
+        textAlign: "center",
+        marginTop: 8,
+        color: "#7C3AED",
+        fontWeight: 700,
+        fontSize: 13,
+      }}
+    >
+      + {stats.futureAgenda.length - 3} more upcoming shoots
+    </div>
+  )}
+
+  {stats.overdueShoots.length > 0 && (
+    <div
+      style={{
+        marginTop: 18,
+        padding: 14,
+        borderRadius: 12,
+        background: "#FEF2F2",
+        color: "#DC2626",
+        fontWeight: 700,
+        textAlign: "center",
+      }}
+    >
+      ⚠ {stats.overdueShoots.length} overdue shoot
+      {stats.overdueShoots.length > 1 ? "s" : ""}
+    </div>
+  )}
+</>
+  )}
+
+</div>
      <div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
   <div
     style={{

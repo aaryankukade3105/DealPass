@@ -55,7 +55,6 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
       transaction_id: "",
       notes: "",
     };
-
     return {
       ...base,
       // Normalize campaign_links to a plain string once, so the textarea
@@ -72,7 +71,10 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
 
   const [saving, setSaving] = useState(false);
   const isBarter = form.collaboration_type === "Barter";
-
+const canEditShoot = ![
+  "Negotiation",
+  "Cancelled",
+].includes(form.deal_status);
   const update = (field, value) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
@@ -139,60 +141,117 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
       return;
     }
 
-    if (!form.confirmation_date) {
-      showAlert("warning", "Confirmation Date Required", "Please select the confirmation date.");
-      return;
-    }
+   if (!form.confirmation_date) {
+  showAlert(
+    "warning",
+    "Confirmation Date Required",
+    "Please select the confirmation date."
+  );
+  return;
+}
 
-    if (form.collaboration_type === "Paid" && (form.commercials === "" || Number(form.commercials) <= 0)) {
-      showAlert("warning", "Commercial Amount Required", "Please enter a commercial amount greater than ₹0.");
-      return;
-    }
+// Shoot date becomes mandatory once the collaboration
+// has moved beyond negotiation.
+const needsShootDate = [
+  "Confirmed",
+  "Content Shot",
+  "Editing",
+  "Submitted for Approval",
+  "Approved",
+  "Posted",
+  "Completed",
+].includes(form.deal_status);
 
-    if (form.deliverables.length === 0) {
-      showAlert("warning", "Deliverables Required", "Please select at least one deliverable.");
-      return;
-    }
+if (needsShootDate && !form.shoot_date) {
+  showAlert(
+    "warning",
+    "Shoot Date Required",
+    "Please select the shoot date for this collaboration."
+  );
+  return;
+}
 
-    if (form.payment_status === "Overdue" && !form.payment_deadline) {
-      showAlert("warning", "Payment Deadline Required", "Please select the payment deadline.");
-      return;
-    }
+if (
+  form.collaboration_type === "Paid" &&
+  (form.commercials === "" || Number(form.commercials) <= 0)
+) {
+  showAlert(
+    "warning",
+    "Commercial Amount Required",
+    "Please enter a commercial amount greater than ₹0."
+  );
+  return;
+}
 
-    if (
-      (form.payment_status === "Paid" || form.payment_status === "Partially Paid") &&
-      !form.payment_received_date
-    ) {
-      showAlert("warning", "Payment Received Date Required", "Please select the payment received date.");
-      return;
-    }
+if (form.deliverables.length === 0) {
+  showAlert(
+    "warning",
+    "Deliverables Required",
+    "Please select at least one deliverable."
+  );
+  return;
+}
 
-    if (form.payment_status === "Partially Paid" && Number(form.payment_received_amount) <= 0) {
-      showAlert("warning", "Invalid Payment Amount", "Please enter the amount received.");
-      return;
-    }
+if (
+  form.payment_status === "Overdue" &&
+  !form.payment_deadline
+) {
+  showAlert(
+    "warning",
+    "Payment Deadline Required",
+    "Please select the payment deadline."
+  );
+  return;
+}
 
-    if (
-      form.payment_status === "Partially Paid" &&
-      Number(form.payment_received_amount) >= Number(form.commercials)
-    ) {
-      showAlert(
-        "warning",
-        "Invalid Payment Amount",
-        "Received amount cannot be greater than or equal to the commercial amount."
-      );
-      return;
-    }
+if (
+  (form.payment_status === "Paid" ||
+    form.payment_status === "Partially Paid") &&
+  !form.payment_received_date
+) {
+  showAlert(
+    "warning",
+    "Payment Received Date Required",
+    "Please select the payment received date."
+  );
+  return;
+}
 
-    if (form.payment_status === "Paid" && Number(form.payment_received_amount) !== Number(form.commercials)) {
-      showAlert(
-        "warning",
-        "Payment Amount Mismatch",
-        "For fully paid deals, the received amount must equal the commercial amount."
-      );
-      return;
-    }
+if (
+  form.payment_status === "Partially Paid" &&
+  Number(form.payment_received_amount) <= 0
+) {
+  showAlert(
+    "warning",
+    "Invalid Payment Amount",
+    "Please enter the amount received."
+  );
+  return;
+}
 
+if (
+  form.payment_status === "Partially Paid" &&
+  Number(form.payment_received_amount) >= Number(form.commercials)
+) {
+  showAlert(
+    "warning",
+    "Invalid Payment Amount",
+    "Received amount cannot be greater than or equal to the commercial amount."
+  );
+  return;
+}
+
+if (
+  form.payment_status === "Paid" &&
+  Number(form.payment_received_amount) !== Number(form.commercials)
+) {
+  showAlert(
+    "warning",
+    "Payment Amount Mismatch",
+    "For fully paid deals, the received amount must equal the commercial amount."
+  );
+  return;
+}
     // Invoice number and transaction ID are optional — a deal can exist
     // without an invoice ever being raised for it, so nothing is enforced
     // here beyond what's already captured above.
@@ -363,7 +422,68 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
           <Field label="Deliverable Count">
             <input type="number" className="dp-input" value={form.deliverable_count} readOnly />
           </Field>
+{/* ---------- Shoot Details ---------- */}
 
+<SectionLabel>🎥 Shoot Details</SectionLabel>
+
+<Field label="Shoot Date">
+<DateField
+  value={form.shoot_date}
+  disabled={!canEditShoot}
+  onChange={(value) => update("shoot_date", value)}
+  placeholder={
+    form.deal_status === "Negotiation"
+      ? "Confirm the deal first"
+      : "Select shoot date"
+  }
+/>
+</Field>
+
+<Field label="Shoot Time">
+  <input
+    type="time"
+disabled={!canEditShoot}
+    className="dp-input"
+    value={form.shoot_time || ""}
+    onChange={(e) =>
+      setForm((prev) => ({
+        ...prev,
+        shoot_time: e.target.value,
+      }))
+    }
+  />
+</Field>
+
+<Field label="Shoot Location">
+  <input
+    className="dp-input"
+    disabled={!canEditShoot}
+    placeholder="e.g. Taampopo, Baner"
+    value={form.shoot_location || ""}
+    onChange={(e) =>
+      setForm((prev) => ({
+        ...prev,
+        shoot_location: e.target.value,
+      }))
+    }
+  />
+</Field>
+
+<Field label="Shoot Notes">
+  <textarea
+    disabled={!canEditShoot}
+    className="dp-input"
+    rows={3}
+    placeholder="Parking, owner contact, props, timings..."
+    value={form.shoot_notes || ""}
+    onChange={(e) =>
+      setForm((prev) => ({
+        ...prev,
+        shoot_notes: e.target.value,
+      }))
+    }
+  />
+</Field>
           <Field label="Content Due Date">
             <DateField
               value={form.content_due_date}
