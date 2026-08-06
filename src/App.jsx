@@ -200,7 +200,33 @@ export default function DealPassApp() {
           "New password and confirmation password must match."
         );
       }
+const hasUppercase = /[A-Z]/.test(newPassword);
+const hasNumber = /\d/.test(newPassword);
+const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
 
+if (!hasUppercase) {
+  return showAlert(
+    "warning",
+    "Weak Password",
+    "Password must contain at least one uppercase letter."
+  );
+}
+
+if (!hasNumber) {
+  return showAlert(
+    "warning",
+    "Weak Password",
+    "Password must contain at least one number."
+  );
+}
+
+if (!hasSpecial) {
+  return showAlert(
+    "warning",
+    "Weak Password",
+    "Password must contain at least one special character."
+  );
+}
       await changePassword(currentPassword, newPassword);
 
       setChangePasswordOpen(false);

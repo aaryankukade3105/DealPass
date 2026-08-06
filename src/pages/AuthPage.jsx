@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  Circle,
+} from "lucide-react";
 import logo from "../assets/logo.svg";
 
 const PageStyle = () => (
@@ -124,7 +129,37 @@ const PageStyle = () => (
     }
   `}</style>
 );
+function Requirement({ ok, children }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        color: ok ? "#16A34A" : "var(--slate)",
+        fontSize: 13,
+        fontWeight: 500,
+        transition: "all .25s ease",
+      }}
+    >
+      {ok ? (
+        <CheckCircle2
+          size={18}
+          color="#16A34A"
+          strokeWidth={2.4}
+        />
+      ) : (
+        <Circle
+          size={18}
+          color="#CBD5E1"
+          strokeWidth={2}
+        />
+      )}
 
+      <span>{children}</span>
+    </div>
+  );
+}
 export default function AuthPage({
   mode,
   setMode,
@@ -141,6 +176,10 @@ export default function AuthPage({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
+const hasLength = password.length >= 8;
+const hasUppercase = /[A-Z]/.test(password);
+const hasNumber = /\d/.test(password);
+const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
   useEffect(() => {
     setName("");
@@ -175,7 +214,33 @@ export default function AuthPage({
       if (password.length < 8) {
         return showAlert("warning", "Weak Password", "Password must be at least 8 characters.");
       }
+const hasUppercase = /[A-Z]/.test(password);
+const hasNumber = /\d/.test(password);
+const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
+if (!hasUppercase) {
+  return showAlert(
+    "warning",
+    "Weak Password",
+    "Password must contain at least one uppercase letter."
+  );
+}
+
+if (!hasNumber) {
+  return showAlert(
+    "warning",
+    "Weak Password",
+    "Password must contain at least one number."
+  );
+}
+
+if (!hasSpecial) {
+  return showAlert(
+    "warning",
+    "Weak Password",
+    "Password must contain at least one special character."
+  );
+}
       if (!confirm.trim()) {
         return showAlert("warning", "Confirm Password", "Please confirm your password.");
       }
@@ -381,18 +446,63 @@ export default function AuthPage({
               )}
             </div>
 
-            {mode === "signup" && (
-              <div>
-                <label className="dp-label">Confirm Password</label>
-                <input
-                  className="dp-auth-input"
-                  type={showPw ? "text" : "password"}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="••••••••"
-                />
-              </div>
-            )}
+           {mode === "signup" && (
+  <>
+    <div
+      style={{
+        marginTop: 18,
+        marginBottom: 20,
+        padding: 16,
+        borderRadius: 16,
+        background: "rgba(108,92,231,.05)",
+        border: "1px solid rgba(108,92,231,.12)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 13,
+          color: "var(--ink)",
+        }}
+      >
+        Password Requirements
+      </div>
+
+      <Requirement ok={hasLength}>
+        Minimum 8 characters
+      </Requirement>
+
+      <Requirement ok={hasUppercase}>
+        One uppercase letter
+      </Requirement>
+
+      <Requirement ok={hasNumber}>
+        One number
+      </Requirement>
+
+      <Requirement ok={hasSpecial}>
+        One special character
+      </Requirement>
+    </div>
+
+    <div>
+      <label className="dp-label">
+        Confirm Password
+      </label>
+
+      <input
+        className="dp-auth-input"
+        type={showPw ? "text" : "password"}
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+        placeholder="••••••••"
+      />
+    </div>
+  </>
+)}
 
             <button type="submit" className="dp-auth-submit" disabled={busy}>
               {busy ? "Please wait..." : mode === "signup" ? "Create Account" : "Log In"}
