@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
+import ConfirmDialog from "../components/common/ConfirmDialog";
 import {
   createInvoice,
   updateInvoice,
@@ -374,7 +375,6 @@ const GlobalStyle = () => (
     .dp-inv-scroll::-webkit-scrollbar-thumb { background: #D9DCE8; border-radius: 8px; }
   `}</style>
 );
-
 function SectionHeading({ index, color, icon, title, subtitle, done, optional }) {
   return (
     <div
@@ -596,7 +596,7 @@ export default function InvoiceEditorPage({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState(null);
-
+const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
   // `detail` (e.g. "Collab", "90 Days", "3 Stories") is carried over from
   // the deal's deliverables so it survives into the invoice and is shown
   // via formatDeliverableLabel everywhere below.
@@ -990,12 +990,6 @@ export default function InvoiceEditorPage({
   // never reused for anything else.
   async function handleDeleteInvoice() {
     if (!invoiceId) return;
-
-    const confirmed = window.confirm(
-      "Delete this invoice? This can't be undone, and the invoice number won't be reused."
-    );
-    if (!confirmed) return;
-
     setDeleting(true);
     setSaveError(null);
     try {
@@ -1014,8 +1008,10 @@ export default function InvoiceEditorPage({
       }
 
       setInvoiceId(null);
+      setDeleteInvoiceOpen(false);
       setInvoice((prev) => ({ ...prev, invoiceNumber: defaultInvoiceNumber }));
     } catch (err) {
+      setDeleteInvoiceOpen(false);
       console.error(err);
       setSaveError("Failed to delete invoice. Please try again.");
     } finally {
@@ -1266,7 +1262,7 @@ export default function InvoiceEditorPage({
             <button
               className="dp-inv-btn-text"
               style={{ marginTop: 4 }}
-              onClick={handleDeleteInvoice}
+             onClick={() => setDeleteInvoiceOpen(true)}
               disabled={deleting}
             >
               <Trash2 size={13} />
@@ -1926,6 +1922,19 @@ export default function InvoiceEditorPage({
           onClose={() => setShowPreview(false)}
         />
       )}
+      {deleteInvoiceOpen && (
+  <ConfirmDialog
+    title="Delete Invoice?"
+    message={`Are you sure you want to delete invoice ${invoice.invoiceNumber}?
+
+This action cannot be undone.`}
+    confirmText="Delete"
+    cancelText="Cancel"
+    danger
+    onConfirm={handleDeleteInvoice}
+    onCancel={() => setDeleteInvoiceOpen(false)}
+  />
+)}
     </div>
   );
 }
@@ -1999,6 +2008,7 @@ function PremiumInvoiceDocument({
         padding: "52px 60px",
       }}
     >
+      
       {/* Header */}
       <div
         style={{
