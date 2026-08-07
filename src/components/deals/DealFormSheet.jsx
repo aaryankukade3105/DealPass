@@ -473,12 +473,21 @@ if (
     setSaving(true);
 
     const emptyToNull = (value) => (value === "" || value === undefined ? null : value);
+let shootStatus = form.shoot_status;
 
+if (!shootStatus || shootStatus === "Not Scheduled") {
+  shootStatus =
+    form.shoot_date && form.shoot_time
+      ? "Scheduled"
+      : "Not Scheduled";
+}
     const deal = {
       ...form,
+      shoot_status: shootStatus,
       currency: form.currency,
       payment_mode: form.payment_mode,
       payment_status: form.payment_status,
+
 
       // Numbers
       commercials: Number(form.commercials),

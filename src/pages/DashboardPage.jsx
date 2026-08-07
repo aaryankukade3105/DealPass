@@ -661,7 +661,7 @@ const extraShootCount = Math.max(
         padding: "24px 0",
       }}
     >
-      No shoots scheduled 🎉
+      No shoots scheduled 
     </div>
 
   ) : (
@@ -758,13 +758,13 @@ const extraShootCount = Math.max(
                 </div>
               </div>
 
-              {isOverdue && onMarkShootStatus ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMarkShootStatus(shoot.id, "Shot");
-                  }}
+           {isOverdue ? (
+  <button
+    type="button"
+    onClick={async (e) => {
+      e.stopPropagation();
+      await updateShootStatus(shoot.id, "Shot");
+    }}
                   style={{
                     display: "flex",
                     alignItems: "center",

@@ -8,8 +8,10 @@ function getShootDateTime(deal) {
   const dt = new Date(`${deal.shoot_date}T${deal.shoot_time}`);
   return isNaN(dt.getTime()) ? null : dt;
 }
-
-const UNRESOLVED_STATUSES = ["Not Scheduled", "Scheduled", "Rescheduled"];
+const UNRESOLVED_STATUSES = [
+  "Scheduled",
+  "Rescheduled",
+];
 
 function isEligible(deal) {
   if (!deal.shoot_date || !deal.shoot_time) return false;
@@ -18,22 +20,11 @@ function isEligible(deal) {
   return UNRESOLVED_STATUSES.includes(status);
 }
 
-/**
- * Purely time-driven reminders based on shoot_date + shoot_time:
- *
- *  - alertDeal: the shoot whose time has arrived (banner, non-blocking).
- *  - checkinDeal: the shoot that needs "shoot in progress?" answered
- *    right now (blocking popup) — either 1 min after shoot time, or
- *    1 hour after the user last said "still in progress".
- *  - hiddenDealIds: deal ids that should be removed from the dashboard
- *    schedule — either because the user marked Completed, or because
- *    Postponed/Cancelled was chosen more than 1 hour ago.
- */
 export function useShootReminders(deals, updateShootStatus) {
   const [alertDeal, setAlertDeal] = useState(null);
   const [checkinDeal, setCheckinDeal] = useState(null);
   const [hiddenDealIds, setHiddenDealIds] = useState(new Set());
-  const dismissedAlertIds = useRef(new Set());
+  const dismissedAlerts = useRef(new Set());
 
   const tick = useCallback(() => {
     const now = Date.now();
@@ -49,7 +40,7 @@ export function useShootReminders(deals, updateShootStatus) {
      if (!isEligible(deal)) continue;
 
 const shootTime = dt.getTime();
-
+const reminderKey = `${deal.id}-${deal.shoot_date}-${deal.shoot_time}`;
 /* Before shoot */
 if (now < shootTime) continue;
 
@@ -57,12 +48,11 @@ if (now < shootTime) continue;
 if (
   now >= shootTime &&
   now < shootTime + 60000 &&
-  !dismissedAlertIds.current.has(deal.id)
+  !dismissedAlerts.current.has(reminderKey)
 ) {
   nextAlert = deal;
   continue;
 }
-
 /* Scheduled -> Popup after 1 minute */
 if (
   deal.shoot_status === "Scheduled" &&
@@ -93,10 +83,16 @@ if (
     return () => clearInterval(id);
   }, [tick]);
 
-  const dismissAlert = useCallback(() => {
-    if (alertDeal) dismissedAlertIds.current.add(alertDeal.id);
-    setAlertDeal(null);
-  }, [alertDeal]);
+ const dismissAlert = useCallback(() => {
+  if (alertDeal) {
+    const reminderKey =
+      `${alertDeal.id}-${alertDeal.shoot_date}-${alertDeal.shoot_time}`;
+
+    dismissedAlerts.current.add(reminderKey);
+  }
+
+  setAlertDeal(null);
+}, [alertDeal]);
 
 const markInProgress = useCallback(async () => {
   if (!checkinDeal) return;
@@ -107,13 +103,9 @@ const markInProgress = useCallback(async () => {
 }, [checkinDeal, updateShootStatus]);
 
   // status: "Shot" | "Rescheduled" | "Cancelled"
- const resolveCheckin = useCallback(() => {
-  if (!checkinDeal) return;
-
-  clearDealState(checkinDeal.id);
-
+const resolveCheckin = useCallback(() => {
   setCheckinDeal(null);
-}, [checkinDeal]);
+}, []);
 
   return {
     alertDeal,

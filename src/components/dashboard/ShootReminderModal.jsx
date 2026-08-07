@@ -17,19 +17,12 @@ function formatTime(time) {
   });
 }
 
-/**
- * checkinDeal -> blocking "Shoot in progress?" popup.
- * onMarkStatus(dealId, status, extra?) persists to the deal record.
- * onInProgress() / onResolve(onMarkStatus, status, extra) come from
- * useShootReminders.
- */
 function ShootReminderModal({
   checkinDeal,
-  onMarkStatus,
   updateShootStatus,
   onInProgress,
   onResolve,
-}) {
+}){
   const [busy, setBusy] = useState(false);
 
   if (!checkinDeal) return null;
@@ -129,16 +122,17 @@ function ShootReminderModal({
               background: "#7C3AED",
             }}
           >
-            Yes, still shooting — ask again in 1hr
+            Yes, still shooting, ask again in 1hr
           </button>
 
           <button
             type="button"
             disabled={busy}
 onClick={() =>
-  act(async () =>
-    onResolve(updateShootStatus, "Shot")
-  )
+  act(async () => {
+    await updateShootStatus(checkinDeal.id, "Shot");
+    onResolve();
+  })
 }
             style={{
               display: "flex",
@@ -161,11 +155,15 @@ onClick={() =>
           <button
             type="button"
             disabled={busy}
-            onClick={() =>
-              act(async () =>
-                onResolve(onMarkStatus, "Rescheduled", { shoot_date: null, shoot_time: null })
-              )
-            }
+           onClick={() =>
+  act(async () => {
+    await updateShootStatus(checkinDeal.id, "Rescheduled", {
+      shoot_date: null,
+      shoot_time: null,
+    });
+    onResolve();
+  })
+}
             style={{
               display: "flex",
               alignItems: "center",
@@ -189,7 +187,7 @@ onClick={() =>
             disabled={busy}
          onClick={() =>
   act(async () => {
-    await updateShootStatus(checkinDeal.id, "Shot");
+    await updateShootStatus(checkinDeal.id, "Cancelled");
     onResolve();
   })
 }
