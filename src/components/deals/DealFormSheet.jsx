@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Field from "../common/Field";
 import ChipSelect from "../common/ChipSelect";
 import SectionLabel from "../common/SectionLabel";
-import { X, Receipt, Link2, PenLine, CheckCircle2 } from "lucide-react";
+import { X, Receipt, Link2, PenLine, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { formatDate, formatINR } from "../../utils/formatters";
 import DateField from "../common/DateField";
 import DeliverablesSelector from "./DeliverablesSelector";
@@ -17,6 +17,219 @@ import {
   DEAL_STATUS_COLORS,
   COLLABORATION_TYPE_COLORS,
 } from "../../utils/constants";
+
+/* ---------------------------------------------------------------------- */
+/* TimeField — a tap-to-pick time selector instead of the native OS       */
+/* time-spinner input. Still stores/emits a plain 24hr "HH:MM" string, so */
+/* every consumer of form.shoot_time keeps working exactly as before.     */
+/* ---------------------------------------------------------------------- */
+
+const QUICK_TIMES = [
+  "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
+  "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
+  "18:00", "19:00", "20:00", "21:00",
+];
+
+function to12Hour(value) {
+  const [h, m] = value.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return { hour: hh, minute: m, period };
+}
+
+function to24Hour(hour, minute, period) {
+  let h = Number(hour) % 12;
+  if (period === "PM") h += 12;
+  return `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function formatDisplayTime(value) {
+  if (!value) return "";
+  const { hour, minute, period } = to12Hour(value);
+  return `${hour}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+function TimeField({ value, onChange, disabled, placeholder = "Select shoot time" }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  const current = value ? to12Hour(value) : { hour: 10, minute: 0, period: "AM" };
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const setPart = (part, val) => {
+    const next = { ...current, [part]: val };
+    onChange(to24Hour(next.hour, next.minute, next.period));
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        className="dp-input"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textAlign: "left",
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.55 : 1,
+          background: disabled ? "var(--surface-muted, #F7F8FC)" : undefined,
+        }}
+      >
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            color: value ? "var(--ink)" : "var(--slate)",
+          }}
+        >
+          <Clock size={15} color="var(--slate)" />
+          {value ? formatDisplayTime(value) : placeholder}
+        </span>
+        <ChevronDown
+          size={16}
+          color="var(--slate)"
+          style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 120ms ease",
+          }}
+        />
+      </button>
+
+      {open && !disabled && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            zIndex: 30,
+            background: "#fff",
+            border: "1px solid var(--line)",
+            borderRadius: 14,
+            boxShadow: "0 14px 30px rgba(0,0,0,.14)",
+            padding: 14,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--slate)",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+              marginBottom: 8,
+            }}
+          >
+            Quick pick
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 6,
+              marginBottom: 14,
+            }}
+          >
+            {QUICK_TIMES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  onChange(t);
+                  setOpen(false);
+                }}
+                style={{
+                  padding: "8px 4px",
+                  borderRadius: 9,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  border: value === t ? "1px solid var(--signal)" : "1px solid var(--line)",
+                  background: value === t ? "rgba(255,59,92,.08)" : "transparent",
+                  color: value === t ? "var(--signal)" : "var(--ink)",
+                  cursor: "pointer",
+                }}
+              >
+                {formatDisplayTime(t)}
+              </button>
+            ))}
+          </div>
+
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--slate)",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+              marginBottom: 8,
+            }}
+          >
+            Custom time
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <select
+              className="dp-input"
+              style={{ flex: 1 }}
+              value={current.hour}
+              onChange={(e) => setPart("hour", Number(e.target.value))}
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                <option key={h} value={h}>{h}</option>
+              ))}
+            </select>
+
+            <select
+              className="dp-input"
+              style={{ flex: 1 }}
+              value={current.minute}
+              onChange={(e) => setPart("minute", Number(e.target.value))}
+            >
+              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
+                <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+              ))}
+            </select>
+
+            <select
+              className="dp-input"
+              style={{ flex: 1 }}
+              value={current.period}
+              onChange={(e) => setPart("period", e.target.value)}
+            >
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="dp-btn-signal"
+            style={{ width: "100%", marginTop: 12 }}
+          >
+            Done
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
 
 function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
   // If this deal already has an invoice_number on record, it means an
@@ -274,12 +487,19 @@ if (
         form.payment_received_amount === "" ? null : Number(form.payment_received_amount),
 
       // Dates
-      confirmation_date: form.confirmation_date,
-      content_due_date: emptyToNull(form.content_due_date),
-      content_submitted_date: emptyToNull(form.content_submitted_date),
-      posted_date: emptyToNull(form.posted_date),
-      payment_deadline: emptyToNull(form.payment_deadline),
-      payment_received_date: emptyToNull(form.payment_received_date),
+     // Dates
+confirmation_date: form.confirmation_date,
+
+shoot_date: emptyToNull(form.shoot_date),
+shoot_time: emptyToNull(form.shoot_time),
+shoot_next_check_at: emptyToNull(form.shoot_next_check_at),
+
+content_due_date: emptyToNull(form.content_due_date),
+content_submitted_date: emptyToNull(form.content_submitted_date),
+posted_date: emptyToNull(form.posted_date),
+
+payment_deadline: emptyToNull(form.payment_deadline),
+payment_received_date: emptyToNull(form.payment_received_date),
 
       // Optional text
       poc_name: emptyToNull(form.poc_name),
@@ -344,6 +564,7 @@ if (
           className="dp-scroll"
           style={{ overflowY: "auto", flex: 1, padding: "18px" }}
         >
+          {/* ---------- 1. Brand Details ---------- */}
           <SectionLabel>Brand Details</SectionLabel>
 
           <Field label="Brand Name *">
@@ -372,6 +593,7 @@ if (
             />
           </Field>
 
+          {/* ---------- 2. Deal Details ---------- */}
           <SectionLabel>Deal Details</SectionLabel>
 
           <Field label="Deal Title *">
@@ -382,15 +604,49 @@ if (
             />
           </Field>
 
-      <Field label="Collaboration Type">
-  <ChipSelect
-    options={COLLABORATION_TYPES}
-    value={form.collaboration_type}
-    onChange={(v) => update("collaboration_type", v)}
-    colors={COLLABORATION_TYPE_COLORS}
-  />
-</Field>
+          <Field label="Collaboration Type">
+            <ChipSelect
+              options={COLLABORATION_TYPES}
+              value={form.collaboration_type}
+              onChange={(v) => update("collaboration_type", v)}
+              colors={COLLABORATION_TYPE_COLORS}
+            />
+          </Field>
 
+          {/* ---------- 3. Status — moved up front on purpose ----------
+              Shoot Details below is disabled for "Negotiation" /
+              "Cancelled" deals, so the status needs to be set before the
+              user reaches that section instead of after. This avoids the
+              scroll-down-then-back-up flow. */}
+          <SectionLabel>Status</SectionLabel>
+
+          <Field label="Current Deal Status">
+            <ChipSelect
+              options={DEAL_STATUS}
+              value={form.deal_status}
+              onChange={(v) => update("deal_status", v)}
+              colors={DEAL_STATUS_COLORS}
+            />
+          </Field>
+
+          {form.deal_status === "Negotiation" && (
+            <div
+              style={{
+                marginTop: -6,
+                marginBottom: 14,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#F1F2F8",
+                color: "var(--slate)",
+                fontSize: 12.5,
+                lineHeight: 1.5,
+              }}
+            >
+              Shoot details unlock once this deal moves past Negotiation.
+            </div>
+          )}
+
+          {/* ---------- 4. Confirmation ---------- */}
           <SectionLabel>Confirmation</SectionLabel>
 
           <Field label="Confirmation Date *">
@@ -410,6 +666,7 @@ if (
             />
           </Field>
 
+          {/* ---------- 5. Content plan ---------- */}
           <SectionLabel>Content</SectionLabel>
 
           <Field label="Deliverables">
@@ -422,68 +679,60 @@ if (
           <Field label="Deliverable Count">
             <input type="number" className="dp-input" value={form.deliverable_count} readOnly />
           </Field>
-{/* ---------- Shoot Details ---------- */}
 
-<SectionLabel>🎥 Shoot Details</SectionLabel>
+          {/* ---------- 6. Shoot Details — now unlocked, no scrolling ---------- */}
+          <SectionLabel>🎥 Shoot Details</SectionLabel>
 
-<Field label="Shoot Date">
-<DateField
-  value={form.shoot_date}
-  disabled={!canEditShoot}
-  onChange={(value) => update("shoot_date", value)}
-  placeholder={
-    form.deal_status === "Negotiation"
-      ? "Confirm the deal first"
-      : "Select shoot date"
-  }
-/>
-</Field>
+          <Field label="Shoot Date">
+            <DateField
+              value={form.shoot_date}
+              disabled={!canEditShoot}
+              onChange={(value) => update("shoot_date", value)}
+              placeholder={
+                form.deal_status === "Negotiation"
+                  ? "Confirm the deal first"
+                  : "Select shoot date"
+              }
+            />
+          </Field>
 
-<Field label="Shoot Time">
-  <input
-    type="time"
-disabled={!canEditShoot}
-    className="dp-input"
-    value={form.shoot_time || ""}
-    onChange={(e) =>
-      setForm((prev) => ({
-        ...prev,
-        shoot_time: e.target.value,
-      }))
-    }
-  />
-</Field>
+          <Field label="Shoot Time">
+            <TimeField
+              value={form.shoot_time || ""}
+              disabled={!canEditShoot}
+              onChange={(value) => update("shoot_time", value)}
+              placeholder={
+                form.deal_status === "Negotiation"
+                  ? "Confirm the deal first"
+                  : "Select shoot time"
+              }
+            />
+          </Field>
 
-<Field label="Shoot Location">
-  <input
-    className="dp-input"
-    disabled={!canEditShoot}
-    placeholder="e.g. Taampopo, Baner"
-    value={form.shoot_location || ""}
-    onChange={(e) =>
-      setForm((prev) => ({
-        ...prev,
-        shoot_location: e.target.value,
-      }))
-    }
-  />
-</Field>
+          <Field label="Shoot Location">
+            <input
+              className="dp-input"
+              disabled={!canEditShoot}
+              placeholder="e.g. Taampopo, Baner"
+              value={form.shoot_location || ""}
+              onChange={(e) => update("shoot_location", e.target.value)}
+            />
+          </Field>
 
-<Field label="Shoot Notes">
-  <textarea
-    disabled={!canEditShoot}
-    className="dp-input"
-    rows={3}
-    placeholder="Parking, owner contact, props, timings..."
-    value={form.shoot_notes || ""}
-    onChange={(e) =>
-      setForm((prev) => ({
-        ...prev,
-        shoot_notes: e.target.value,
-      }))
-    }
-  />
-</Field>
+          <Field label="Shoot Notes">
+            <textarea
+              disabled={!canEditShoot}
+              className="dp-input"
+              rows={3}
+              placeholder="Parking, owner contact, props, timings..."
+              value={form.shoot_notes || ""}
+              onChange={(e) => update("shoot_notes", e.target.value)}
+            />
+          </Field>
+
+          {/* ---------- 7. Content timeline ---------- */}
+          <SectionLabel>Content Timeline</SectionLabel>
+
           <Field label="Content Due Date">
             <DateField
               value={form.content_due_date}
@@ -522,6 +771,7 @@ disabled={!canEditShoot}
             />
           </Field>
 
+          {/* ---------- 8. Commercials ---------- */}
           <SectionLabel>Commercials</SectionLabel>
 
           {isBarter && (
@@ -569,15 +819,16 @@ disabled={!canEditShoot}
             />
           </Field>
 
-    <Field label="Payment Status">
-  <ChipSelect
-    disabled={isBarter}
-    options={PAYMENT_STATUS}
-    value={form.payment_status}
-    onChange={(v) => update("payment_status", v)}
-    colors={PAYMENT_STATUS_COLORS}
-  />
-</Field>
+          <Field label="Payment Status">
+            <ChipSelect
+              disabled={isBarter}
+              options={PAYMENT_STATUS}
+              value={form.payment_status}
+              onChange={(v) => update("payment_status", v)}
+              colors={PAYMENT_STATUS_COLORS}
+            />
+          </Field>
+
           <Field label="Payment Deadline">
             <DateField
               disabled={isBarter}
@@ -615,17 +866,7 @@ disabled={!canEditShoot}
             />
           </Field>
 
-          <SectionLabel>Status</SectionLabel>
-
-         <Field label="select your current Deal Status">
-  <ChipSelect
-    options={DEAL_STATUS}
-    value={form.deal_status}
-    onChange={(v) => update("deal_status", v)}
-    colors={DEAL_STATUS_COLORS}
-  />
-</Field>
-
+          {/* ---------- 9. Invoice ---------- */}
           <SectionLabel>Invoice</SectionLabel>
 
           <div
@@ -781,6 +1022,7 @@ disabled={!canEditShoot}
             </Field>
           </div>
 
+          {/* ---------- 10. Notes ---------- */}
           <SectionLabel>Notes</SectionLabel>
 
           <Field label="Enter notes if any">

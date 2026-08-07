@@ -711,6 +711,48 @@ if (!hasSpecial) {
     }
   };
 
+  const updateShootStatus = async (dealId, status, extra = {}) => {
+  const updates = {
+    shoot_status: status,
+    ...extra,
+  };
+
+  switch (status) {
+    case "In Progress":
+      updates.shoot_next_check_at = new Date(
+        Date.now() + 60 * 60 * 1000
+      ).toISOString();
+      break;
+
+    case "Shot":
+      updates.deal_status = "Content Shot";
+      updates.shoot_next_check_at = null;
+      break;
+
+    case "Rescheduled":
+      updates.shoot_next_check_at = null;
+      break;
+
+    case "Cancelled":
+      updates.deal_status = "Cancelled";
+      updates.shoot_next_check_at = null;
+      break;
+
+    default:
+      break;
+  }
+
+  const updated = await updateDeal(dealId, updates);
+
+  if (!updated) return;
+
+  setDeals((prev) =>
+    prev.map((d) => (d.id === dealId ? updated : d))
+  );
+
+  return updated;
+};
+
   const handleDeleteDeal = async () => {
     if (!deletingDeal) return;
 
@@ -819,19 +861,20 @@ await deleteDeal(deletedId);
         <Header onMenu={() => setDrawerOpen(true)} title={PAGE_TITLES[page]} account={account} />
 
         {page === "dashboard" && (
-          <DashboardPage
-            deals={deals}
-            account={account}
-            onAddDeal={() => {
-              setEditingDeal(null);
-              setFormOpen(true);
-            }}
-            onOpenDeal={(d) => setSelectedDeal(d)}
-            onFilterDeals={(filters) => {
-              setDealsFilterOverride(filters);
-              setPage("deals");
-            }}
-          />
+      <DashboardPage
+  deals={deals}
+  account={account}
+  updateShootStatus={updateShootStatus}
+  onAddDeal={() => {
+    setEditingDeal(null);
+    setFormOpen(true);
+  }}
+  onOpenDeal={(d) => setSelectedDeal(d)}
+  onFilterDeals={(filters) => {
+    setDealsFilterOverride(filters);
+    setPage("deals");
+  }}
+/>
         )}
 
         {page === "deals" && (

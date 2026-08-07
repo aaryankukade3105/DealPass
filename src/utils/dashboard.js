@@ -15,6 +15,23 @@ export function daysBetween(dateStr) {
   return Math.floor((today - d) / 86400000);
 }
 
+// Combines shoot_date + shoot_time into a real Date so we can tell whether
+// a shoot is still ahead of us or has already started/passed. If no time
+// was set, we treat the shoot as "due" only once the day itself is over
+// (23:59), so we don't nag mid-morning for a shoot with an unset time.
+function getShootDateTime(deal) {
+  if (!deal.shoot_date) return null;
+
+  const time = deal.shoot_time || "23:59";
+  const dt = new Date(`${deal.shoot_date}T${time}`);
+
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+// Statuses that mean "this shoot still needs a decision" — anything else
+// (Shot / Cancelled) is considered resolved and won't trigger reminders.
+const UNRESOLVED_SHOOT_STATUSES = ["Not Scheduled", "Scheduled", "Rescheduled"];
+
 export function computeStats(deals) {
   const totalEarnings = deals
     .filter((d) => d.payment_status === "Paid")
@@ -79,15 +96,6 @@ export function computeStats(deals) {
     (d) => d.payment_status !== "Paid" && d.payment_status !== "Barter"
   ).length;
 
-  // IMPORTANT: pendingRevenue and overdueRevenue are each driven strictly by
-  // the explicit `payment_status` field the user set on the deal (same field
-  // the ChipSelect writes to), not by re-deriving "is this overdue?" from
-  // dates. Previously overdueRevenue was computed from `payment_deadline`
-  // alone, which meant a deal the user had explicitly marked "Pending" (but
-  // whose deadline had quietly passed) got counted as overdue revenue too —
-  // so Pending and Overdue totals overlapped and looked identical. Keying
-  // strictly off payment_status keeps the two mutually exclusive and in
-  // sync with whatever status the user actually chose in the form.
   const pendingRevenue = {};
 
   [15, 30, 60].forEach((days) => {
@@ -121,8 +129,6 @@ export function computeStats(deals) {
 
   const overdueCount = overdueDeals.length;
 
-  // Outstanding balance still owed on Partially Paid deals — not shown as
-  // its own stat card yet, but useful for a true payment-health picture.
   const partiallyPaidOutstanding = deals
     .filter((d) => d.payment_status === "Partially Paid")
     .reduce(
@@ -144,13 +150,6 @@ export function computeStats(deals) {
       ? 0
       : Math.round((totalEarnings / totalCommercials) * 100);
 
-  // ---- Payment Health Score ----
-  // A single 0-100 score that's more informative than collection rate alone:
-  // two creators with identical collection rates but different overdue-deal
-  // counts should NOT look equally healthy. Each overdue deal knocks points
-  // off the base collection rate (capped), and a few outstanding partial
-  // payments knock off a little more. This is intentionally specific to how
-  // brand-deal payment cycles behave, not a generic "% paid" number.
   const OVERDUE_PENALTY_PER_DEAL = 8;
   const MAX_OVERDUE_PENALTY = 55;
   const PARTIAL_PENALTY_PER_DEAL = 3;
@@ -217,75 +216,110 @@ export function computeStats(deals) {
             overdue: (overdueRevenue / healthBarTotal) * 100,
           },
   };
-const today = new Date();
-today.setHours(0, 0, 0, 0);
 
-const upcomingShoots = deals
-  .filter((d) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const upcomingShoots = deals
+    .filter((d) => {
+      if (d.deal_status !== "Confirmed") return false;
+      if (!d.shoot_date) return false;
+
+      const shoot = new Date(d.shoot_date);
+      shoot.setHours(0, 0, 0, 0);
+
+      return shoot >= today;
+    })
+    .sort((a, b) => new Date(a.shoot_date) - new Date(b.shoot_date));
+
+  const todaysShoots = upcomingShoots.filter((d) => {
+    const shoot = new Date(d.shoot_date);
+    shoot.setHours(0, 0, 0, 0);
+
+    return shoot.getTime() === today.getTime();
+  });
+
+  const upcomingThisWeek = upcomingShoots.filter((d) => {
+    const shoot = new Date(d.shoot_date);
+    shoot.setHours(0, 0, 0, 0);
+
+    const diff = (shoot - today) / 86400000;
+
+    return diff >= 0 && diff <= 7;
+  });
+
+  const overdueShoots = deals.filter((d) => {
     if (d.deal_status !== "Confirmed") return false;
     if (!d.shoot_date) return false;
 
     const shoot = new Date(d.shoot_date);
     shoot.setHours(0, 0, 0, 0);
 
-    return shoot >= today;
-  })
-  .sort(
-    (a, b) =>
-      new Date(a.shoot_date) -
-      new Date(b.shoot_date)
-  );
+    return shoot < today;
+  });
 
-const todaysShoots = upcomingShoots.filter((d) => {
-  const shoot = new Date(d.shoot_date);
-  shoot.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
 
-  return shoot.getTime() === today.getTime();
-});
+  const todaysAgenda = upcomingShoots.filter((d) => {
+    const shoot = new Date(d.shoot_date);
+    shoot.setHours(0, 0, 0, 0);
 
-const upcomingThisWeek = upcomingShoots.filter((d) => {
-  const shoot = new Date(d.shoot_date);
-  shoot.setHours(0, 0, 0, 0);
+    return shoot.getTime() === today.getTime();
+  });
 
-  const diff =
-    (shoot - today) / 86400000;
+  const tomorrowsAgenda = upcomingShoots.filter((d) => {
+    const shoot = new Date(d.shoot_date);
+    shoot.setHours(0, 0, 0, 0);
 
-  return diff >= 0 && diff <= 7;
-});
+    return shoot.getTime() === tomorrow.getTime();
+  });
 
-const overdueShoots = deals.filter((d) => {
-  if (d.deal_status !== "Confirmed") return false;
-  if (!d.shoot_date) return false;
+  const futureAgenda = upcomingShoots.filter((d) => {
+    const shoot = new Date(d.shoot_date);
+    shoot.setHours(0, 0, 0, 0);
 
-  const shoot = new Date(d.shoot_date);
-  shoot.setHours(0, 0, 0, 0);
+    return shoot > tomorrow;
+  });
 
-  return shoot < today;
-});
+  // ---- Shoot reminders (new) ----
+  // Any deal with a shoot_date whose shoot_status hasn't been resolved yet
+  // (still "Not Scheduled" / "Scheduled" / "Rescheduled") and whose deal
+  // hasn't been cancelled/completed is a candidate for a reminder.
+  const now = new Date();
 
-const tomorrow = new Date(today);
-tomorrow.setDate(today.getDate() + 1);
+  const shootsPendingAction = deals.filter((d) => {
+    if (!d.shoot_date) return false;
+    if (d.deal_status === "Cancelled" || d.deal_status === "Completed") return false;
 
-const todaysAgenda = upcomingShoots.filter((d) => {
-  const shoot = new Date(d.shoot_date);
-  shoot.setHours(0, 0, 0, 0);
+    const status = d.shoot_status || "Scheduled";
 
-  return shoot.getTime() === today.getTime();
-});
+    return UNRESOLVED_SHOOT_STATUSES.includes(status);
+  });
 
-const tomorrowsAgenda = upcomingShoots.filter((d) => {
-  const shoot = new Date(d.shoot_date);
-  shoot.setHours(0, 0, 0, 0);
+  // Shoot time has arrived or already passed — ask "did the shoot happen?"
+  const dueShootReminders = shootsPendingAction
+    .filter((d) => {
+      const dt = getShootDateTime(d);
+      if (!dt) return false;
 
-  return shoot.getTime() === tomorrow.getTime();
-});
+      return dt <= now;
+    })
+    .sort((a, b) => getShootDateTime(a) - getShootDateTime(b));
 
-const futureAgenda = upcomingShoots.filter((d) => {
-  const shoot = new Date(d.shoot_date);
-  shoot.setHours(0, 0, 0, 0);
+  // Shoot is scheduled for today but hasn't started yet — a heads-up only.
+  const upcomingTodayReminders = shootsPendingAction
+    .filter((d) => {
+      const dt = getShootDateTime(d);
+      if (!dt) return false;
 
-  return shoot > tomorrow;
-});
+      const shootDay = new Date(d.shoot_date);
+      shootDay.setHours(0, 0, 0, 0);
+
+      return shootDay.getTime() === today.getTime() && dt > now;
+    })
+    .sort((a, b) => getShootDateTime(a) - getShootDateTime(b));
+
   const recentDeal =
     [...deals].sort(
       (a, b) =>
@@ -293,28 +327,32 @@ const futureAgenda = upcomingShoots.filter((d) => {
         new Date(a.confirmation_date)
     )[0] || null;
 
-return {
-  totalEarnings,
-  earnings,
-  dealCounts,
-  pendingCollabs,
-  pendingPayments,
-  pendingRevenue,
-  overdueRevenue,
-  overdueCount,
-  partiallyPaidOutstanding,
-  collectionRate,
-  paymentHealth,
+  return {
+    totalEarnings,
+    earnings,
+    dealCounts,
+    pendingCollabs,
+    pendingPayments,
+    pendingRevenue,
+    overdueRevenue,
+    overdueCount,
+    partiallyPaidOutstanding,
+    collectionRate,
+    paymentHealth,
 
-  upcomingShoots,
-  todaysShoots,
-  upcomingThisWeek,
-  overdueShoots,
-todaysAgenda,
-tomorrowsAgenda,
-futureAgenda,
-  recentDeal,
-};
+    upcomingShoots,
+    todaysShoots,
+    upcomingThisWeek,
+    overdueShoots,
+    todaysAgenda,
+    tomorrowsAgenda,
+    futureAgenda,
+
+    dueShootReminders,
+    upcomingTodayReminders,
+
+    recentDeal,
+  };
 }
 
 export function buildChartData(deals) {

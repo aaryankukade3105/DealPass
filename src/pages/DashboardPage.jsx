@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 
 import DealCard from "../components/deals/DealCard";
 import EmptyState from "../components/common/EmptyState";
-
+import { useShootReminders } from "../hooks/useShootReminders";
+import ShootReminderModal, { ShootNowBanner } from "../components/dashboard/ShootReminderModal";
 import {
   ResponsiveContainer,
   BarChart,
@@ -24,8 +25,12 @@ import {
   Receipt,
   User,
   ChevronDown,
+  ChevronRight,
   Zap,
   AlertTriangle,
+  MapPin,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 
 import {
@@ -52,7 +57,29 @@ function getGreeting() {
   return "Working late,";
 }
 
-function DashboardPage({ deals, account, onAddDeal, onOpenDeal}) {
+// A single small badge telling you, at a glance, how far away a shoot is —
+// this is what replaces burying that information inside a plain date string.
+function shootCountdown(dateStr) {
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diff = Math.round((d - today) / 86400000);
+
+  if (diff < 0) return { label: "Overdue", color: "#DC2626", bg: "#FEE2E2" };
+  if (diff === 0) return { label: "Today", color: "#16A34A", bg: "#DCFCE7" };
+  if (diff === 1) return { label: "Tomorrow", color: "#2563EB", bg: "#DBEAFE" };
+  return { label: `In ${diff}d`, color: "#7C3AED", bg: "#EDE9FE" };
+}
+function DashboardPage({
+  deals,
+  account,
+  onAddDeal,
+  onOpenDeal,
+  updateShootStatus,
+}) {
   const stats = useMemo(() => computeStats(deals), [deals]);
   const chartData = useMemo(() => buildChartData(deals), [deals]);
     const [dealPeriod, setDealPeriod] = useState(30);
@@ -65,6 +92,15 @@ function DashboardPage({ deals, account, onAddDeal, onOpenDeal}) {
     year: "numeric",
   })
 );
+const {
+  alertDeal,
+  dismissAlert,
+  checkinDeal,
+  markInProgress,
+  resolveCheckin,
+  hiddenDealIds,
+} = useShootReminders(deals, updateShootStatus);
+
     const hasChartData = chartData.some((d) => d.value > 0);
 const months = useMemo(() => {
   return [
@@ -197,13 +233,6 @@ const health = stats.paymentHealth;
 
 const nextShoot = stats.upcomingShoots[0] || null;
 
-const formatShootDate = (date) =>
-  new Date(date).toLocaleDateString("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-
 const formatShootTime = (time) => {
   if (!time) return "Time not set";
 
@@ -215,6 +244,34 @@ const formatShootTime = (time) => {
     }
   );
 };
+
+// Everything the "Shoot Schedule" card needs to show, in one flat,
+// chronologically-sensible list: overdue first (needs attention), then
+// today, tomorrow, and the rest — capped so the card doesn't run away.
+const scheduleShoots = useMemo(() => {
+  const seen = new Set();
+  const combined = [];
+
+  [...stats.overdueShoots, ...stats.todaysAgenda, ...stats.tomorrowsAgenda, ...stats.futureAgenda].forEach(
+    (d) => {
+      if (seen.has(d.id)) return;
+      if (hiddenDealIds.has(d.id)) return; // <-- new
+      seen.add(d.id);
+      combined.push(d);
+    }
+  );
+
+  return combined.slice(0, 6);
+}, [stats.overdueShoots, stats.todaysAgenda, stats.tomorrowsAgenda, stats.futureAgenda, hiddenDealIds]);
+
+const extraShootCount = Math.max(
+  stats.overdueShoots.length +
+    stats.todaysAgenda.length +
+    stats.tomorrowsAgenda.length +
+    stats.futureAgenda.length -
+    scheduleShoots.length,
+  0
+);
 
   return (
     <div className="dp-scroll" style={{ flex: 1, overflowY: "auto", padding: "16px 16px 90px" }}>
@@ -253,6 +310,12 @@ const formatShootTime = (time) => {
       .dpx-avatar {
         background: linear-gradient(135deg, #FF3B5C 0%, #FF7A59 100%);
         box-shadow: 0 6px 16px rgba(255,59,92,.35);
+      }
+      .dpx-shoot-card {
+        transition: transform .12s ease, box-shadow .12s ease;
+      }
+      .dpx-shoot-card:active {
+        transform: scale(0.98);
       }
     `}</style>
 
@@ -306,6 +369,19 @@ const formatShootTime = (time) => {
 </div>
 </div>
 
+<>
+  <ShootReminderModal
+    checkinDeal={checkinDeal}
+    updateShootStatus={updateShootStatus}
+    onInProgress={markInProgress}
+    onResolve={resolveCheckin}
+  />
+
+  <ShootNowBanner
+    deal={alertDeal}
+    onDismiss={dismissAlert}
+  />
+</>
    <div
      className="dp-card dpx-card"
      style={{
@@ -502,7 +578,8 @@ const formatShootTime = (time) => {
   </div>
 
 </div>
-{/* ---------- Upcoming Shoots ---------- */}
+
+{/* ---------- Shoot Schedule (redesigned) ---------- */}
 
 <div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
 
@@ -511,7 +588,7 @@ const formatShootTime = (time) => {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: 18,
+      marginBottom: 16,
     }}
   >
     <div
@@ -547,7 +624,7 @@ const formatShootTime = (time) => {
             fontWeight: 800,
           }}
         >
-          Upcoming Shoots
+          Shoot Schedule
         </div>
 
         <div
@@ -556,7 +633,9 @@ const formatShootTime = (time) => {
             color: "var(--slate)",
           }}
         >
-          Your upcoming schedule
+          {stats.overdueShoots.length > 0
+            ? `${stats.overdueShoots.length} need${stats.overdueShoots.length === 1 ? "s" : ""} a status update`
+            : "Your upcoming schedule"}
         </div>
       </div>
     </div>
@@ -573,142 +652,159 @@ const formatShootTime = (time) => {
     </div>
   </div>
 
-  {!nextShoot ? (
+  {!nextShoot && stats.overdueShoots.length === 0 ? (
 
     <div
       style={{
         textAlign: "center",
         color: "var(--slate)",
-        padding: "20px 0",
+        padding: "24px 0",
       }}
     >
-      No upcoming shoots 🎉
+      No shoots scheduled 🎉
     </div>
 
   ) : (
-<>
-  {[
-    {
-      title: "Today",
-      data: stats.todaysAgenda,
-      color: "#16A34A",
-    },
-    {
-      title: "Tomorrow",
-      data: stats.tomorrowsAgenda,
-      color: "#2563EB",
-    },
-    {
-      title: "Upcoming",
-      data: stats.futureAgenda.slice(0, 3),
-      color: "#7C3AED",
-    },
-  ].map((section) =>
-    section.data.length > 0 ? (
-      <div key={section.title} style={{ marginBottom: 18 }}>
+    <>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {scheduleShoots.map((shoot) => {
+          const isOverdue = stats.overdueShoots.some((d) => d.id === shoot.id);
+          const countdown = shootCountdown(shoot.shoot_date);
+
+          return (
+            <button
+              key={shoot.id}
+              type="button"
+              onClick={() => onOpenDeal(shoot)}
+              className="dpx-shoot-card"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                width: "100%",
+                textAlign: "left",
+                border: "1px solid var(--line)",
+                borderLeft: `4px solid ${countdown.color}`,
+                borderRadius: 14,
+                padding: "12px 14px",
+                background: isOverdue ? "rgba(220,38,38,.04)" : "transparent",
+                cursor: "pointer",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 54,
+                  padding: "6px 4px",
+                  borderRadius: 10,
+                  background: countdown.bg,
+                  color: countdown.color,
+                  fontWeight: 800,
+                  fontSize: 11,
+                  textAlign: "center",
+                  flexShrink: 0,
+                }}
+              >
+                {countdown.label}
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  className="dp-display"
+                  style={{
+                    fontSize: 14.5,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {shoot.brand_name}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginTop: 3,
+                    fontSize: 12,
+                    color: "var(--slate)",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <Clock size={12} />
+                    {formatShootTime(shoot.shoot_time)}
+                  </span>
+
+                  {shoot.shoot_location && (
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      <MapPin size={12} />
+                      {shoot.shoot_location}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {isOverdue && onMarkShootStatus ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMarkShootStatus(shoot.id, "Shot");
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "7px 10px",
+                    borderRadius: 999,
+                    border: "1px solid #BBF7D0",
+                    background: "#F0FDF4",
+                    color: "#166534",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  <CheckCircle2 size={13} />
+                  Done
+                </button>
+              ) : (
+                <ChevronRight size={16} color="#B8B8B8" style={{ flexShrink: 0 }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {extraShootCount > 0 && (
         <div
           style={{
-            fontSize: 12,
+            textAlign: "center",
+            marginTop: 12,
+            color: "#7C3AED",
             fontWeight: 700,
-            letterSpacing: 1,
-            color: section.color,
-            textTransform: "uppercase",
-            marginBottom: 10,
+            fontSize: 13,
           }}
         >
-          {section.title}
+          + {extraShootCount} more scheduled
         </div>
-
-        {section.data.map((shoot) => (
-          <div
-            key={shoot.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "12px 0",
-              borderBottom: "1px solid var(--line)",
-            }}
-          >
-            <div>
-              <div
-                className="dp-display"
-                style={{
-                  fontSize: 15,
-                  fontWeight: 700,
-                }}
-              >
-                {shoot.brand_name}
-              </div>
-
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--slate)",
-                  marginTop: 3,
-                }}
-              >
-                {shoot.shoot_location || "Location not added"}
-              </div>
-            </div>
-
-            <div style={{ textAlign: "right" }}>
-              <div
-                style={{
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                {formatShootTime(shoot.shoot_time)}
-              </div>
-
-              <div
-                style={{
-                  color: "var(--slate)",
-                  fontSize: 11,
-                  marginTop: 2,
-                }}
-              >
-                {formatShootDate(shoot.shoot_date)}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : null
-  )}
-
-  {stats.futureAgenda.length > 3 && (
-    <div
-      style={{
-        textAlign: "center",
-        marginTop: 8,
-        color: "#7C3AED",
-        fontWeight: 700,
-        fontSize: 13,
-      }}
-    >
-      + {stats.futureAgenda.length - 3} more upcoming shoots
-    </div>
-  )}
-
-  {stats.overdueShoots.length > 0 && (
-    <div
-      style={{
-        marginTop: 18,
-        padding: 14,
-        borderRadius: 12,
-        background: "#FEF2F2",
-        color: "#DC2626",
-        fontWeight: 700,
-        textAlign: "center",
-      }}
-    >
-      ⚠ {stats.overdueShoots.length} overdue shoot
-      {stats.overdueShoots.length > 1 ? "s" : ""}
-    </div>
-  )}
-</>
+      )}
+    </>
   )}
 
 </div>
