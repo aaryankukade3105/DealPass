@@ -73,6 +73,16 @@ function shootCountdown(dateStr) {
   if (diff === 1) return { label: "Tomorrow", color: "#2563EB", bg: "#DBEAFE" };
   return { label: `In ${diff}d`, color: "#7C3AED", bg: "#EDE9FE" };
 }
+
+function shootBadge(shoot) {
+  if (shoot.shoot_status === "In Progress") {
+    return { label: "In Progress", color: "#7C3AED", bg: "#EDE9FE" };
+  }
+  if (shoot.shoot_status === "Cancelled") {
+    return { label: "Cancelled", color: "#DC2626", bg: "#FEE2E2" };
+  }
+  return shootCountdown(shoot.shoot_date);
+}
 function DashboardPage({
   deals,
   account,
@@ -252,20 +262,35 @@ const scheduleShoots = useMemo(() => {
   const seen = new Set();
   const combined = [];
 
-  [...stats.overdueShoots, ...stats.todaysAgenda, ...stats.tomorrowsAgenda, ...stats.futureAgenda].forEach(
-    (d) => {
-      if (seen.has(d.id)) return;
-      if (hiddenDealIds.has(d.id)) return; // <-- new
-      seen.add(d.id);
-      combined.push(d);
-    }
-  );
+  [
+    ...stats.inProgressShoots,
+    ...stats.cancelledShoots,
+    ...stats.overdueShoots,
+    ...stats.todaysAgenda,
+    ...stats.tomorrowsAgenda,
+    ...stats.futureAgenda,
+  ].forEach((d) => {
+    if (seen.has(d.id)) return;
+    if (hiddenDealIds.has(d.id)) return;
+    seen.add(d.id);
+    combined.push(d);
+  });
 
   return combined.slice(0, 6);
-}, [stats.overdueShoots, stats.todaysAgenda, stats.tomorrowsAgenda, stats.futureAgenda, hiddenDealIds]);
+}, [
+  stats.inProgressShoots,
+  stats.cancelledShoots,
+  stats.overdueShoots,
+  stats.todaysAgenda,
+  stats.tomorrowsAgenda,
+  stats.futureAgenda,
+  hiddenDealIds,
+]);
 
 const extraShootCount = Math.max(
-  stats.overdueShoots.length +
+  stats.inProgressShoots.length +
+    stats.cancelledShoots.length +
+    stats.overdueShoots.length +
     stats.todaysAgenda.length +
     stats.tomorrowsAgenda.length +
     stats.futureAgenda.length -
@@ -669,7 +694,7 @@ const extraShootCount = Math.max(
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {scheduleShoots.map((shoot) => {
           const isOverdue = stats.overdueShoots.some((d) => d.id === shoot.id);
-          const countdown = shootCountdown(shoot.shoot_date);
+       const countdown = shootBadge(shoot); 
 
           return (
             <button

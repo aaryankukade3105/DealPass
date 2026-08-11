@@ -48,8 +48,7 @@ function formatDisplayTime(value) {
   const { hour, minute, period } = to12Hour(value);
   return `${hour}:${String(minute).padStart(2, "0")} ${period}`;
 }
-
-function TimeField({ value, onChange, disabled, placeholder = "Select shoot time" }) {
+export function TimeField({ value, onChange, disabled, placeholder = "Select shoot time" }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
 
@@ -193,16 +192,28 @@ function TimeField({ value, onChange, disabled, placeholder = "Select shoot time
               ))}
             </select>
 
-            <select
-              className="dp-input"
-              style={{ flex: 1 }}
-              value={current.minute}
-              onChange={(e) => setPart("minute", Number(e.target.value))}
-            >
-              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
-                <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
-              ))}
-            </select>
+          <input
+  type="number"
+  className="dp-input"
+  style={{ flex: 1 }}
+  inputMode="numeric"
+  min={0}
+  max={59}
+  step={1}
+  value={String(current.minute).padStart(2, "0")}
+  onChange={(e) => {
+    const raw = e.target.value;
+    if (raw === "") {
+      setPart("minute", 0);
+      return;
+    }
+    let m = parseInt(raw, 10);
+    if (isNaN(m)) return;
+    if (m < 0) m = 0;
+    if (m > 59) m = 59;
+    setPart("minute", m);
+  }}
+/>
 
             <select
               className="dp-input"

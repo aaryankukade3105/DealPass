@@ -27,8 +27,25 @@ export function useShootReminders(deals, updateShootStatus) {
   const [hiddenDealIds, setHiddenDealIds] = useState(new Set());
   const dismissedAlerts = useRef(new Set());
 
-  const tick = useCallback(() => {
+   const tick = useCallback(() => {
     const now = Date.now();
+
+    // Silently clear any "Cancelled" shoot whose 1hr grace window has
+    // passed — no popup, just resets it back to a clean slate so it
+    // drops off the dashboard.
+    deals.forEach((deal) => {
+      const status = deal.shoot_status || "Scheduled";
+      if (
+        status === "Cancelled" &&
+        deal.shoot_next_check_at &&
+        now >= new Date(deal.shoot_next_check_at).getTime()
+      ) {
+        updateShootStatus(deal.id, "Not Scheduled", {
+          shoot_date: null,
+          shoot_time: null,
+        });
+      }
+    });
     const nextHidden = new Set();
     let nextAlert = null;
     let nextCheckin = null;
@@ -92,10 +109,6 @@ export function useShootReminders(deals, updateShootStatus) {
 
     setHiddenDealIds(nextHidden);
     setAlertDeal(nextAlert);
-    // Deliberately not cleared to null when nothing matches — the
-    // check-in modal should only ever close via explicit user action
-    // (resolveCheckin/markInProgress), never auto-dismissed by a poll
-    // tick racing ahead of the optimistic UI update.
     if (nextCheckin) setCheckinDeal(nextCheckin);
   }, [deals]);
 

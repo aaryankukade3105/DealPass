@@ -721,8 +721,7 @@ const handleLogin = async ({ identifier, password }) => {
       } catch (_) {}
     }
   };
-
-  const updateShootStatus = async (dealId, status, extra = {}) => {
+const updateShootStatus = async (dealId, status, extra = {}) => {
   const updates = {
     shoot_status: status,
     ...extra,
@@ -740,13 +739,32 @@ const handleLogin = async ({ identifier, password }) => {
       updates.shoot_next_check_at = null;
       break;
 
+    case "Scheduled":
+      // Covers both a fresh deal getting its first shoot date and a
+      // postponed deal getting rescheduled to a new one — either way,
+      // any pending "ask again in 1hr" check-in for the old slot is stale.
+      updates.shoot_next_check_at = null;
+      break;
+
+    case "Not Scheduled":
+      // Postponed with "date yet to decide" — nothing to check in on
+      // until a real date is picked again.
+      updates.shoot_next_check_at = null;
+      break;
+
     case "Rescheduled":
       updates.shoot_next_check_at = null;
       break;
 
-    case "Cancelled":
-      updates.deal_status = "Cancelled";
-      updates.shoot_next_check_at = null;
+case "Cancelled":
+      // Don't touch deal_status, and don't null the date/time yet — stay
+      // visible on the dashboard tagged "Cancelled" for a 1hr grace
+      // window in case this was a mis-tap. useShootReminders silently
+      // clears shoot_date/shoot_time and flips this back to
+      // "Not Scheduled" once that window passes.
+      updates.shoot_next_check_at = new Date(
+        Date.now() + 60 * 60 * 1000
+      ).toISOString();
       break;
 
     default:
@@ -763,7 +781,6 @@ const handleLogin = async ({ identifier, password }) => {
 
   return updated;
 };
-
   const handleDeleteDeal = async () => {
     if (!deletingDeal) return;
 

@@ -217,76 +217,76 @@ export function computeStats(deals) {
           },
   };
 
+ const now = new Date();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  const upcomingShoots = deals
-    .filter((d) => {
-      if (d.deal_status !== "Confirmed") return false;
-      if (!d.shoot_date) return false;
-
-      const shoot = new Date(d.shoot_date);
-      shoot.setHours(0, 0, 0, 0);
-
-      return shoot >= today;
-    })
-    .sort((a, b) => new Date(a.shoot_date) - new Date(b.shoot_date));
-
-  const todaysShoots = upcomingShoots.filter((d) => {
-    const shoot = new Date(d.shoot_date);
-    shoot.setHours(0, 0, 0, 0);
-
-    return shoot.getTime() === today.getTime();
-  });
-
-  const upcomingThisWeek = upcomingShoots.filter((d) => {
-    const shoot = new Date(d.shoot_date);
-    shoot.setHours(0, 0, 0, 0);
-
-    const diff = (shoot - today) / 86400000;
-
-    return diff >= 0 && diff <= 7;
-  });
-
-  const overdueShoots = deals.filter((d) => {
-    if (d.deal_status !== "Confirmed") return false;
-    if (!d.shoot_date) return false;
-
-    const shoot = new Date(d.shoot_date);
-    shoot.setHours(0, 0, 0, 0);
-
-    return shoot < today;
-  });
-
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
+  const dayAfterTomorrow = new Date(tomorrow);
+  dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
 
-  const todaysAgenda = upcomingShoots.filter((d) => {
-    const shoot = new Date(d.shoot_date);
-    shoot.setHours(0, 0, 0, 0);
+  // Everything the dashboard still needs to actively track:
+  // - Scheduled/Rescheduled -> normal countdown, can go overdue
+  // - In Progress           -> shown as "Shoot in progress" until resolved
+  // - Cancelled             -> shown as "Cancelled" for a 1hr grace window,
+  //   then useShootReminders silently nulls shoot_date/shoot_time and
+  //   flips it back to "Not Scheduled" — which drops it from every list
+  //   below automatically, since there's no shoot_date left to match on.
+  const TRACKED_SHOOT_STATUSES = ["Scheduled", "Rescheduled", "In Progress", "Cancelled"];
 
-    return shoot.getTime() === today.getTime();
-  });
+  const trackedShoots = deals
+    .filter((d) => {
+      if (!d.shoot_date) return false;
+      if (d.deal_status === "Completed") return false;
+      const status = d.shoot_status || "Scheduled";
+      return TRACKED_SHOOT_STATUSES.includes(status);
+    })
+    .map((d) => ({ deal: d, dt: getShootDateTime(d) }))
+    .filter((e) => e.dt)
+    .sort((a, b) => a.dt - b.dt); // earliest first, date+time both count
 
-  const tomorrowsAgenda = upcomingShoots.filter((d) => {
-    const shoot = new Date(d.shoot_date);
-    shoot.setHours(0, 0, 0, 0);
+  const inProgressShoots = trackedShoots
+    .filter((e) => e.deal.shoot_status === "In Progress")
+    .map((e) => e.deal);
 
-    return shoot.getTime() === tomorrow.getTime();
-  });
+  const cancelledShoots = trackedShoots
+    .filter((e) => e.deal.shoot_status === "Cancelled")
+    .map((e) => e.deal);
 
-  const futureAgenda = upcomingShoots.filter((d) => {
-    const shoot = new Date(d.shoot_date);
-    shoot.setHours(0, 0, 0, 0);
+  // Everything below only concerns shoots still awaiting a status decision.
+  const pendingShoots = trackedShoots.filter(
+    (e) => e.deal.shoot_status !== "In Progress" && e.deal.shoot_status !== "Cancelled"
+  );
 
-    return shoot > tomorrow;
-  });
+  const upcomingShoots = pendingShoots.map((e) => e.deal);
+
+  const overdueShoots = pendingShoots.filter((e) => e.dt < now).map((e) => e.deal);
+
+  const todaysAgenda = pendingShoots
+    .filter((e) => e.dt >= now && e.dt < tomorrow)
+    .map((e) => e.deal);
+
+  const tomorrowsAgenda = pendingShoots
+    .filter((e) => e.dt >= tomorrow && e.dt < dayAfterTomorrow)
+    .map((e) => e.deal);
+
+  const futureAgenda = pendingShoots
+    .filter((e) => e.dt >= dayAfterTomorrow)
+    .map((e) => e.deal);
+
+  const todaysShoots = todaysAgenda;
+
+  const upcomingThisWeek = pendingShoots
+    .filter((e) => {
+      const diff = (e.dt - now) / 86400000;
+      return diff >= 0 && diff <= 7;
+    })
+    .map((e) => e.deal);
 
   // ---- Shoot reminders (new) ----
   // Any deal with a shoot_date whose shoot_status hasn't been resolved yet
   // (still "Not Scheduled" / "Scheduled" / "Rescheduled") and whose deal
   // hasn't been cancelled/completed is a candidate for a reminder.
-  const now = new Date();
 
   const shootsPendingAction = deals.filter((d) => {
     if (!d.shoot_date) return false;
@@ -339,7 +339,8 @@ export function computeStats(deals) {
     partiallyPaidOutstanding,
     collectionRate,
     paymentHealth,
-
+    inProgressShoots,   
+    cancelledShoots,
     upcomingShoots,
     todaysShoots,
     upcomingThisWeek,
@@ -347,7 +348,6 @@ export function computeStats(deals) {
     todaysAgenda,
     tomorrowsAgenda,
     futureAgenda,
-
     dueShootReminders,
     upcomingTodayReminders,
 
