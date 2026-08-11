@@ -366,21 +366,12 @@ const canEditShoot = ![
 // Shoot date becomes mandatory once the collaboration
 // has moved beyond negotiation.
 const needsShootDate = [
-  "Confirmed",
-  "Content Shot",
-  "Editing",
-  "Submitted for Approval",
-  "Approved",
-  "Posted",
-  "Completed",
+  "Confirmed", "Content Shot", "Editing", "Submitted for Approval",
+  "Approved", "Posted", "Completed",
 ].includes(form.deal_status);
 
 if (needsShootDate && !form.shoot_date) {
-  showAlert(
-    "warning",
-    "Shoot Date Required",
-    "Please select the shoot date for this collaboration."
-  );
+  showAlert("warning", "Shoot Date Required", "Please select the shoot date for this collaboration.");
   return;
 }
 
@@ -692,18 +683,38 @@ payment_received_date: emptyToNull(form.payment_received_date),
           {/* ---------- 6. Shoot Details — now unlocked, no scrolling ---------- */}
           <SectionLabel>🎥 Shoot Details</SectionLabel>
 
-          <Field label="Shoot Date">
-            <DateField
-              value={form.shoot_date}
-              disabled={!canEditShoot}
-              onChange={(value) => update("shoot_date", value)}
-              placeholder={
-                form.deal_status === "Negotiation"
-                  ? "Confirm the deal first"
-                  : "Select shoot date"
-              }
-            />
-          </Field>
+{canEditShoot && !form.shoot_date && (
+  <div
+    style={{
+      marginTop: -6,
+      marginBottom: 14,
+      padding: "10px 12px",
+      borderRadius: 10,
+      background: "#FFF8E6",
+      border: "1px solid #F4D27A",
+      color: "#8A5A00",
+      fontSize: 12.5,
+      lineHeight: 1.5,
+    }}
+  >
+    No shoot date yet, add one if you'd like a reminder before the shoot, or fill it in later once it's scheduled.
+  </div>
+)}
+
+  <Field label="Shoot Date">
+  <DateField
+    value={form.shoot_date}
+    disabled={!canEditShoot}
+    onChange={(value) => update("shoot_date", value)}
+    minDate={form.confirmation_date || undefined}
+    maxDate="2099-12-31"
+    placeholder={
+      form.deal_status === "Negotiation"
+        ? "Confirm the deal first"
+        : "Select shoot date"
+    }
+  />
+</Field>
 
           <Field label="Shoot Time">
             <TimeField

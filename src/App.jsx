@@ -333,55 +333,61 @@ if (!hasSpecial) {
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const fileInputRef = useRef(null);
+useEffect(() => {
+  const checkSession = async () => {
+    const hash = window.location.hash;
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const hash = window.location.hash;
+    if (hash.includes("type=recovery") || window.location.pathname === "/reset-password") {
+      setIsResetPasswordPage(true);
+    }
 
-      if (hash.includes("type=recovery") || window.location.pathname === "/reset-password") {
-        setIsResetPasswordPage(true);
-      }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    if (session) {
+      const user = session.user;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
 
-      if (session) {
-        const user = session.user;
-        const { data: profile } = await supabase
+      if (
+        user.user_metadata?.avatar_url &&
+        profile?.avatar_url !== user.user_metadata.avatar_url
+      ) {
+        await supabase
           .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
+          .update({ avatar_url: user.user_metadata.avatar_url })
+          .eq("id", user.id);
 
-        if (
-          user.user_metadata?.avatar_url &&
-          profile?.avatar_url !== user.user_metadata.avatar_url
-        ) {
-          await supabase
-            .from("profiles")
-            .update({ avatar_url: user.user_metadata.avatar_url })
-            .eq("id", user.id);
-
-          profile.avatar_url = user.user_metadata.avatar_url;
-        }
-
-        setAccount({
-          id: user.id,
-          full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
-          email: user.email,
-          avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
-          created_at: profile?.created_at,
-        });
-
-        setLoggedIn(true);
+        profile.avatar_url = user.user_metadata.avatar_url;
       }
 
-      setLoading(false);
-    };
+      const { data: billing } = await supabase
+        .from("billing_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    checkSession();
-  }, []);
+      setAccount({
+        id: user.id,
+        full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+        email: user.email,
+        avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
+        created_at: profile?.created_at,
+        ...billing, // phone, account_holder, bank_name, account_number, ifsc, upi_id, etc.
+      });
+
+      setLoggedIn(true);
+    }
+
+    setLoading(false);
+  };
+
+  checkSession();
+}, []);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -483,51 +489,56 @@ if (!hasSpecial) {
       }
     }
   };
+const handleLogin = async ({ identifier, password }) => {
+  try {
+    setAuthBusy(true);
 
-  const handleLogin = async ({ identifier, password }) => {
-    try {
-      setAuthBusy(true);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: identifier,
+      password,
+    });
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: identifier,
-        password,
-      });
+    if (error) throw error;
 
-      if (error) throw error;
+    const user = data.user;
 
-      const user = data.user;
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError && profileError.code === "PGRST116") {
-        await supabase.from("profiles").insert({
-          id: user.id,
-          full_name: user.user_metadata?.full_name || "Creator",
-          email: user.email,
-        });
-      } else if (profileError) {
-        throw profileError;
-      }
-
-      setAccount({
+    if (profileError && profileError.code === "PGRST116") {
+      await supabase.from("profiles").insert({
         id: user.id,
-        full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+        full_name: user.user_metadata?.full_name || "Creator",
         email: user.email,
-        created_at: profile?.created_at,
       });
-
-      setLoggedIn(true);
-      setAuthBusy(false);
-    } catch (err) {
-      setAuthBusy(false);
-      showAlert("error", "Login Failed", err.message);
+    } else if (profileError) {
+      throw profileError;
     }
-  };
 
+    const { data: billing } = await supabase
+      .from("billing_profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    setAccount({
+      id: user.id,
+      full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+      email: user.email,
+      created_at: profile?.created_at,
+      ...billing,
+    });
+
+    setLoggedIn(true);
+    setAuthBusy(false);
+  } catch (err) {
+    setAuthBusy(false);
+    showAlert("error", "Login Failed", err.message);
+  }
+};
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
