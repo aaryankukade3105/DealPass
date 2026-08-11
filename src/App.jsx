@@ -944,8 +944,15 @@ await deleteDeal(deletedId);
             }}
           />
         )}
-
-        {page === "billing-profile" && <BillingProfilePage account={account} />}
+{page === "billing-profile" && (
+  <BillingProfilePage
+    account={account}
+    onSaved={(billingForm) => {
+      setAccount((prev) => ({ ...prev, ...billingForm }));
+      setPage("profile");
+    }}
+  />
+)}
 
         {page === "invoice-editor" && (
          <InvoiceEditorPage

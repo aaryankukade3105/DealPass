@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import ConfirmDialog from "../components/common/ConfirmDialog";
 import {
   User,
   Mail,
@@ -45,10 +46,42 @@ const SECTION_COLORS = {
   bank: "#4F46E5", // indigo — the section that actually gates payment
 };
 
+/* Common country codes — IND first & selected by default. */
+const COUNTRY_CODES = [
+  { code: "+91", label: "🇮🇳 +91", iso: "IN" },
+  { code: "+1", label: "🇺🇸 +1", iso: "US" },
+  { code: "+44", label: "🇬🇧 +44", iso: "GB" },
+  { code: "+971", label: "🇦🇪 +971", iso: "AE" },
+  { code: "+65", label: "🇸🇬 +65", iso: "SG" },
+  { code: "+61", label: "🇦🇺 +61", iso: "AU" },
+  { code: "+49", label: "🇩🇪 +49", iso: "DE" },
+  { code: "+81", label: "🇯🇵 +81", iso: "JP" },
+];
+
+/* Common UPI handles shown when the user types "@" — manual entry always allowed. */
+const UPI_HANDLES = [
+  "okhdfcbank",
+  "oksbi",
+  "okicici",
+  "okaxis",
+  "ybl", // PhonePe
+  "paytm",
+  "apl", // Amazon Pay
+  "upi",
+];
+
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9][A-Z][0-9]$/;
+const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/* Phone: digits only, 6–14 of them (covers most national number lengths). */
+const PHONE_REGEX = /^[0-9]{6,14}$/;
+
 const defaultForm = {
   full_name: "",
   email: "",
   phone: "",
+  phone_country: "+91",
 
   address: "",
 
@@ -78,7 +111,49 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function Field({ icon: Icon, label, required = false, error = false, textarea = false, ...props }) {
+/* Returns an error string, or null if the value is valid (or optional & empty). */
+function validateField(key, form) {
+  const value = (form[key] || "").trim();
+  const required = REQUIRED_FIELDS.includes(key);
+
+  if (!value) {
+    return required ? "Needed to pay you correctly." : null;
+  }
+
+  switch (key) {
+    case "email":
+      return EMAIL_REGEX.test(value) ? null : "Enter a valid email address.";
+    case "phone":
+      return PHONE_REGEX.test(value) ? null : "Enter a valid phone number.";
+    case "pan_number":
+      return PAN_REGEX.test(value)
+        ? null
+        : "Format: 5 letters + 4 numbers + 1 letter (e.g. ABCDE1234F).";
+    case "gst_number":
+      return GSTIN_REGEX.test(value)
+        ? null
+        : "Format: 22ABCDE1234F1Z5 (state code + PAN + entity code).";
+    case "ifsc":
+      return IFSC_REGEX.test(value)
+        ? null
+        : "Format: 4 letters + 0 + 6 alphanumeric (e.g. HDFC0001234).";
+    case "upi_id":
+      return value.includes("@") ? null : "Format: name@bankhandle.";
+    default:
+      return null;
+  }
+}
+
+function Field({
+  icon: Icon,
+  label,
+  required = false,
+  error = false,
+  errorText,
+  textarea = false,
+  trailing,
+  ...props
+}) {
   return (
     <label className="bp-field">
       <span className="bp-field-label">
@@ -92,8 +167,13 @@ function Field({ icon: Icon, label, required = false, error = false, textarea = 
         ) : (
           <input className="bp-field-input" {...props} />
         )}
+        {trailing}
       </span>
-      {error && <span className="bp-field-error">Needed to pay you correctly.</span>}
+      {error && (
+        <span className="bp-field-error">
+          {errorText || "Needed to pay you correctly."}
+        </span>
+      )}
     </label>
   );
 }
@@ -307,7 +387,7 @@ const STYLE = `
 .bp-sec-inner { overflow: hidden; min-height: 0; }
 .bp-sec-pad { padding: 0 14px 14px; border-top: 1px solid var(--bp-border); padding-top: 12px; }
 
-.bp-field { display: block; margin-bottom: 14px; }
+.bp-field { display: block; margin-bottom: 14px; position: relative; }
 .bp-field:last-child { margin-bottom: 2px; }
 .bp-field-label {
   display: block;
@@ -343,6 +423,73 @@ const STYLE = `
 }
 .bp-field-input::placeholder { color: #A6A9B0; }
 .bp-field-error { display: block; font-size: 11.5px; color: var(--bp-error); margin-top: 5px; }
+
+/* Phone: country-code select + number input in one shell */
+.bp-phone-shell {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--bp-bg);
+  border: 1px solid var(--bp-border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.bp-phone-shell:focus-within { border-color: var(--bp-accent); }
+.bp-phone-shell-err { border-color: var(--bp-error); background: var(--bp-error-soft); }
+.bp-phone-code {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bp-text) !important;
+  padding: 10px 6px 10px 12px;
+  border-right: 1px solid var(--bp-border);
+  flex-shrink: 0;
+  max-width: 92px;
+}
+.bp-phone-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--bp-text) !important;
+  padding: 10px 12px;
+}
+
+/* UPI suggestion dropdown */
+.bp-upi-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: var(--bp-card);
+  border: 1px solid var(--bp-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px -6px rgba(0,0,0,0.15);
+  z-index: 50;   /* was 20 */
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.bp-upi-option {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--bp-text) !important;
+  cursor: pointer;
+}
+.bp-upi-option:active { background: var(--bp-accent-soft); }
+.bp-upi-option + .bp-upi-option { border-top: 1px solid var(--bp-border); }
 
 .bp-scroll-spacer { height: 4px; }
 
@@ -388,20 +535,33 @@ const STYLE = `
 }
 `;
 
-export default function BillingProfilePage({ account }) {
+export default function BillingProfilePage({ account, onSaved }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [banner, setBanner] = useState(null);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   const [openSections, setOpenSections] = useState({ personal: true, address: false, tax: false, bank: false });
-
+  const [upiDropdownOpen, setUpiDropdownOpen] = useState(false);
+const [showSavedDialog, setShowSavedDialog] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const bannerTimer = useRef(null);
+  const upiFieldRef = useRef(null);
 
   useEffect(() => {
     loadProfile();
     return () => clearTimeout(bannerTimer.current);
+  }, []);
+
+  // Close the UPI dropdown on outside click.
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (upiFieldRef.current && !upiFieldRef.current.contains(e.target)) {
+        setUpiDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   async function loadProfile() {
@@ -429,7 +589,7 @@ export default function BillingProfilePage({ account }) {
       .maybeSingle();
 
     if (data) {
-      setForm({ ...defaultForm, ...data });
+      setForm({ ...defaultForm, ...data, phone_country: data.phone_country || "+91" });
     } else {
       setForm((prev) => ({
         ...prev,
@@ -443,7 +603,34 @@ export default function BillingProfilePage({ account }) {
 
   function handleChange(e) {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    // Auto-uppercase identifiers that are always uppercase by format.
+    const upperFields = ["pan_number", "gst_number", "ifsc"];
+    const nextValue = upperFields.includes(name) ? value.toUpperCase() : value;
+
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
+
+    if (name === "upi_id") {
+      setUpiDropdownOpen(nextValue.includes("@"));
+    }
+  }
+
+  function handlePhoneChange(e) {
+    // Digits only.
+    const digits = e.target.value.replace(/\D/g, "");
+    setForm((prev) => ({ ...prev, phone: digits }));
+  }
+
+  function handleCountryChange(e) {
+    setForm((prev) => ({ ...prev, phone_country: e.target.value }));
+  }
+
+  function pickUpiHandle(handle) {
+    setForm((prev) => {
+      const before = (prev.upi_id.split("@")[0] || "").trim();
+      return { ...prev, upi_id: `${before}@${handle}` };
+    });
+    setUpiDropdownOpen(false);
   }
 
   function toggleSection(id) {
@@ -457,6 +644,18 @@ export default function BillingProfilePage({ account }) {
     bannerTimer.current = setTimeout(() => setBanner(null), 4000);
   }
 
+  // Fields that get validated: all required fields, plus optional-but-formatted ones.
+  const VALIDATED_FIELDS = [...REQUIRED_FIELDS, "email", "pan_number", "gst_number"];
+
+  const errors = useMemo(() => {
+    const map = {};
+    VALIDATED_FIELDS.forEach((key) => {
+      const err = validateField(key, form);
+      if (err) map[key] = err;
+    });
+    return map;
+  }, [form]);
+
   const missing = useMemo(
     () => REQUIRED_FIELDS.filter((key) => !form[key]?.trim()),
     [form]
@@ -468,25 +667,37 @@ export default function BillingProfilePage({ account }) {
   }, [missing]);
 
   function isSectionComplete(id) {
-    return PANEL_REQUIRED[id].every((k) => !!form[k]?.trim());
+    return PANEL_REQUIRED[id].every((k) => !!form[k]?.trim() && !errors[k]);
   }
 
   async function handleSave() {
-    if (missing.length > 0) {
+    const errorKeys = Object.keys(errors);
+
+    if (errorKeys.length > 0) {
       setShowErrors(true);
       buzz([10, 30, 10]);
 
       setOpenSections((prev) => {
         const next = { ...prev };
         Object.entries(PANEL_REQUIRED).forEach(([id, keys]) => {
-          if (keys.some((k) => missing.includes(k))) next[id] = true;
+          if (keys.some((k) => errorKeys.includes(k))) next[id] = true;
         });
+        // Tax section isn't in PANEL_REQUIRED's required list, but PAN/GST
+        // errors still need to surface there.
+        if (errorKeys.includes("pan_number") || errorKeys.includes("gst_number")) {
+          next.tax = true;
+        }
         return next;
       });
 
+      const missingCount = missing.length;
+      const formatCount = errorKeys.length - missingCount;
       flashBanner({
         type: "error",
-        text: `Missing: ${missing.map((m) => m.replace("_", " ")).join(", ")}`,
+        text:
+          missingCount > 0
+            ? `Missing: ${missing.map((m) => m.replace("_", " ")).join(", ")}`
+            : `Fix ${formatCount} field${formatCount > 1 ? "s" : ""} with an invalid format.`,
       });
       return;
     }
@@ -517,9 +728,13 @@ export default function BillingProfilePage({ account }) {
 
       if (error) throw error;
 
-      setShowErrors(false);
+ setShowErrors(false);
       buzz(15);
-      flashBanner({ type: "success", text: "Saved — your invoice is ready to go out correctly." });
+
+      // Show a styled confirmation. Navigation back to the profile page
+      // (and updating `account`) happens once the user dismisses the
+      // dialog — see the ConfirmDialog's onConfirm/onCancel below.
+      setShowSavedDialog(true);
     } catch (err) {
       flashBanner({ type: "error", text: err.message });
     } finally {
@@ -527,7 +742,8 @@ export default function BillingProfilePage({ account }) {
     }
   }
 
-  const fieldError = (key) => showErrors && !form[key]?.trim();
+  const fieldError = (key) => showErrors && !!errors[key];
+  const fieldErrorText = (key) => errors[key];
 
   if (loading) {
     return (
@@ -607,16 +823,42 @@ export default function BillingProfilePage({ account }) {
           open={openSections.personal}
           onToggle={() => toggleSection("personal")}
         >
-          <Field
-            icon={Phone}
-            label="Phone"
-            required
-            error={fieldError("phone")}
-            name="phone"
-            value={form.phone}
-            onChange={handleChange}
-            placeholder="9876543210"
-          />
+          {/* Phone: country code select + number */}
+          <label className="bp-field">
+            <span className="bp-field-label">
+              Phone
+              <em>*</em>
+            </span>
+            <span
+              className={`bp-phone-shell${fieldError("phone") ? " bp-phone-shell-err" : ""}`}
+            >
+              <select
+                className="bp-phone-code"
+                value={form.phone_country}
+                onChange={handleCountryChange}
+                aria-label="Country code"
+              >
+                {COUNTRY_CODES.map((c) => (
+                  <option key={c.iso} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="bp-phone-input"
+                type="tel"
+                inputMode="numeric"
+                name="phone"
+                value={form.phone}
+                onChange={handlePhoneChange}
+                placeholder="9876543210"
+              />
+            </span>
+            {fieldError("phone") && (
+              <span className="bp-field-error">{fieldErrorText("phone")}</span>
+            )}
+          </label>
+
           <Field
             icon={User}
             label="Full name"
@@ -633,6 +875,8 @@ export default function BillingProfilePage({ account }) {
             value={form.email}
             onChange={handleChange}
             placeholder="you@example.com"
+            error={fieldError("email")}
+            errorText={fieldErrorText("email")}
           />
         </Section>
 
@@ -669,7 +913,10 @@ export default function BillingProfilePage({ account }) {
             name="pan_number"
             value={form.pan_number}
             onChange={handleChange}
-            placeholder="Only if you invoice with PAN"
+            placeholder="ABCDE1234F — only if you invoice with PAN"
+            maxLength={10}
+            error={fieldError("pan_number")}
+            errorText={fieldErrorText("pan_number")}
           />
           <Field
             icon={Receipt}
@@ -677,7 +924,10 @@ export default function BillingProfilePage({ account }) {
             name="gst_number"
             value={form.gst_number}
             onChange={handleChange}
-            placeholder="Only if you're GST-registered"
+            placeholder="27ABCDE1234F1Z5 — only if you're GST-registered"
+            maxLength={15}
+            error={fieldError("gst_number")}
+            errorText={fieldErrorText("gst_number")}
           />
         </Section>
 
@@ -724,21 +974,90 @@ export default function BillingProfilePage({ account }) {
             label="IFSC code"
             required
             error={fieldError("ifsc")}
+            errorText={fieldErrorText("ifsc")}
             name="ifsc"
             value={form.ifsc}
             onChange={handleChange}
-            placeholder="ABCD0123456"
+            placeholder="HDFC0001234"
+            maxLength={11}
           />
-          <Field
-            icon={BadgeIndianRupee}
-            label="UPI ID"
-            required
-            error={fieldError("upi_id")}
-            name="upi_id"
-            value={form.upi_id}
-            onChange={handleChange}
-            placeholder="yourname@bank"
-          />
+
+          {/* UPI ID with handle-suggestion dropdown */}
+        {/* UPI ID with handle-suggestion dropdown */}
+<div ref={upiFieldRef} style={{ position: "relative" }}>
+            <Field
+              icon={BadgeIndianRupee}
+              label="UPI ID"
+              required
+              error={fieldError("upi_id")}
+              errorText={fieldErrorText("upi_id")}
+              name="upi_id"
+              value={form.upi_id}
+              onChange={handleChange}
+              onFocus={() => setUpiDropdownOpen(form.upi_id.includes("@"))}
+              placeholder="yourname@bank"
+              trailing={
+                form.upi_id.includes("@") ? null : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm((prev) => ({
+                        ...prev,
+                        upi_id: prev.upi_id ? `${prev.upi_id}@` : "@",
+                      }));
+                      setUpiDropdownOpen(true);
+                    }}
+                    style={{
+                      border: "none",
+                      background: "none",
+                      color: "var(--bp-accent)",
+                      fontWeight: 700,
+                      fontSize: 15,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                    aria-label="Choose UPI handle"
+                  >
+                    @
+                  </button>
+                )
+              }
+            />
+            {upiDropdownOpen && (
+              <div className="bp-upi-dropdown">
+                {UPI_HANDLES.filter((h) =>
+                  h.toLowerCase().includes(
+                    (form.upi_id.split("@")[1] || "").toLowerCase()
+                  )
+                ).map((handle) => (
+                  <button
+                    key={handle}
+                    type="button"
+                    className="bp-upi-option"
+                    onClick={() => pickUpiHandle(handle)}
+                  >
+                    {(form.upi_id.split("@")[0] || "yourname")}@{handle}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+{showSavedDialog && (
+  <ConfirmDialog
+    title="Saved"
+    message="Your billing profile has been saved."
+    confirmText="Done"
+    cancelText="Close"
+    onConfirm={() => {
+      setShowSavedDialog(false);
+      onSaved?.(form);
+    }}
+    onCancel={() => {
+      setShowSavedDialog(false);
+      onSaved?.(form);
+    }}
+  />
+)}
         </Section>
 
         <div className="bp-scroll-spacer" />

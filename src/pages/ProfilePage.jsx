@@ -96,16 +96,14 @@ function ProfilePage({
   // Billing profile completeness — every field the payout profile now
   // requires: phone, account holder, bank name, account number, IFSC, UPI.
   // Swap in account.billing_complete if that's computed server-side instead.
-  const billingComplete =
-    account?.billing_complete ??
-    Boolean(
-      account?.phone &&
-        account?.account_holder &&
-        account?.bank_name &&
-        account?.account_number &&
-        account?.ifsc &&
-        account?.upi_id
-    );
+ const billingComplete = Boolean(
+  account?.phone &&
+    account?.account_holder &&
+    account?.bank_name &&
+    account?.account_number &&
+    account?.ifsc &&
+    account?.upi_id
+);
 
   const StatCard = ({ icon, label, value }) => (
     <div className="dp-card" style={{ padding: 16, textAlign: "center" }}>
