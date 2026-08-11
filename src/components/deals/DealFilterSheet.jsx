@@ -275,12 +275,12 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
               padding: "13px 0",
               borderRadius: 14,
               border: "none",
-              background: "linear-gradient(135deg, #6C5CE7, #8E7CFF)",
+              background: "linear-gradient(135deg, #ce5ce7, #8E7CFF)",
               color: "#fff",
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",
-              boxShadow: "0 6px 18px rgba(108,92,231,0.4)",
+              boxShadow: "0 6px 18px rgba(227, 28, 214, 0.4)",
             }}
           >
             Show results

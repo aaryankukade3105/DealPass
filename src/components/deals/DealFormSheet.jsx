@@ -6,6 +6,7 @@ import { X, Receipt, Link2, PenLine, CheckCircle2, Clock, ChevronDown } from "lu
 import { formatDate, formatINR } from "../../utils/formatters";
 import DateField from "../common/DateField";
 import DeliverablesSelector from "./DeliverablesSelector";
+import { createPortal } from "react-dom";
 import {
   COLLABORATION_TYPES,
   PAYMENT_STATUS,
@@ -48,15 +49,65 @@ function formatDisplayTime(value) {
   const { hour, minute, period } = to12Hour(value);
   return `${hour}:${String(minute).padStart(2, "0")} ${period}`;
 }
+
 export function TimeField({ value, onChange, disabled, placeholder = "Select shoot time" }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
+  const [coords, setCoords] = useState(null); // { left, width, top, maxHeight }
+  const triggerRef = useRef(null);
+  const popupRef = useRef(null);
 
   const current = value ? to12Hour(value) : { hour: 10, minute: 0, period: "AM" };
 
+  // Compute (and keep updated) the popup's fixed position whenever it's open.
+  useEffect(() => {
+    if (!open) return;
+
+    const PADDING = 12; // minimum gap kept from the top/bottom viewport edges
+
+    const place = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const viewportHeight = window.innerHeight;
+      const popupHeight = popupRef.current?.offsetHeight ?? 330;
+
+      // Prefer opening below the trigger.
+      let top = rect.bottom + 6;
+
+      // If it would run past the bottom, pull it up — but never let it
+      // climb past PADDING from the top of the viewport.
+      if (top + popupHeight > viewportHeight - PADDING) {
+        top = Math.max(PADDING, viewportHeight - PADDING - popupHeight);
+      }
+
+      setCoords({
+        left: rect.left,
+        width: rect.width,
+        top,
+        maxHeight: Math.min(360, viewportHeight - top - PADDING),
+      });
+    };
+
+    place();
+    // Re-measure now that the popup has actually rendered, so popupHeight
+    // reflects real content instead of the fallback estimate.
+    const raf = requestAnimationFrame(place);
+
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true); // capture: catches ancestor scroll too
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
+
   useEffect(() => {
     function handleClickOutside(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target) &&
+        popupRef.current && !popupRef.current.contains(e.target)
+      ) {
         setOpen(false);
       }
     }
@@ -70,8 +121,9 @@ export function TimeField({ value, onChange, disabled, placeholder = "Select sho
   };
 
   return (
-    <div ref={wrapRef} style={{ position: "relative" }}>
+    <div style={{ position: "relative" }}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
@@ -84,6 +136,7 @@ export function TimeField({ value, onChange, disabled, placeholder = "Select sho
           cursor: disabled ? "not-allowed" : "pointer",
           opacity: disabled ? 0.55 : 1,
           background: disabled ? "var(--surface-muted, #F7F8FC)" : undefined,
+          width: "100%",
         }}
       >
         <span
@@ -107,19 +160,24 @@ export function TimeField({ value, onChange, disabled, placeholder = "Select sho
         />
       </button>
 
-      {open && !disabled && (
+      {open && !disabled && createPortal(
         <div
+          ref={popupRef}
           style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            right: 0,
-            zIndex: 30,
+            position: "fixed",
+            left: coords?.left ?? 0,
+            width: coords?.width ?? "auto",
+            top: coords?.top ?? 0,
+            visibility: coords ? "visible" : "hidden", // avoid a flash at (0,0) before first measure
+            zIndex: 1300, // clears MUI's dialog/modal layer and the bottom sheet
             background: "#fff",
             border: "1px solid var(--line)",
             borderRadius: 14,
             boxShadow: "0 14px 30px rgba(0,0,0,.14)",
             padding: 14,
+            maxHeight: coords?.maxHeight ?? "min(60vh, 360px)",
+            overflowY: "auto",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -192,28 +250,28 @@ export function TimeField({ value, onChange, disabled, placeholder = "Select sho
               ))}
             </select>
 
-          <input
-  type="number"
-  className="dp-input"
-  style={{ flex: 1 }}
-  inputMode="numeric"
-  min={0}
-  max={59}
-  step={1}
-  value={String(current.minute).padStart(2, "0")}
-  onChange={(e) => {
-    const raw = e.target.value;
-    if (raw === "") {
-      setPart("minute", 0);
-      return;
-    }
-    let m = parseInt(raw, 10);
-    if (isNaN(m)) return;
-    if (m < 0) m = 0;
-    if (m > 59) m = 59;
-    setPart("minute", m);
-  }}
-/>
+            <input
+              type="number"
+              className="dp-input"
+              style={{ flex: 1 }}
+              inputMode="numeric"
+              min={0}
+              max={59}
+              step={1}
+              value={String(current.minute).padStart(2, "0")}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  setPart("minute", 0);
+                  return;
+                }
+                let m = parseInt(raw, 10);
+                if (isNaN(m)) return;
+                if (m < 0) m = 0;
+                if (m > 59) m = 59;
+                setPart("minute", m);
+              }}
+            />
 
             <select
               className="dp-input"
@@ -234,12 +292,12 @@ export function TimeField({ value, onChange, disabled, placeholder = "Select sho
           >
             Done
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
-
 /* ---------------------------------------------------------------------- */
 
 function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {

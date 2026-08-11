@@ -89,6 +89,7 @@ function DashboardPage({
   onAddDeal,
   onOpenDeal,
   updateShootStatus,
+  onFilterDeals,
 }) {
   const stats = useMemo(() => computeStats(deals), [deals]);
   const chartData = useMemo(() => buildChartData(deals), [deals]);
@@ -876,190 +877,213 @@ const extraShootCount = Math.max(
     </div>
   </div>
 
-  <div
-  className="dpx-row"
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "14px 10px",
-    borderLeft: "4px solid #F59E0B",
-    marginBottom: 8,
-    background: "rgba(245,158,11,.06)",
-  }}
->
-  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-    <div
-      style={{
-        width: 42,
-        height: 42,
-        borderRadius: 12,
-        background: "#FEF3C7",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 20,
-      }}
-    >
-      💰
-    </div>
+  <button
+    type="button"
+    onClick={() => onFilterDeals?.({ payment: "Pending" })}
+    className="dpx-row"
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      textAlign: "left",
+      border: "none",
+      padding: "14px 10px",
+      borderLeft: "4px solid #F59E0B",
+      marginBottom: 8,
+      background: "rgba(245,158,11,.06)",
+      cursor: "pointer",
+      font: "inherit",
+      color: "inherit",
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: "#FEF3C7",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 20,
+        }}
+      >
+        💰
+      </div>
 
-    <div>
-      <div style={{ fontWeight: 700 }}>Pending Revenue</div>
-      <div style={{ fontSize: 12, color: "var(--slate)" }}>
-        Awaiting payment
+      <div>
+        <div style={{ fontWeight: 700 }}>Pending Revenue</div>
+        <div style={{ fontSize: 12, color: "var(--slate)" }}>
+          Awaiting payment
+        </div>
       </div>
     </div>
-  </div>
 
-  <div
-    className="dp-display"
-    style={{ fontSize: 20, color: "#D97706", fontWeight: 800 }}
-  >
-    {formatINR(stats.pendingRevenue[pendingRevenuePeriod])}
-  </div>
-</div>
-
-<div
-  className="dpx-row"
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "14px 10px",
-    borderLeft: "4px solid #DC2626",
-    marginBottom: 8,
-    background: "rgba(220,38,38,.06)",
-  }}
->
-  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
     <div
-      style={{
-        width: 42,
-        height: 42,
-        borderRadius: 12,
-        background: "#FEE2E2",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 20,
-      }}
+      className="dp-display"
+      style={{ fontSize: 20, color: "#D97706", fontWeight: 800 }}
     >
-      🚨
+      {formatINR(stats.pendingRevenue[pendingRevenuePeriod])}
     </div>
+  </button>
 
-    <div>
-      <div style={{ fontWeight: 700 }}>Overdue Revenue</div>
-      <div style={{ fontSize: 12, color: "var(--slate)" }}>
-        Requires follow-up
+  <button
+    type="button"
+    onClick={() => onFilterDeals?.({ payment: "Overdue" })}
+    className="dpx-row"
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      textAlign: "left",
+      border: "none",
+      padding: "14px 10px",
+      borderLeft: "4px solid #DC2626",
+      marginBottom: 8,
+      background: "rgba(220,38,38,.06)",
+      cursor: "pointer",
+      font: "inherit",
+      color: "inherit",
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: "#FEE2E2",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 20,
+        }}
+      >
+        🚨
+      </div>
+
+      <div>
+        <div style={{ fontWeight: 700 }}>Overdue Revenue</div>
+        <div style={{ fontSize: 12, color: "var(--slate)" }}>
+          Requires follow-up
+        </div>
       </div>
     </div>
-  </div>
 
-  <div
-    className="dp-display"
-    style={{ fontSize: 20, color: "#DC2626", fontWeight: 800 }}
-  >
-    {formatINR(stats.overdueRevenue)}
-  </div>
-</div>
-
-<div
-  className="dpx-row"
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "14px 10px",
-    borderLeft: "4px solid #2563EB",
-    marginBottom: 8,
-    background: "rgba(37,99,235,.06)",
-  }}
->
-  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
     <div
-      style={{
-        width: 42,
-        height: 42,
-        borderRadius: 12,
-        background: "#DBEAFE",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 20,
-      }}
+      className="dp-display"
+      style={{ fontSize: 20, color: "#DC2626", fontWeight: 800 }}
     >
-      <CreditCard
-  size={20}
-  strokeWidth={2.2}
-  color="#2563EB"
-/>
+      {formatINR(stats.overdueRevenue)}
     </div>
+  </button>
 
-    <div>
-      <div style={{ fontWeight: 700 }}>Pending Payments</div>
-      <div style={{ fontSize: 12, color: "var(--slate)" }}>
-        Brands yet to pay
+  <button
+    type="button"
+    onClick={() => onFilterDeals?.({ payment: "Unpaid" })}
+    className="dpx-row"
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      textAlign: "left",
+      border: "none",
+      padding: "14px 10px",
+      borderLeft: "4px solid #2563EB",
+      marginBottom: 8,
+      background: "rgba(37,99,235,.06)",
+      cursor: "pointer",
+      font: "inherit",
+      color: "inherit",
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: "#DBEAFE",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 20,
+        }}
+      >
+        <CreditCard size={20} strokeWidth={2.2} color="#2563EB" />
+      </div>
+
+      <div>
+        <div style={{ fontWeight: 700 }}>Pending Payments</div>
+        <div style={{ fontSize: 12, color: "var(--slate)" }}>
+          Brands yet to pay
+        </div>
       </div>
     </div>
-  </div>
 
-  <div
-    className="dp-display"
-    style={{ fontSize: 20, color: "#2563EB", fontWeight: 800 }}
-  >
-    {stats.pendingPayments}
-  </div>
-</div>
-
-<div
-  className="dpx-row"
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "14px 10px",
-    borderLeft: "4px solid #7C3AED",
-    background: "rgba(124,58,237,.06)",
-  }}
->
-  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
     <div
-      style={{
-        width: 42,
-        height: 42,
-        borderRadius: 12,
-        background: "#EDE9FE",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 20,
-      }}
+      className="dp-display"
+      style={{ fontSize: 20, color: "#2563EB", fontWeight: 800 }}
     >
-      <Clapperboard
-  size={20}
-  strokeWidth={2.2}
-  color="#7C3AED"
-/>
+      {stats.pendingPayments}
     </div>
+  </button>
 
-    <div>
-      <div style={{ fontWeight: 700 }}>Pending Content</div>
-      <div style={{ fontSize: 12, color: "var(--slate)" }}>
-        Content yet to post
+  <button
+    type="button"
+    onClick={() => onFilterDeals?.({ dealStatus: "Incomplete" })}
+    className="dpx-row"
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      textAlign: "left",
+      border: "none",
+      padding: "14px 10px",
+      borderLeft: "4px solid #7C3AED",
+      background: "rgba(124,58,237,.06)",
+      cursor: "pointer",
+      font: "inherit",
+      color: "inherit",
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: "#EDE9FE",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 20,
+        }}
+      >
+        <Clapperboard size={20} strokeWidth={2.2} color="#7C3AED" />
+      </div>
+
+      <div>
+        <div style={{ fontWeight: 700 }}>Pending Content</div>
+        <div style={{ fontSize: 12, color: "var(--slate)" }}>
+          Content yet to post
+        </div>
       </div>
     </div>
-  </div>
 
-  <div
-    className="dp-display"
-    style={{ fontSize: 20, color: "#7C3AED", fontWeight: 800 }}
-  >
-    {stats.pendingCollabs}
-  </div>
+    <div
+      className="dp-display"
+      style={{ fontSize: 20, color: "#7C3AED", fontWeight: 800 }}
+    >
+      {stats.pendingCollabs}
+    </div>
+  </button>
 </div>
-</div>
-
 {/* --- NEW: Payment Health gauge. Purely a display of stats.paymentHealth,
      which was already being computed in utils/dashboard.js but never shown
      anywhere in the UI. No new data, no new logic. --- */}
