@@ -2,21 +2,27 @@ import { useState } from "react";
 import { X } from "lucide-react";
 
 function DeliverableDetailPopup({ config, onConfirm, onCancel }) {
-  const [value, setValue] = useState(null);
+  const hasOptions = config.options && config.options.length > 0;
+
+  // With no preset options, treat this as a free-text-only prompt from
+  // the start — there's nothing to pick, so there's no "Others" chip to
+  // tap first before the input appears.
+  const [value, setValue] = useState(hasOptions ? null : "__other__");
   const [customValue, setCustomValue] = useState("");
 
   const isOther = value === "__other__";
-  const canConfirm = value && (!isOther || customValue.trim().length > 0);
+  const canConfirm = hasOptions
+    ? value && (!isOther || customValue.trim().length > 0)
+    : customValue.trim().length > 0;
 
-const handleConfirm = () => {
-  if (!canConfirm) return;
+  const handleConfirm = () => {
+    if (!canConfirm) return;
 
-  const rawValue = isOther
-    ? customValue.trim()
-    : value;
+    const rawValue = isOther ? customValue.trim() : value;
 
-  onConfirm(rawValue);
-};
+    onConfirm(rawValue);
+  };
+
   return (
     <>
       <div className="dp-sheet-backdrop" onClick={onCancel} />
@@ -68,42 +74,43 @@ const handleConfirm = () => {
             {config.prompt}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              marginBottom: isOther ? 12 : 0,
-            }}
-          >
-            
-            {config.options.map((opt) => {
-              const selected = value === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setValue(opt.value)}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 999,
-                    border: selected
-                      ? "1px solid var(--signal)"
-                      : "1px solid var(--line)",
-                    background: selected
-                      ? "rgba(236,72,153,.12)"
-                      : "#fff",
-                    color: selected ? "var(--signal)" : "var(--ink)",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          {hasOptions && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginBottom: isOther ? 12 : 0,
+              }}
+            >
+              {config.options.map((opt) => {
+                const selected = value === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setValue(opt.value)}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 999,
+                      border: selected
+                        ? "1px solid var(--signal)"
+                        : "1px solid var(--line)",
+                      background: selected
+                        ? "rgba(236,72,153,.12)"
+                        : "#fff",
+                      color: selected ? "var(--signal)" : "var(--ink)",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {isOther && (
             <input
@@ -113,7 +120,7 @@ const handleConfirm = () => {
               placeholder={config.otherPlaceholder || "Enter value"}
               value={customValue}
               onChange={(e) => setCustomValue(e.target.value)}
-              style={{ marginTop: 4 }}
+              style={{ marginTop: hasOptions ? 4 : 0 }}
             />
           )}
         </div>

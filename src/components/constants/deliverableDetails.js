@@ -183,6 +183,15 @@ export const DELIVERABLE_DETAIL_CONFIG = {
     formatDetail: (value) => value,
     otherPlaceholder: "e.g. 3 Hours",
   },
+
+  other: {
+    title: "Other Deliverable",
+    prompt: "What's the deliverable?",
+    options: [], // no presets — the popup jumps straight to free text
+    formatDetail: (value) => value,
+    otherPlaceholder: "e.g. Blog post, podcast mention...",
+    otherInputType: "text",
+  },
 };
 
 export function resolveDeliverableDetail(config, rawValue) {
