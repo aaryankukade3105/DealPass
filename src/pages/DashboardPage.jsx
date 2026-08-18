@@ -28,6 +28,8 @@ import {
   ChevronRight,
   Zap,
   AlertTriangle,
+  AlertCircle,
+  Clock3,
   MapPin,
   Clock,
   CheckCircle2,
@@ -390,7 +392,7 @@ const extraShootCount = Math.max(
         marginTop: 1,
       }}
     >
-      {(account?.full_name || account?.name || "Creator").split(" ")[0]} 👋
+      {(account?.full_name || account?.name || "Creator").split(" ")[0]} 
     </div>
   </div>
 </div>
@@ -899,20 +901,19 @@ const extraShootCount = Math.max(
     }}
   >
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: 12,
-          background: "#FEF3C7",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 20,
-        }}
-      >
-        💰
-      </div>
+    <div
+  style={{
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    background: "#FEF3C7",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  <Clock3 size={20} strokeWidth={2.2} color="#D97706" />
+</div>
 
       <div>
         <div style={{ fontWeight: 700 }}>Pending Revenue</div>
@@ -952,20 +953,18 @@ const extraShootCount = Math.max(
   >
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <div
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: 12,
-          background: "#FEE2E2",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 20,
-        }}
-      >
-        🚨
-      </div>
-
+  style={{
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    background: "#FEE2E2",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  <AlertCircle size={20} strokeWidth={2.2} color="#DC2626" />
+</div>
       <div>
         <div style={{ fontWeight: 700 }}>Overdue Revenue</div>
         <div style={{ fontSize: 12, color: "var(--slate)" }}>

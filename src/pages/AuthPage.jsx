@@ -366,7 +366,7 @@ if (!hasSpecial) {
                   className="dp-auth-input"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
+                  placeholder="Enter your name"
                 />
               </div>
             )}
@@ -378,7 +378,7 @@ if (!hasSpecial) {
                 type="email"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="Enter your email ID"
                 required
               />
             </div>
