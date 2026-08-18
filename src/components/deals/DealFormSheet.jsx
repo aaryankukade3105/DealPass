@@ -98,9 +98,10 @@ function SectionJumpBar({ activeSection, onJump, completed = {} }) {
     <div
       style={{
         display: "flex",
+        alignItems: "center",
         gap: 8,
         overflowX: "auto",
-        overflowY: "hidden",
+        overflowY: "visible",
         padding: "10px 14px",
         borderBottom: "1px solid var(--line)",
         background: "var(--surface, #fff)",
@@ -124,11 +125,16 @@ function SectionJumpBar({ activeSection, onJump, completed = {} }) {
             aria-current={active ? "true" : undefined}
             style={{
               flex: "0 0 auto",
+              flexShrink: 0,
               scrollSnapAlign: "start",
+              boxSizing: "border-box",
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 5,
-              padding: "6px 10px",
+              padding: "0 10px",
+              height: 30,
+              minHeight: 30,
               borderRadius: 999,
               border: isFilled
                 ? `1px solid ${section.accent}`
@@ -150,8 +156,8 @@ function SectionJumpBar({ activeSection, onJump, completed = {} }) {
               transition: "background 160ms ease, color 160ms ease, border-color 160ms ease",
             }}
           >
-            <Icon size={12} style={{ flexShrink: 0 }} />
-            {section.label}
+            <Icon size={12} style={{ flexShrink: 0, display: "block" }} />
+            <span style={{ display: "block" }}>{section.label}</span>
           </button>
         );
       })}
