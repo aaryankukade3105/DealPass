@@ -32,39 +32,51 @@ function getShootDateTime(deal) {
 // (Shot / Cancelled) is considered resolved and won't trigger reminders.
 const UNRESOLVED_SHOOT_STATUSES = ["Not Scheduled", "Scheduled", "Rescheduled"];
 
+/* ------------------------------------------------------------------ */
+/* Revenue recognition helpers                                        */
+/* ------------------------------------------------------------------ */
+// A deal counts toward "earnings" the moment money has actually landed —
+// that's true for both a fully "Paid" deal and a "Partially Paid" one.
+// (Pending/Overdue/Barter never contribute actual received money.)
+function isRevenueRecognized(deal) {
+  return (
+    (deal.payment_status === "Paid" || deal.payment_status === "Partially Paid") &&
+    Boolean(deal.payment_received_date)
+  );
+}
+
+// How much of a deal's value counts as earned:
+// - Paid: the recorded received amount, falling back to the full
+//   commercial value if received amount wasn't captured for some reason.
+// - Partially Paid: ONLY the actual received amount — never fall back to
+//   the full commercials, since by definition the rest hasn't come in yet.
+function recognizedAmount(deal) {
+  if (deal.payment_status === "Paid") {
+    return Number(deal.payment_received_amount) || Number(deal.commercials) || 0;
+  }
+  if (deal.payment_status === "Partially Paid") {
+    return Number(deal.payment_received_amount) || 0;
+  }
+  return 0;
+}
+
 export function computeStats(deals) {
   const totalEarnings = deals
-    .filter((d) => d.payment_status === "Paid")
-    .reduce(
-      (sum, d) =>
-        sum +
-        (Number(d.payment_received_amount) ||
-          Number(d.commercials) ||
-          0),
-      0
-    );
+    .filter(isRevenueRecognized)
+    .reduce((sum, d) => sum + recognizedAmount(d), 0);
 
   const earnings = {};
 
   [15, 30, 60].forEach((days) => {
     earnings[days] = deals
       .filter((d) => {
-        if (d.payment_status !== "Paid") return false;
-
-        if (!d.payment_received_date) return false;
+        if (!isRevenueRecognized(d)) return false;
 
         const diff = daysBetween(d.payment_received_date);
 
         return diff >= 0 && diff <= days;
       })
-      .reduce(
-        (sum, d) =>
-          sum +
-          (Number(d.payment_received_amount) ||
-            Number(d.commercials) ||
-            0),
-        0
-      );
+      .reduce((sum, d) => sum + recognizedAmount(d), 0);
   });
 
   const dealCounts = {
@@ -368,9 +380,7 @@ export function buildChartData(deals) {
   );
 
   deals.forEach((d) => {
-    if (d.payment_status !== "Paid") return;
-
-    if (!d.payment_received_date) return;
+    if (!isRevenueRecognized(d)) return;
 
     const date = new Date(d.payment_received_date);
 
@@ -386,10 +396,7 @@ export function buildChartData(deals) {
       weeks - 1 - Math.floor(diffDays / 7);
 
     if (index >= 0 && index < weeks) {
-      buckets[index] +=
-        Number(d.payment_received_amount) ||
-        Number(d.commercials) ||
-        0;
+      buckets[index] += recognizedAmount(d);
     }
   });
 

@@ -6,6 +6,7 @@ import {
   Circle,
 } from "lucide-react";
 import logo from "../assets/logo.svg";
+   import IOSInstallPrompt from "../components/common/IOSInstallPrompt";
 
 const PageStyle = () => (
   <style>{`
@@ -320,7 +321,7 @@ if (!hasSpecial) {
             too many brand deals to remember.
           </div>
         </div>
-
+<IOSInstallPrompt />
         <div className="dp-auth-card">
           <div style={{ display: "flex", gap: 10, marginBottom: 22 }}>
             <button

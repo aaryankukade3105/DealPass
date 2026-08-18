@@ -83,6 +83,31 @@ function shootBadge(shoot) {
   }
   return shootCountdown(shoot.shoot_date);
 }
+
+/* ------------------------------------------------------------------ */
+/* Revenue recognition — mirrors utils/dashboard.js exactly, so the    */
+/* month-scoped analytics below (Revenue, Average Deal, Highest Deal,  */
+/* Top Brand, the weekly chart) agree with the headline earnings card. */
+/* A deal counts once money has actually landed: "Paid" in full, or    */
+/* "Partially Paid" for just the portion actually received so far.    */
+/* ------------------------------------------------------------------ */
+function isRevenueRecognized(deal) {
+  return (
+    (deal.payment_status === "Paid" || deal.payment_status === "Partially Paid") &&
+    Boolean(deal.payment_received_date)
+  );
+}
+
+function recognizedAmount(deal) {
+  if (deal.payment_status === "Paid") {
+    return Number(deal.payment_received_amount) || Number(deal.commercials) || 0;
+  }
+  if (deal.payment_status === "Partially Paid") {
+    return Number(deal.payment_received_amount) || 0;
+  }
+  return 0;
+}
+
 function DashboardPage({
   deals,
   account,
@@ -141,10 +166,11 @@ const analyticsDeals = useMemo(() => {
   });
 }, [deals, analyticsMonth]);
 
+// Deals that actually contributed received money in the selected month —
+// now includes Partially Paid, not just fully Paid.
 const revenueDeals = useMemo(() => {
   return deals.filter((deal) => {
-    if (deal.payment_status !== "Paid") return false;
-    if (!deal.payment_received_date) return false;
+    if (!isRevenueRecognized(deal)) return false;
 
     return (
       new Date(deal.payment_received_date).toLocaleString("default", {
@@ -156,14 +182,7 @@ const revenueDeals = useMemo(() => {
 }, [deals, analyticsMonth]);
 
 const monthlyRevenue = useMemo(() => {
-  return revenueDeals.reduce(
-    (sum, deal) =>
-      sum +
-      (Number(deal.payment_received_amount) ||
-        Number(deal.commercials) ||
-        0),
-    0
-  );
+  return revenueDeals.reduce((sum, deal) => sum + recognizedAmount(deal), 0);
 }, [revenueDeals]);
 
 const averageDealValue = useMemo(() => {
@@ -176,15 +195,8 @@ const topPayingBrand = useMemo(() => {
   if (revenueDeals.length === 0) return null;
 
   return revenueDeals.reduce((highest, current) => {
-    const highestAmount =
-      Number(highest.payment_received_amount) ||
-      Number(highest.commercials) ||
-      0;
-
-    const currentAmount =
-      Number(current.payment_received_amount) ||
-      Number(current.commercials) ||
-      0;
+    const highestAmount = recognizedAmount(highest);
+    const currentAmount = recognizedAmount(current);
 
     return currentAmount > highestAmount ? current : highest;
   });
@@ -194,12 +206,11 @@ const monthlyRevenueChart = useMemo(() => {
   const grouped = {};
 
   deals.forEach((deal) => {
-    // Only count paid deals
-    if (deal.payment_status !== "Paid") return;
+    // Counts any deal with money actually received — Paid in full, or
+    // Partially Paid for the portion received so far.
+    if (!isRevenueRecognized(deal)) return;
 
     // Revenue belongs to the month payment was received
-    if (!deal.payment_received_date) return;
-
     const month = new Date(deal.payment_received_date).toLocaleString(
       "default",
       {
@@ -210,10 +221,7 @@ const monthlyRevenueChart = useMemo(() => {
 
     if (!grouped[month]) grouped[month] = 0;
 
-    grouped[month] +=
-      Number(deal.payment_received_amount) ||
-      Number(deal.commercials) ||
-      0;
+    grouped[month] += recognizedAmount(deal);
   });
 
   return Object.entries(grouped).map(([month, revenue]) => ({
@@ -225,14 +233,7 @@ const monthlyRevenueChart = useMemo(() => {
 const highestDealAmount = useMemo(() => {
   if (revenueDeals.length === 0) return 0;
 
-  return Math.max(
-    ...revenueDeals.map(
-      (deal) =>
-        Number(deal.payment_received_amount) ||
-        Number(deal.commercials) ||
-        0
-    )
-  );
+  return Math.max(...revenueDeals.map(recognizedAmount));
 }, [revenueDeals]);
 // Cosmetic-only: greeting text, derived purely from the clock.
 const greeting = useMemo(() => getGreeting(), []);
