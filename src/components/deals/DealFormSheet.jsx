@@ -71,12 +71,16 @@ const FORM_SECTION_ORDER = [
 // these mirror what actually matters for that section, not the hard
 // submit-time validation in handleSubmit (which stays the source of truth
 // for what's truly required).
-function getSectionCompletion(form) {
+function getSectionCompletion(form, touched) {
   const isBarter = form.collaboration_type === "Barter";
   return {
     brand: Boolean(form.brand_name?.trim()),
-    deal: Boolean(form.deal_title?.trim() && form.collaboration_type),
-    status: Boolean(form.deal_status),
+    deal: Boolean(form.deal_title?.trim()),
+    // deal_status defaults to "Negotiation" and collaboration_type defaults
+    // to "Paid" — both are non-empty from the moment the form mounts, so a
+    // plain truthy check would mark these chips "filled" before the user
+    // ever touches them. Require an actual interaction instead.
+    status: touched.has("deal_status"),
     confirmation: Boolean(form.confirmation_date),
     content: Boolean(form.deliverables?.length > 0),
     shoot: Boolean(form.shoot_date),
@@ -94,12 +98,18 @@ function SectionJumpBar({ activeSection, onJump, completed = {} }) {
     <div
       style={{
         display: "flex",
-        gap: 7,
+        gap: 8,
         overflowX: "auto",
-        padding: "10px 18px",
+        overflowY: "hidden",
+        padding: "10px 14px",
         borderBottom: "1px solid var(--line)",
         background: "var(--surface, #fff)",
         scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
+        scrollSnapType: "x proximity",
+        scrollPaddingInline: 14,
+        touchAction: "pan-x",
+        userSelect: "none",
       }}
     >
       {FORM_SECTION_ORDER.map((section) => {
@@ -114,10 +124,11 @@ function SectionJumpBar({ activeSection, onJump, completed = {} }) {
             aria-current={active ? "true" : undefined}
             style={{
               flex: "0 0 auto",
+              scrollSnapAlign: "start",
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
-              padding: "7px 10px",
+              gap: 5,
+              padding: "6px 10px",
               borderRadius: 999,
               border: isFilled
                 ? `1px solid ${section.accent}`
@@ -130,15 +141,16 @@ function SectionJumpBar({ activeSection, onJump, completed = {} }) {
                 ? section.tint
                 : "var(--surface, #fff)",
               color: isFilled ? "#fff" : active ? section.accent : "var(--slate)",
-              fontSize: 11.5,
+              fontSize: 11,
               fontWeight: 800,
+              lineHeight: 1,
               cursor: "pointer",
               whiteSpace: "nowrap",
               boxShadow: active && !isFilled ? `0 0 0 2px ${section.accent}25` : "none",
               transition: "background 160ms ease, color 160ms ease, border-color 160ms ease",
             }}
           >
-            <Icon size={13} />
+            <Icon size={12} style={{ flexShrink: 0 }} />
             {section.label}
           </button>
         );
@@ -586,14 +598,22 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
   const [justSaved, setJustSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [activeSection, setActiveSection] = useState("brand");
+  const scrollRootRef = useRef(null);
   const isBarter = form.collaboration_type === "Barter";
 const canEditShoot = ![
   "Negotiation",
   "Cancelled",
 ].includes(form.deal_status);
+  const [touchedFields, setTouchedFields] = useState(() => new Set());
   const update = (field, value) => {
     setIsDirty(true);
     setJustSaved(false);
+    setTouchedFields((prev) => {
+      if (prev.has(field)) return prev;
+      const next = new Set(prev);
+      next.add(field);
+      return next;
+    });
     setForm((prev) => {
       const next = { ...prev, [field]: value };
 
@@ -659,7 +679,7 @@ const canEditShoot = ![
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   })();
 
-  const sectionCompletion = getSectionCompletion(form);
+  const sectionCompletion = getSectionCompletion(form, touchedFields);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -686,7 +706,7 @@ const canEditShoot = ![
 
 
   useEffect(() => {
-    const root = document.querySelector(".dp-scroll");
+    const root = scrollRootRef.current;
     if (!root) return;
 
     const nodes = [...root.querySelectorAll("[data-deal-section]")];
@@ -710,12 +730,20 @@ const canEditShoot = ![
   }, []);
 
   const jumpToSection = (id) => {
-    const root = document.querySelector(".dp-scroll");
+    const root = scrollRootRef.current;
     const target = root?.querySelector(`[data-deal-section="${id}"]`);
     if (!root || !target) return;
 
+    // Use getBoundingClientRect deltas rather than offsetTop: offsetTop is
+    // relative to the nearest *positioned* ancestor, which isn't
+    // guaranteed to be the scroll container, so it can land on the wrong
+    // spot. This measures directly against the scroll container itself.
+    const rootRect = root.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const offset = targetRect.top - rootRect.top + root.scrollTop;
+
     root.scrollTo({
-      top: Math.max(0, target.offsetTop - 8),
+      top: Math.max(0, offset - 8),
       behavior: "smooth",
     });
   };
@@ -953,6 +981,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
         </div>
 
         <form
+          ref={scrollRootRef}
           onSubmit={handleSubmit}
           className="dp-scroll"
           style={{ overflowY: "auto", flex: 1, padding: "18px" }}
