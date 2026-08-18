@@ -10,11 +10,12 @@ import logo from "../assets/logo.svg";
 
 const PageStyle = () => (
   <style>{`
-    .dp-auth-wrap {
-      position: relative;
-      min-height: 100%;
-      overflow: hidden;
-    }
+  .dp-auth-wrap {
+  position: relative;
+  min-height: 100%;
+  overflow-y: auto;      /* was: overflow: hidden */
+  overflow-x: hidden;    /* keep the horizontal blob-clipping */
+}
     .dp-auth-blob {
       position: absolute;
       border-radius: 50%;

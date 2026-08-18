@@ -114,32 +114,32 @@ export default function IOSInstallPrompt() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
-          padding: "14px 14px 10px",
+          gap: 10,
+          padding: "11px 12px 8px",
         }}
       >
         <div
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: 11,
+            width: 30,
+            height: 30,
+            borderRadius: 9,
             flexShrink: 0,
             background: "linear-gradient(135deg, #FF3B5C, #FF7A59)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: "0 4px 14px rgba(255,59,92,.38)",
+            boxShadow: "0 3px 10px rgba(255,59,92,.35)",
             animation: "dp-ios-glow 2.2s ease-in-out infinite",
           }}
         >
-          <Sparkles size={18} color="#fff" />
+          <Sparkles size={14} color="#fff" />
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--ink)" }}>
+          <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>
             📲 Install DealPass — 2 taps
           </div>
-          <div style={{ fontSize: 12, color: "var(--slate)", marginTop: 1 }}>
+          <div style={{ fontSize: 11, color: "var(--slate)", marginTop: 0 }}>
             Faster access, full-screen, no browser bar
           </div>
         </div>
@@ -149,19 +149,19 @@ export default function IOSInstallPrompt() {
           onClick={dismiss}
           aria-label="Dismiss"
           style={{
-            width: 26, height: 26, borderRadius: "50%", border: "none",
+            width: 22, height: 22, borderRadius: "50%", border: "none",
             background: "rgba(20,20,30,0.06)", color: "var(--slate)",
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer", flexShrink: 0,
           }}
         >
-          <X size={13} />
+          <X size={11} />
         </button>
       </div>
 
       {/* Steps — shown immediately, nothing to click through to find them */}
-      <div style={{ padding: "0 16px 16px" }}>
-        <div style={{ height: 1, background: "rgba(20,20,30,0.08)", marginBottom: 14 }} />
+      <div style={{ padding: "0 12px 12px" }}>
+        <div style={{ height: 1, background: "rgba(20,20,30,0.08)", marginBottom: 10 }} />
 
         <Step
           number={1}
@@ -170,41 +170,41 @@ export default function IOSInstallPrompt() {
               Tap the <strong>Share</strong> icon in Safari's toolbar
             </>
           }
-          icon={<Share size={15} strokeWidth={2.4} />}
+          icon={<Share size={13} strokeWidth={2.4} />}
         />
         <Step
           number={2}
           text={
             <>
-              Scroll down and tap <strong>Add to Home Screen</strong>
+              Scroll down, tap <strong>Add to Home Screen</strong>
             </>
           }
-          icon={<SquarePlus size={15} strokeWidth={2.4} />}
+          icon={<SquarePlus size={13} strokeWidth={2.4} />}
         />
         <Step number={3} text={<>Tap <strong>Add</strong> — that's it 🎉</>} last />
 
         <div
           style={{
-            marginTop: 12,
-            marginBottom: 14,
-            padding: "9px 12px",
-            borderRadius: 11,
+            marginTop: 10,
+            marginBottom: 10,
+            padding: "7px 10px",
+            borderRadius: 9,
             background: "rgba(37,99,235,.07)",
             color: "#1E40AF",
-            fontSize: 11.5,
-            lineHeight: 1.5,
+            fontSize: 10.5,
+            lineHeight: 1.4,
           }}
         >
           The Share icon usually sits in the bottom toolbar (or top-right on iPad).
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 7 }}>
           <button
             type="button"
             onClick={dismiss}
             style={{
-              flex: 1, padding: "10px 0", borderRadius: 11, border: "1px solid rgba(20,20,30,0.12)",
-              background: "rgba(255,255,255,0.5)", color: "var(--slate)", fontSize: 12.5, fontWeight: 700,
+              flex: 1, padding: "8px 0", borderRadius: 10, border: "1px solid rgba(20,20,30,0.12)",
+              background: "rgba(255,255,255,0.5)", color: "var(--slate)", fontSize: 11.5, fontWeight: 700,
               cursor: "pointer",
             }}
           >
@@ -214,10 +214,10 @@ export default function IOSInstallPrompt() {
             type="button"
             onClick={confirmInstalled}
             style={{
-              flex: 1, padding: "10px 0", borderRadius: 11, border: "none",
+              flex: 1, padding: "8px 0", borderRadius: 10, border: "none",
               background: "linear-gradient(135deg, #FF3B5C, #FF7A59)", color: "#fff",
-              fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(255,59,92,.28)",
+              fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+              boxShadow: "0 3px 10px rgba(255,59,92,.28)",
             }}
           >
             Yes, added it ✓
@@ -230,18 +230,18 @@ export default function IOSInstallPrompt() {
 
 function Step({ number, text, icon, last }) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: last ? 0 : 10 }}>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: last ? 0 : 7 }}>
       <div
         style={{
-          width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+          width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
           background: "rgba(255,59,92,.12)", color: "var(--signal)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 11.5, fontWeight: 800, marginTop: 1,
+          fontSize: 10, fontWeight: 800, marginTop: 1,
         }}
       >
         {number}
       </div>
-      <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.5, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <div style={{ fontSize: 12, color: "var(--ink)", lineHeight: 1.4, display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
         {text}
         {icon && (
           <span style={{ display: "inline-flex", color: "var(--slate)", animation: "dp-ios-bounce 1.6s ease-in-out infinite" }}>
