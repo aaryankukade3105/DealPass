@@ -128,17 +128,17 @@ function validateField(key, form) {
     case "pan_number":
       return PAN_REGEX.test(value)
         ? null
-        : "Format: 5 letters + 4 numbers + 1 letter (e.g. ABCDE1234F).";
+        : "Enter a valid PAN number";
     case "gst_number":
       return GSTIN_REGEX.test(value)
         ? null
-        : "Format: 22ABCDE1234F1Z5 (state code + PAN + entity code).";
+        :"Enter a valid GST number.";
     case "ifsc":
       return IFSC_REGEX.test(value)
         ? null
-        : "Format: 4 letters + 0 + 6 alphanumeric (e.g. HDFC0001234).";
+        : "Enter a valid IFSC code.";
     case "upi_id":
-      return value.includes("@") ? null : "Format: name@bankhandle.";
+      return value.includes("@") ? null : "Enter a valid UPI ID.";
     default:
       return null;
   }
@@ -464,20 +464,18 @@ const STYLE = `
 
 /* UPI suggestion dropdown */
 .bp-upi-dropdown {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  margin-top: 4px;
+  position: fixed;
   background: var(--bp-card);
   border: 1px solid var(--bp-border);
   border-radius: 10px;
-  box-shadow: 0 8px 20px -6px rgba(0,0,0,0.15);
-  z-index: 50;   /* was 20 */
+  box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.22);
+  z-index: 9999;
   overflow: hidden;
   max-height: 220px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
+
 .bp-upi-option {
   width: 100%;
   text-align: left;
@@ -545,6 +543,7 @@ export default function BillingProfilePage({ account, onSaved }) {
   const [upiDropdownOpen, setUpiDropdownOpen] = useState(false);
 const [showSavedDialog, setShowSavedDialog] = useState(false);
   const [form, setForm] = useState(defaultForm);
+  const [upiDropdownStyle, setUpiDropdownStyle] = useState({});
   const bannerTimer = useRef(null);
   const upiFieldRef = useRef(null);
 
@@ -552,7 +551,21 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
     loadProfile();
     return () => clearTimeout(bannerTimer.current);
   }, []);
+useEffect(() => {
+  if (!upiDropdownOpen) return;
 
+  const updatePosition = () => updateUpiDropdownPosition();
+
+  window.addEventListener("resize", updatePosition);
+  window.addEventListener("scroll", updatePosition, true);
+
+  updatePosition();
+
+  return () => {
+    window.removeEventListener("resize", updatePosition);
+    window.removeEventListener("scroll", updatePosition, true);
+  };
+}, [upiDropdownOpen]);
   // Close the UPI dropdown on outside click.
   useEffect(() => {
     function handleClickOutside(e) {
@@ -637,7 +650,32 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
     buzz(6);
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   }
+function updateUpiDropdownPosition() {
+  if (!upiFieldRef.current) return;
 
+  const rect = upiFieldRef.current.getBoundingClientRect();
+
+  const dropdownWidth = rect.width;
+  const dropdownHeight = Math.min(220, UPI_HANDLES.length * 42 + 2);
+
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+
+  const openAbove =
+    spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+
+  setUpiDropdownStyle({
+    left: rect.left,
+    width: dropdownWidth,
+    ...(openAbove
+      ? {
+          bottom: window.innerHeight - rect.top + 4,
+        }
+      : {
+          top: rect.bottom + 4,
+        }),
+  });
+}
   function flashBanner(next) {
     setBanner(next);
     clearTimeout(bannerTimer.current);
@@ -851,7 +889,7 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
                 name="phone"
                 value={form.phone}
                 onChange={handlePhoneChange}
-                placeholder="9876543210"
+                placeholder="Enter phone number"
               />
             </span>
             {fieldError("phone") && (
@@ -865,7 +903,7 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
             name="full_name"
             value={form.full_name}
             onChange={handleChange}
-            placeholder="Aryan Kukade"
+            placeholder="Enter full name"
           />
           <Field
             icon={Mail}
@@ -874,7 +912,7 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
             name="email"
             value={form.email}
             onChange={handleChange}
-            placeholder="you@example.com"
+            placeholder="Enter email address"
             error={fieldError("email")}
             errorText={fieldErrorText("email")}
           />
@@ -907,28 +945,29 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
           open={openSections.tax}
           onToggle={() => toggleSection("tax")}
         >
-          <Field
-            icon={Receipt}
-            label="PAN number"
-            name="pan_number"
-            value={form.pan_number}
-            onChange={handleChange}
-            placeholder="ABCDE1234F — only if you invoice with PAN"
-            maxLength={10}
-            error={fieldError("pan_number")}
-            errorText={fieldErrorText("pan_number")}
-          />
-          <Field
-            icon={Receipt}
-            label="GST number"
-            name="gst_number"
-            value={form.gst_number}
-            onChange={handleChange}
-            placeholder="27ABCDE1234F1Z5 — only if you're GST-registered"
-            maxLength={15}
-            error={fieldError("gst_number")}
-            errorText={fieldErrorText("gst_number")}
-          />
+        <Field
+  icon={Receipt}
+  label="PAN number"
+  name="pan_number"
+  value={form.pan_number}
+  onChange={handleChange}
+  placeholder="Enter PAN number"
+  maxLength={10}
+  error={fieldError("pan_number")}
+  errorText={fieldErrorText("pan_number")}
+/>
+
+<Field
+  icon={Receipt}
+  label="GST number"
+  name="gst_number"
+  value={form.gst_number}
+  onChange={handleChange}
+  placeholder="Enter GST number"
+  maxLength={15}
+  error={fieldError("gst_number")}
+  errorText={fieldErrorText("gst_number")}
+/>
         </Section>
 
         <Section
@@ -958,7 +997,7 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
             name="bank_name"
             value={form.bank_name}
             onChange={handleChange}
-            placeholder="e.g. HDFC Bank"
+            placeholder="Enter bank name"
           />
           <Field
             icon={CreditCard}
@@ -968,6 +1007,7 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
             name="account_number"
             value={form.account_number}
             onChange={handleChange}
+            placeholder="Enter account number"
           />
           <Field
             icon={Hash}
@@ -978,7 +1018,7 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
             name="ifsc"
             value={form.ifsc}
             onChange={handleChange}
-            placeholder="HDFC0001234"
+            placeholder="Enter IFSC code"
             maxLength={11}
           />
 
@@ -994,8 +1034,16 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
               name="upi_id"
               value={form.upi_id}
               onChange={handleChange}
-              onFocus={() => setUpiDropdownOpen(form.upi_id.includes("@"))}
-              placeholder="yourname@bank"
+              onFocus={() => {
+  if (form.upi_id.includes("@")) {
+    updateUpiDropdownPosition();
+    requestAnimationFrame(() => {
+  updateUpiDropdownPosition();
+  setUpiDropdownOpen(true);
+});
+  }
+}}
+              placeholder="Enter UPI ID"
               trailing={
                 form.upi_id.includes("@") ? null : (
                   <button
@@ -1024,7 +1072,10 @@ const [showSavedDialog, setShowSavedDialog] = useState(false);
               }
             />
             {upiDropdownOpen && (
-              <div className="bp-upi-dropdown">
+                <div
+  className="bp-upi-dropdown"
+  style={upiDropdownStyle}
+>
                 {UPI_HANDLES.filter((h) =>
                   h.toLowerCase().includes(
                     (form.upi_id.split("@")[1] || "").toLowerCase()

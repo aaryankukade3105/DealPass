@@ -560,32 +560,40 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
   const [autoInvoiceNumber] = useState(() => (initial?.invoice_number || "").trim());
 
   const [form, setForm] = useState(() => {
-    const base = initial ?? {
-      brand_name: "",
-      poc_name: "",
-      contact_number: "",
-      deal_title: "",
-      collaboration_type: "Paid",
-      confirmation_date: "",
-      confirmation_mode: "Email",
-      deliverables: [],
-      deliverable_count: 1,
-      content_due_date: "",
-      content_submitted_date: "",
-      posted_date: "",
-      campaign_links: "",
-      commercials: "",
-      currency: "INR",
-      payment_mode: "UPI",
-      payment_status: "Pending",
-      payment_deadline: "",
-      payment_received_date: "",
-      payment_received_amount: "",
-      deal_status: "Negotiation",
-      invoice_number: "",
-      transaction_id: "",
-      notes: "",
-    };
+ const base = initial ?? {
+  brand_name: "",
+  poc_name: "",
+  contact_number: "",
+  deal_title: "",
+
+  collaboration_type: "",
+
+  confirmation_date: "",
+  confirmation_mode: "",
+
+  deliverables: [],
+  deliverable_count: 1,
+
+  content_due_date: "",
+  content_submitted_date: "",
+  posted_date: "",
+  campaign_links: "",
+
+  commercials: "",
+  currency: "",
+
+  payment_mode: "",
+  payment_status: "",
+  payment_deadline: "",
+  payment_received_date: "",
+  payment_received_amount: "",
+
+  deal_status: "",
+
+  invoice_number: "",
+  transaction_id: "",
+  notes: "",
+};
     return {
       ...base,
       // Normalize campaign_links to a plain string once, so the textarea
