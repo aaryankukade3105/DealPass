@@ -54,15 +54,14 @@ function markConfirmedInstalled() {
 /* ------------------------------------------------------------------ */
 export default function IOSInstallPrompt() {
   const [visible, setVisible] = useState(false);
-  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     // Show it every time on iOS Safari, unless: it's already running as an
     // installed home-screen app, OR the visitor previously confirmed
-    // "Yes, I added it" (see the button in the expanded view below).
+    // "Yes, I added it" (see the button below).
     if (isIosSafari() && !isStandalone() && !alreadyConfirmedInstalled()) {
       // small delay so it doesn't compete with the page's own entrance animation
-      const t = setTimeout(() => setVisible(true), 600);
+      const t = setTimeout(() => setVisible(true), 500);
       return () => clearTimeout(t);
     }
   }, []);
@@ -86,69 +85,68 @@ export default function IOSInstallPrompt() {
         zIndex: 2,
         margin: "0 0 16px",
         borderRadius: 18,
-        background: "rgba(255,255,255,0.55)",
+        background: "rgba(255,255,255,0.6)",
         backdropFilter: "blur(20px) saturate(180%)",
         WebkitBackdropFilter: "blur(20px) saturate(180%)",
-        border: "1px solid rgba(255,255,255,0.6)",
-        boxShadow: "0 8px 24px rgba(31,38,135,0.10)",
+        border: "1.5px solid rgba(255,59,92,0.35)",
+        boxShadow: "0 10px 30px rgba(255,59,92,0.18)",
         overflow: "hidden",
-        animation: "dp-ios-in 300ms ease-out",
+        animation: "dp-ios-in 320ms ease-out",
       }}
     >
       <style>{`
         @keyframes dp-ios-in {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(-8px) scale(.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes dp-ios-bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-3px); }
         }
+        @keyframes dp-ios-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,92,0.35); }
+          50% { box-shadow: 0 0 0 6px rgba(255,59,92,0); }
+        }
       `}</style>
 
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
+      {/* Header — always-visible headline, no click-to-expand gate */}
+      <div
         style={{
-          width: "100%",
           display: "flex",
           alignItems: "center",
           gap: 12,
-          padding: "13px 14px",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
+          padding: "14px 14px 10px",
         }}
       >
         <div
           style={{
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             borderRadius: 11,
             flexShrink: 0,
             background: "linear-gradient(135deg, #FF3B5C, #FF7A59)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: "0 4px 12px rgba(255,59,92,.3)",
+            boxShadow: "0 4px 14px rgba(255,59,92,.38)",
+            animation: "dp-ios-glow 2.2s ease-in-out infinite",
           }}
         >
-          <Sparkles size={17} color="#fff" />
+          <Sparkles size={18} color="#fff" />
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: "var(--ink)" }}>
-            Get the app experience
+          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--ink)" }}>
+            📲 Install DealPass — 2 taps
           </div>
           <div style={{ fontSize: 12, color: "var(--slate)", marginTop: 1 }}>
-            Add DealPass to your Home Screen
+            Faster access, full-screen, no browser bar
           </div>
         </div>
 
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); dismiss(); }}
+          onClick={dismiss}
           aria-label="Dismiss"
           style={{
             width: 26, height: 26, borderRadius: "50%", border: "none",
@@ -159,74 +157,73 @@ export default function IOSInstallPrompt() {
         >
           <X size={13} />
         </button>
-      </button>
+      </div>
 
-      {expanded && (
-        <div style={{ padding: "0 16px 16px" }}>
-          <div style={{ height: 1, background: "rgba(20,20,30,0.08)", marginBottom: 14 }} />
+      {/* Steps — shown immediately, nothing to click through to find them */}
+      <div style={{ padding: "0 16px 16px" }}>
+        <div style={{ height: 1, background: "rgba(20,20,30,0.08)", marginBottom: 14 }} />
 
-          <Step
-            number={1}
-            text={
-              <>
-                Tap the <strong>Share</strong> icon in Safari's toolbar
-              </>
-            }
-            icon={<Share size={15} strokeWidth={2.4} />}
-          />
-          <Step
-            number={2}
-            text={
-              <>
-                Scroll down and tap <strong>Add to Home Screen</strong>
-              </>
-            }
-            icon={<SquarePlus size={15} strokeWidth={2.4} />}
-          />
-          <Step number={3} text={<>Tap <strong>Add</strong> — that's it 🎉</>} last />
+        <Step
+          number={1}
+          text={
+            <>
+              Tap the <strong>Share</strong> icon in Safari's toolbar
+            </>
+          }
+          icon={<Share size={15} strokeWidth={2.4} />}
+        />
+        <Step
+          number={2}
+          text={
+            <>
+              Scroll down and tap <strong>Add to Home Screen</strong>
+            </>
+          }
+          icon={<SquarePlus size={15} strokeWidth={2.4} />}
+        />
+        <Step number={3} text={<>Tap <strong>Add</strong> — that's it 🎉</>} last />
 
-          <div
+        <div
+          style={{
+            marginTop: 12,
+            marginBottom: 14,
+            padding: "9px 12px",
+            borderRadius: 11,
+            background: "rgba(37,99,235,.07)",
+            color: "#1E40AF",
+            fontSize: 11.5,
+            lineHeight: 1.5,
+          }}
+        >
+          The Share icon usually sits in the bottom toolbar (or top-right on iPad).
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={dismiss}
             style={{
-              marginTop: 12,
-              marginBottom: 14,
-              padding: "9px 12px",
-              borderRadius: 11,
-              background: "rgba(37,99,235,.07)",
-              color: "#1E40AF",
-              fontSize: 11.5,
-              lineHeight: 1.5,
+              flex: 1, padding: "10px 0", borderRadius: 11, border: "1px solid rgba(20,20,30,0.12)",
+              background: "rgba(255,255,255,0.5)", color: "var(--slate)", fontSize: 12.5, fontWeight: 700,
+              cursor: "pointer",
             }}
           >
-            The Share icon usually sits in the bottom toolbar (or top-right on iPad).
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={dismiss}
-              style={{
-                flex: 1, padding: "10px 0", borderRadius: 11, border: "1px solid rgba(20,20,30,0.12)",
-                background: "rgba(255,255,255,0.5)", color: "var(--slate)", fontSize: 12.5, fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Maybe later
-            </button>
-            <button
-              type="button"
-              onClick={confirmInstalled}
-              style={{
-                flex: 1, padding: "10px 0", borderRadius: 11, border: "none",
-                background: "linear-gradient(135deg, #FF3B5C, #FF7A59)", color: "#fff",
-                fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(255,59,92,.28)",
-              }}
-            >
-              Yes, added it ✓
-            </button>
-          </div>
+            Maybe later
+          </button>
+          <button
+            type="button"
+            onClick={confirmInstalled}
+            style={{
+              flex: 1, padding: "10px 0", borderRadius: 11, border: "none",
+              background: "linear-gradient(135deg, #FF3B5C, #FF7A59)", color: "#fff",
+              fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(255,59,92,.28)",
+            }}
+          >
+            Yes, added it ✓
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
