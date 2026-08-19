@@ -1484,7 +1484,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
             color={VIOLET}
             icon={<Building2 size={17} color={VIOLET} />}
             title="Bill To"
-            subtitle="Who's paying this invoice? Only the client name is required."
+            subtitle="Who's paying this invoice? Client name is required. All other details are optional."
             done={steps[3].done}
           />
 
@@ -1569,7 +1569,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
             color={AMBER}
             icon={<Package size={17} color="#B87A00" />}
             title="Deliverables"
-            subtitle="Pulled from the deal — set a rate for each item. Leave a rate at 0 to mark it as included."
+            subtitle="Split the total deal amount across your deliverables however you want."
             done={steps[4].done}
           />
 

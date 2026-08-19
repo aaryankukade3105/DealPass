@@ -80,19 +80,6 @@ function ProfilePage({
       ? deals.reduce((sum, d) => sum + Number(d.commercials || 0), 0) /
         deals.length
       : 0;
-
-  const brandFrequency = {};
-  deals.forEach((d) => {
-    brandFrequency[d.brand_name] = (brandFrequency[d.brand_name] || 0) + 1;
-  });
-
-  const mostWorkedBrand =
-    Object.keys(brandFrequency).length > 0
-      ? Object.keys(brandFrequency).reduce((a, b) =>
-          brandFrequency[a] > brandFrequency[b] ? a : b
-        )
-      : "—";
-
   // Billing profile completeness — every field the payout profile now
   // requires: phone, account holder, bank name, account number, IFSC, UPI.
   // Swap in account.billing_complete if that's computed server-side instead.
@@ -428,12 +415,7 @@ function ProfilePage({
               : "—"
           }
         />
-        <InfoRow
-          icon={<Building2 size={18} />}
-          title="Most Worked With"
-          color={COLORS.insights}
-          value={mostWorkedBrand}
-        />
+
         <InfoRow
           icon={<TrendingUp size={18} />}
           title="Average Deal Value"
@@ -583,47 +565,44 @@ function ProfilePage({
           padding: 28,
         }}
       >
-        <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.5 }}>
-          DealPass
-        </div>
-        <div style={{ marginTop: 8, color: "var(--slate)", fontSize: 15 }}>
-          Creator Collaboration Manager
-        </div>
+    <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.5 }}>
+  DealPass
+</div>
 
-        <div
-          style={{
-            marginTop: 24,
-            paddingTop: 20,
-            borderTop: "1px solid var(--line)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            textAlign: "left",
-          }}
-        >
-          <div className="dp-row">
-            <span>Manage Collaborations</span>
-          </div>
-          <div className="dp-row">
-            <span>Track Deliverables</span>
-          </div>
-          <div className="dp-row">
-            <span>Monitor Payments</span>
-          </div>
-        </div>
+<div
+  style={{
+    marginTop: 8,
+    color: "var(--slate)",
+    fontSize: 15,
+  }}
+>
+  Creator Collaboration Manager
+</div>
 
+<div
+  style={{
+    marginTop: 24,
+    paddingTop: 20,
+    borderTop: "1px solid var(--line)",
+    color: "var(--slate)",
+    fontSize: 13,
+    lineHeight: 1.6,
+  }}
+>
+  Built to help creators keep their collaborations,
+  deliverables, payments, and invoices organized in one place.
+</div>
         <div
-          style={{
-            marginTop: 24,
-            paddingTop: 18,
-            borderTop: "1px solid var(--line)",
-            color: "var(--slate)",
-            fontSize: 13,
-            letterSpacing: 0.3,
-          }}
-        >
-          Version 1.0.3
-        </div>
+  style={{
+    marginTop: 20,
+    paddingTop: 18,
+    borderTop: "1px solid var(--line)",
+    color: "var(--slate)",
+    fontSize: 12,
+  }}
+>
+  DealPass · Version 1.0.3
+</div>
       </div>
     </div>
   );
