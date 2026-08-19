@@ -598,6 +598,8 @@ export default function InvoiceEditorPage({
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState(null);
 const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
+// Fires only when an actual invoice save (create/update) succeeds — not
+// on every local-draft autosave — so it doesn't pop up on every keystroke.
 const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
   // `detail` (e.g. "Collab", "90 Days", "3 Stories") is carried over from
   // the deal's deliverables so it survives into the invoice and is shown
@@ -725,7 +727,6 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     setLastSaved(new Date());
-    setSaveSuccessOpen(true);
   }
 
   // Debounced autosave while the user is actively editing — every keystroke
@@ -872,6 +873,9 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
   ];
   const completedCount = steps.filter((s) => s.done).length;
   const progressPct = Math.round((completedCount / steps.length) * 100);
+  // Labels of whatever's still incomplete, used to drive the pending-items
+  // bar pinned above the Save button (kept in sync with the sidebar rail).
+  const missingStepLabels = steps.filter((s) => !s.done).map((s) => s.label);
 
   // Flush the latest draft immediately (bypassing the debounce) and then
   // hand control back to the caller. Used by the Back button so quick
@@ -979,6 +983,11 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
       }
 
       setLastSaved(new Date());
+
+      // Real invoice save succeeded — surface the success alert and let it
+      // auto-dismiss, mirroring the "Saved!" confirmation on the deal form.
+      setSaveSuccessOpen(true);
+      setTimeout(() => setSaveSuccessOpen(false), 2500);
     } catch (err) {
       console.error(err);
       setSaveError("Failed to save invoice. Please try again.");
@@ -1346,7 +1355,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
             color={VIOLET}
             icon={<FileText size={17} color={VIOLET} />}
             title="Invoice Details"
-            subtitle="The basics — number, and when it's due."
+            subtitle="The basics - number, and when it's due."
             done={steps[0].done}
           />
 
@@ -1712,7 +1721,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
             color={VIOLET}
             icon={<PenTool size={17} color={VIOLET} />}
             title="Digital Signature"
-            subtitle="Type your name or draw it by hand — it'll appear on the invoice."
+            subtitle="Type your name or draw it by hand and it'll appear on the invoice."
             done={signatureProvided}
             optional
           />
@@ -1907,6 +1916,52 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
     zIndex: 100,
   }}
 >
+  {/* Pending-items bar — pinned right above the Save button so it's
+      always visible, even on mobile where the sidebar rail isn't sticky
+      and can scroll out of view. Mirrors the sidebar's progress but
+      spells out exactly what's still missing. */}
+  <div style={{ marginBottom: 12 }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 6,
+        fontSize: 12.5,
+        fontWeight: 700,
+        color: missingStepLabels.length ? DANGER : SUCCESS,
+      }}
+    >
+      <span style={{ overflowWrap: "anywhere" }}>
+        {missingStepLabels.length
+          ? `Missing: ${missingStepLabels.join(", ")}`
+          : "All sections complete"}
+      </span>
+      <span style={{ flexShrink: 0 }}>{progressPct}%</span>
+    </div>
+    <div
+      style={{
+        height: 6,
+        borderRadius: 999,
+        background: "#EEF0F8",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          height: "100%",
+          width: `${progressPct}%`,
+          borderRadius: 999,
+          background: missingStepLabels.length
+            ? `linear-gradient(90deg, ${VIOLET}, ${AMBER})`
+            : SUCCESS,
+          transition: "width .4s ease, background .3s ease",
+        }}
+      />
+    </div>
+  </div>
+
   <button
     className="dp-inv-btn dp-inv-btn-primary"
     style={{
@@ -1961,6 +2016,14 @@ This action cannot be undone.`}
     onCancel={() => setDeleteInvoiceOpen(false)}
   />
 )}
+      {saveSuccessOpen && (
+        <AlertModal
+          type="success"
+          title="Invoice Saved"
+          message={`Invoice ${invoice.invoiceNumber} has been saved successfully.`}
+          onClose={() => setSaveSuccessOpen(false)}
+        />
+      )}
     </div>
   );
 }

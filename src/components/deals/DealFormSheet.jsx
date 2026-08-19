@@ -134,19 +134,17 @@ function getSectionCompletion(form, touched) {
   const isBarter = form.collaboration_type === "Barter";
   return {
     brand: Boolean(form.brand_name?.trim()),
-    deal: Boolean(form.deal_title?.trim()),
-    // deal_status defaults to "Negotiation" and collaboration_type defaults
-    // to "Paid" — both are non-empty from the moment the form mounts, so a
-    // plain truthy check would mark these chips "filled" before the user
-    // ever touches them. Require an actual interaction instead.
-    status: touched.has("deal_status"),
-    confirmation: Boolean(form.confirmation_date),
+    deal: Boolean(form.deal_title?.trim() && form.collaboration_type),
+    status: Boolean(form.deal_status),
+    confirmation: Boolean(form.confirmation_date && form.confirmation_mode),
     content: Boolean(form.deliverables?.length > 0),
     shoot: Boolean(form.shoot_date),
     timeline: Boolean(
       form.content_due_date || form.content_submitted_date || form.posted_date
     ),
-    money: isBarter || Number(form.commercials) > 0,
+    money:
+      isBarter ||
+      (Number(form.commercials) > 0 && Boolean(form.payment_mode) && Boolean(form.payment_status)),
     invoice: Boolean(form.invoice_number?.trim()),
     notes: Boolean(form.notes?.trim()),
   };
@@ -618,54 +616,71 @@ function DealFormSheet({ initial, brands = [], onSave, onClose, showAlert }) {
   // once at mount so it doesn't flip mid-edit as the user types.
   const [autoInvoiceNumber] = useState(() => (initial?.invoice_number || "").trim());
 
-  const [form, setForm] = useState(() => {
- const base = initial ?? {
-  brand_name: "",
-  poc_name: "",
-  contact_number: "",
-  deal_title: "",
+const [form, setForm] = useState(() => {
+  const base = initial ?? {
+    brand_name: "",
+    poc_name: "",
+    contact_number: "",
+    deal_title: "",
+    collaboration_type: "",
+    confirmation_date: "",
+    confirmation_mode: "",
+    deliverables: [],
+    deliverable_count: 1,
+    content_due_date: "",
+    content_submitted_date: "",
+    posted_date: "",
+    campaign_links: "",
+    commercials: "",
+    currency: "",
+    payment_mode: "",
+    payment_status: "",
+    payment_deadline: "",
+    payment_received_date: "",
+    payment_received_amount: "",
+    deal_status: "",
+    invoice_number: "",
+    transaction_id: "",
+    notes: "",
+  };
 
-  collaboration_type: "",
+  return {
+    ...base,
+    brand_name: base.brand_name ?? "",
+    poc_name: base.poc_name ?? "",
+    contact_number: base.contact_number ?? "",
+    deal_title: base.deal_title ?? "",
+    collaboration_type: base.collaboration_type ?? "",
+    confirmation_date: base.confirmation_date ?? "",
+    confirmation_mode: base.confirmation_mode ?? "",
+    deliverables: Array.isArray(base.deliverables) ? base.deliverables : [],
+    deliverable_count: base.deliverable_count ?? 1,
+    content_due_date: base.content_due_date ?? "",
+    content_submitted_date: base.content_submitted_date ?? "",
+    posted_date: base.posted_date ?? "",
+    campaign_links: Array.isArray(base.campaign_links)
+      ? base.campaign_links.join(" ")
+      : base.campaign_links ?? "",
+    commercials: base.commercials ?? "",
+    currency: base.currency ?? "INR",
+    payment_mode: base.payment_mode ?? "",
+    payment_status: base.payment_status ?? "",
+    payment_deadline: base.payment_deadline ?? "",
+    payment_received_date: base.payment_received_date ?? "",
+    payment_received_amount: base.payment_received_amount ?? "",
+    deal_status: base.deal_status ?? "",
+    invoice_number: base.invoice_number ?? "",
+    transaction_id: base.transaction_id ?? "",
+    notes: base.notes ?? "",
+    shoot_date: base.shoot_date ?? "",
+    shoot_time: base.shoot_time ?? "",
+    shoot_location: base.shoot_location ?? "",
+    shoot_notes: base.shoot_notes ?? "",
+    shoot_status: base.shoot_status ?? "",
+    shoot_next_check_at: base.shoot_next_check_at ?? "",
+  };
+});
 
-  confirmation_date: "",
-  confirmation_mode: "",
-
-  deliverables: [],
-  deliverable_count: 1,
-
-  content_due_date: "",
-  content_submitted_date: "",
-  posted_date: "",
-  campaign_links: "",
-
-  commercials: "",
-  currency: "",
-
-  payment_mode: "",
-  payment_status: "",
-  payment_deadline: "",
-  payment_received_date: "",
-  payment_received_amount: "",
-
-  deal_status: "",
-
-  invoice_number: "",
-  transaction_id: "",
-  notes: "",
-};
-    return {
-      ...base,
-      // Normalize campaign_links to a plain string once, so the textarea
-      // is always bound to a string and never silently mangled by React.
-      campaign_links: Array.isArray(base.campaign_links)
-        ? base.campaign_links.join(" ")
-        : base.campaign_links || "",
-      // Make sure the invoice number field always mirrors whatever's on
-      // the deal record (auto-synced by Invoice Studio) rather than
-      // whatever stale value might otherwise be sitting in local state.
-      invoice_number: base.invoice_number || "",
-    };
-  });
 
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -699,7 +714,7 @@ const canEditShoot = ![
           next.payment_status = "Barter";
           next.payment_deadline = "";
           next.payment_received_date = "";
-          next.payment_received_amount = null;
+          next.payment_received_amount = "";
         } else {
           next.currency = "INR";
           next.payment_mode = "UPI";
@@ -744,10 +759,14 @@ const canEditShoot = ![
     const checks = [
       form.brand_name?.trim(),
       form.deal_title?.trim(),
+      form.collaboration_type,
+      form.deal_status,
       form.confirmation_date,
+      form.confirmation_mode,
       form.deliverables?.length > 0,
       form.collaboration_type === "Barter" || Number(form.commercials) > 0,
-      form.deal_status,
+      form.collaboration_type === "Barter" || Boolean(form.payment_mode),
+      form.collaboration_type === "Barter" || Boolean(form.payment_status),
     ];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   })();
@@ -834,11 +853,38 @@ const canEditShoot = ![
       return;
     }
 
+    if (!form.collaboration_type) {
+      showAlert(
+        "warning",
+        "Collaboration Type Required",
+        "Please select a collaboration type."
+      );
+      return;
+    }
+
+    if (!form.deal_status) {
+      showAlert(
+        "warning",
+        "Deal Status Required",
+        "Please select the current deal status."
+      );
+      return;
+    }
+
    if (!form.confirmation_date) {
   showAlert(
     "warning",
     "Confirmation Date Required",
     "Please select the confirmation date."
+  );
+  return;
+}
+
+if (!form.confirmation_mode) {
+  showAlert(
+    "warning",
+    "Confirmation Mode Required",
+    "Please select how this deal was confirmed."
   );
   return;
 }
@@ -851,6 +897,30 @@ if (
     "warning",
     "Commercial Amount Required",
     "Please enter a commercial amount greater than ₹0."
+  );
+  return;
+}
+
+if (
+  form.collaboration_type !== "Barter" &&
+  !form.payment_mode
+) {
+  showAlert(
+    "warning",
+    "Payment Mode Required",
+    "Please select a payment mode."
+  );
+  return;
+}
+
+if (
+  form.collaboration_type !== "Barter" &&
+  !form.payment_status
+) {
+  showAlert(
+    "warning",
+    "Payment Status Required",
+    "Please select a payment status."
   );
   return;
 }
@@ -1064,7 +1134,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
      <Field label="Brand Name *">
   <input
     className="dp-input"
-    value={form.brand_name}
+   value={form.brand_name ?? ""}
     onChange={(e) => update("brand_name", e.target.value)}
     placeholder="Enter brand name"
   />
@@ -1073,7 +1143,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
 <Field label="POC Name">
   <input
     className="dp-input"
-    value={form.poc_name}
+    value={form.poc_name ?? ""}
     onChange={(e) => update("poc_name", e.target.value)}
     placeholder="Enter contact name"
   />
@@ -1082,7 +1152,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
       <Field label="Contact Number">
   <input
     className="dp-input"
-    value={form.contact_number}
+   value={form.contact_number ?? ""}
     onChange={(e) =>
       update("contact_number", e.target.value.replace(/\D/g, "").slice(0, 10))
     }
@@ -1096,13 +1166,13 @@ payment_received_date: emptyToNull(form.payment_received_date),
     <Field label="Deal Title *">
   <input
     className="dp-input"
-    value={form.deal_title}
+   value={form.deal_title ?? ""}
     onChange={(e) => update("deal_title", e.target.value)}
     placeholder="Enter deal title"
   />
 </Field>
 
-            <Field label="Collaboration Type">
+            <Field label="Collaboration Type *">
               <ChipSelect
                 options={COLLABORATION_TYPES}
                 value={form.collaboration_type}
@@ -1118,7 +1188,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
               user reaches that section instead of after. This avoids the
               scroll-down-then-back-up flow. */}
           <SectionWrap id="status" title="Status">
-            <Field label="Current Deal Status">
+            <Field label="Current Deal Status *">
               <ChipSelect
                 options={DEAL_STATUS}
                 value={form.deal_status}
@@ -1149,7 +1219,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
           <SectionWrap id="confirmation" title="Confirmation">
             <Field label="Confirmation Date *">
               <DateField
-                value={form.confirmation_date}
+           value={form.confirmation_date ?? ""}
                 onChange={(value) => update("confirmation_date", value)}
                 placeholder="Select confirmation date"
                 maxDate={new Date().toISOString().slice(0, 10)}
@@ -1162,10 +1232,10 @@ payment_received_date: emptyToNull(form.payment_received_date),
               )}
             </Field>
 
-            <Field label="Confirmation Mode">
+            <Field label="Confirmation Mode *">
               <ChipSelect
                 options={CONFIRMATION_MODES}
-                value={form.confirmation_mode}
+               value={form.confirmation_mode ?? ""}
                 onChange={(v) => update("confirmation_mode", v)}
               />
             </Field>
@@ -1173,7 +1243,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
 
           {/* ---------- 5. Content plan ---------- */}
           <SectionWrap id="content" title="Content">
-            <Field label="Deliverables">
+            <Field label="Deliverables *">
               <DeliverablesSelector
                 value={form.deliverables}
                 onChange={(deliverables) => update("deliverables", deliverables)}
@@ -1301,7 +1371,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
 
             <Field label="Posted Date">
               <DateField
-                value={form.posted_date}
+                value={form.posted_date ?? ""}
                 onChange={(value) => update("posted_date", value)}
                 minDate={form.confirmation_date}
                 maxDate={new Date().toISOString().slice(0, 10)}
@@ -1318,7 +1388,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
               <textarea
                 rows={4}
                 className="dp-input"
-                value={form.campaign_links}
+            value={form.campaign_links ?? ""}
                 onChange={(e) => update("campaign_links", e.target.value)}
                 placeholder="Paste Instagram/YouTube links separated by spaces"
               />
@@ -1349,7 +1419,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
     type="number"
     className="dp-input"
     disabled={isBarter}
-    value={form.commercials}
+    value={form.commercials ?? ""}
     onChange={(e) => update("commercials", e.target.value)}
     placeholder="Enter commercial amount"
   />
@@ -1379,20 +1449,20 @@ payment_received_date: emptyToNull(form.payment_received_date),
               ℹ️ DealPass currently supports INR (₹) only. Other currencies aren't available yet.
             </div>
 
-            <Field label="Payment Mode">
+            <Field label="Payment Mode *">
               <ChipSelect
                 disabled={isBarter}
                 options={PAYMENT_MODES}
-                value={form.payment_mode}
+             value={form.payment_mode ?? ""}
                 onChange={(v) => update("payment_mode", v)}
               />
             </Field>
 
-            <Field label="Payment Status">
+            <Field label="Payment Status *">
               <ChipSelect
                 disabled={isBarter}
                 options={PAYMENT_STATUS}
-                value={form.payment_status}
+              value={form.payment_status ?? ""}
                 onChange={(v) => update("payment_status", v)}
                 colors={PAYMENT_STATUS_COLORS}
               />
@@ -1401,7 +1471,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
             <Field label="Payment Deadline">
               <DateField
                 disabled={isBarter}
-                value={form.payment_deadline}
+                value={form.payment_deadline ?? ""}
                 onChange={(value) => update("payment_deadline", value)}
                 placeholder={
                   form.payment_status === "Overdue" ? "Payment deadline (required)" : "Select payment deadline"
@@ -1418,7 +1488,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
 
             <Field label="Payment Received Date">
               <DateField
-                value={form.payment_received_date}
+              value={form.payment_received_date ?? ""}
                 onChange={(value) => update("payment_received_date", value)}
                 placeholder="Select payment received date"
                 minDate={form.confirmation_date}
@@ -1439,7 +1509,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
               <input
                 type="number"
                 className="dp-input"
-                value={form.payment_received_amount}
+                value={form.payment_received_amount ?? ""}
                 disabled={
                   isBarter || form.payment_status === "Pending" || form.payment_status === "Overdue"
                 }
@@ -1554,7 +1624,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
                   <div style={{ position: "relative" }}>
                     <input
                       className="dp-input"
-                      value={form.invoice_number}
+                      value={form.invoice_number ?? ""}
                       readOnly
                       style={{ paddingRight: 34 }}
                     />
@@ -1596,7 +1666,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
               <Field label="Transaction ID">
                 <input
                   className="dp-input"
-                  value={form.transaction_id}
+                value={form.transaction_id ?? ""}
                   onChange={(e) => update("transaction_id", e.target.value)}
                   placeholder="Optional — reference from your payment app or bank"
                 />
@@ -1610,7 +1680,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
               <textarea
                 rows={4}
                 className="dp-input"
-                value={form.notes}
+              value={form.notes ?? ""}
                 onChange={(e) => update("notes", e.target.value)}
                 placeholder="Any additional information..."
               />
