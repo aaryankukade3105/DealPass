@@ -40,16 +40,75 @@ import {
 
 
 const FORM_SECTION_META = {
-  "Brand Details": { icon: Building2, accent: "#7C5CFC", tint: "#F4F1FF", sub: "Who you're working with" },
-  "Deal Details": { icon: FileSignature, accent: "#2563EB", tint: "#EFF6FF", sub: "What you're delivering" },
-  "Status": { icon: Sparkles, accent: "#D97706", tint: "#FFF7ED", sub: "Where the deal stands" },
-  "Confirmation": { icon: CalendarCheck2, accent: "#0D9488", tint: "#F0FDFA", sub: "Lock in the collaboration" },
-  "Content": { icon: ListChecks, accent: "#0891B2", tint: "#ECFEFF", sub: "Choose exactly what you're delivering" },
-  "🎥 Shoot Details": { icon: Camera, accent: "#DB2777", tint: "#FDF2F8", sub: "Optional shoot planning" },
-  "Content Timeline": { icon: CalendarRange, accent: "#4F46E5", tint: "#EEF2FF", sub: "Deadlines and publishing" },
-  "Commercials": { icon: Wallet, accent: "#16A34A", tint: "#F0FDF4", sub: "Money and payment tracking" },
-  "Invoice": { icon: Receipt, accent: "#9333EA", tint: "#FAF5FF", sub: "Invoice references" },
-  "Notes": { icon: StickyNote, accent: "#64748B", tint: "#F8FAFC", sub: "Anything worth remembering" },
+  "Brand Details": {
+    icon: Building2,
+    accent: "#7C5CFC",
+    tint: "#F4F1FF",
+    sub: "Who’s on the other side",
+  },
+
+  "Deal Details": {
+    icon: FileSignature,
+    accent: "#2563EB",
+    tint: "#EFF6FF",
+    sub: "What’s the deal?",
+  },
+
+  "Confirmation": {
+    icon: CalendarCheck2,
+    accent: "#0D9488",
+    tint: "#F0FDFA",
+    sub: "Make it official",
+  },
+
+  "Status": {
+    icon: Sparkles,
+    accent: "#D97706",
+    tint: "#FFF7ED",
+    sub: "Where things stand",
+  },
+
+  "Content": {
+    icon: ListChecks,
+    accent: "#0891B2",
+    tint: "#ECFEFF",
+    sub: "What are you delivering?",
+  },
+
+  "🎥 Shoot Details": {
+    icon: Camera,
+    accent: "#DB2777",
+    tint: "#FDF2F8",
+    sub: "Plan the shoot",
+  },
+
+  "Content Timeline": {
+    icon: CalendarRange,
+    accent: "#4F46E5",
+    tint: "#EEF2FF",
+    sub: "When does it go live?",
+  },
+
+  "Commercials": {
+    icon: Wallet,
+    accent: "#16A34A",
+    tint: "#F0FDF4",
+    sub: "Show me the money",
+  },
+
+  "Invoice": {
+    icon: Receipt,
+    accent: "#9333EA",
+    tint: "#FAF5FF",
+    sub: "Keep the paperwork sorted",
+  },
+
+  "Notes": {
+    icon: StickyNote,
+    accent: "#64748B",
+    tint: "#F8FAFC",
+    sub: "Anything else worth noting",
+  },
 };
 
 
@@ -1002,42 +1061,46 @@ payment_received_date: emptyToNull(form.payment_received_date),
         >
           {/* ---------- 1. Brand Details ---------- */}
           <SectionWrap id="brand" title="Brand Details">
-            <Field label="Brand Name *">
-              <input
-                className="dp-input"
-                value={form.brand_name}
-                onChange={(e) => update("brand_name", e.target.value)}
-              />
-            </Field>
+     <Field label="Brand Name *">
+  <input
+    className="dp-input"
+    value={form.brand_name}
+    onChange={(e) => update("brand_name", e.target.value)}
+    placeholder="Enter brand name"
+  />
+</Field>
 
-            <Field label="POC Name">
-              <input
-                className="dp-input"
-                value={form.poc_name}
-                onChange={(e) => update("poc_name", e.target.value)}
-              />
-            </Field>
+<Field label="POC Name">
+  <input
+    className="dp-input"
+    value={form.poc_name}
+    onChange={(e) => update("poc_name", e.target.value)}
+    placeholder="Enter contact name"
+  />
+</Field>
 
-            <Field label="Contact Number">
-              <input
-                className="dp-input"
-                value={form.contact_number}
-                onChange={(e) =>
-                  update("contact_number", e.target.value.replace(/\D/g, "").slice(0, 10))
-                }
-              />
-            </Field>
+      <Field label="Contact Number">
+  <input
+    className="dp-input"
+    value={form.contact_number}
+    onChange={(e) =>
+      update("contact_number", e.target.value.replace(/\D/g, "").slice(0, 10))
+    }
+    placeholder="Enter contact number"
+  />
+</Field>
           </SectionWrap>
 
           {/* ---------- 2. Deal Details ---------- */}
           <SectionWrap id="deal" title="Deal Details">
-            <Field label="Deal Title *">
-              <input
-                className="dp-input"
-                value={form.deal_title}
-                onChange={(e) => update("deal_title", e.target.value)}
-              />
-            </Field>
+    <Field label="Deal Title *">
+  <input
+    className="dp-input"
+    value={form.deal_title}
+    onChange={(e) => update("deal_title", e.target.value)}
+    placeholder="Enter deal title"
+  />
+</Field>
 
             <Field label="Collaboration Type">
               <ChipSelect
@@ -1182,26 +1245,26 @@ payment_received_date: emptyToNull(form.payment_received_date),
               )}
             </Field>
 
-            <Field label="Shoot Location">
-              <input
-                className="dp-input"
-                disabled={!canEditShoot}
-                placeholder="e.g. Taampopo, Baner"
-                value={form.shoot_location || ""}
-                onChange={(e) => update("shoot_location", e.target.value)}
-              />
-            </Field>
+          <Field label="Shoot Location">
+  <input
+    className="dp-input"
+    disabled={!canEditShoot}
+    placeholder="Enter shoot location"
+    value={form.shoot_location || ""}
+    onChange={(e) => update("shoot_location", e.target.value)}
+  />
+</Field>
 
-            <Field label="Shoot Notes">
-              <textarea
-                disabled={!canEditShoot}
-                className="dp-input"
-                rows={3}
-                placeholder="Parking, owner contact, props, timings..."
-                value={form.shoot_notes || ""}
-                onChange={(e) => update("shoot_notes", e.target.value)}
-              />
-            </Field>
+        <Field label="Shoot Notes">
+  <textarea
+    disabled={!canEditShoot}
+    className="dp-input"
+    rows={3}
+    placeholder="Add shoot notes"
+    value={form.shoot_notes || ""}
+    onChange={(e) => update("shoot_notes", e.target.value)}
+  />
+</Field>
           </SectionWrap>
 
           {/* ---------- 7. Content timeline ---------- */}
@@ -1281,34 +1344,24 @@ payment_received_date: emptyToNull(form.payment_received_date),
               </div>
             )}
 
-            <Field label="Commercials *">
-              <input
-                type="number"
-                className="dp-input"
-                disabled={isBarter}
-                value={form.commercials}
-                onChange={(e) => update("commercials", e.target.value)}
-              />
-            </Field>
-
-            <Field label="Currency">
-              <ChipSelect
-                disabled={isBarter}
-                options={CURRENCIES}
-                value={form.currency}
-                onChange={(v) => {
-                  if (v !== "INR") {
-                    showAlert(
-                      "warning",
-                      "INR Only",
-                      "DealPass currently supports INR only. Support for other currencies is coming soon."
-                    );
-                    return;
-                  }
-                  update("currency", v);
-                }}
-              />
-            </Field>
+          <Field label="Commercials *">
+  <input
+    type="number"
+    className="dp-input"
+    disabled={isBarter}
+    value={form.commercials}
+    onChange={(e) => update("commercials", e.target.value)}
+    placeholder="Enter commercial amount"
+  />
+</Field>
+          <Field label="Currency">
+  <ChipSelect
+    disabled
+    options={CURRENCIES}
+    value="INR"
+    onChange={() => {}}
+  />
+</Field>
 
             <div
               style={{

@@ -9,11 +9,11 @@ export function formatINR(value) {
 }
 
 export function formatDate(date) {
-  if (!date) return "—";
+  if (!date) return "Not available";
 
   const d = new Date(date);
 
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return "Not available";
 
   return d.toLocaleDateString("en-IN", {
     day: "2-digit",

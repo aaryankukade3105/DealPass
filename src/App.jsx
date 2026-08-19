@@ -886,7 +886,13 @@ await deleteDeal(deletedId);
   return (
     <div className="dp-root">
       <div className="dp-canvas">
-        <Header onMenu={() => setDrawerOpen(true)} title={PAGE_TITLES[page]} account={account} />
+        <Header
+  onMenu={() => setDrawerOpen(true)}
+  title={PAGE_TITLES[page]}
+  account={account}
+  onOpenProfile={() => setPage("profile")}
+  onLogout={() => setLogoutOpen(true)}
+/>
 
         {page === "dashboard" && (
       <DashboardPage

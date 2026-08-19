@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   X,
   CreditCard,
@@ -8,73 +9,86 @@ import {
   RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
+import {
+  PAYMENT_STATUS_COLORS,
+  DEAL_STATUS_COLORS,
+  COLLABORATION_TYPE_COLORS,
+} from "../../utils/constants";
 
-const Section = ({ icon, title, options, value, onChange }) => (
-  <div style={{ marginBottom: 24 }}>
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 12,
-        fontWeight: 700,
-        fontSize: 13,
-        color: "rgba(20,20,30,0.55)",
-        textTransform: "uppercase",
-        letterSpacing: 0.4,
-      }}
-    >
-      {icon}
-      {title}
+/* ------------------------------------------------------------------ */
+/*  Section accents — same pattern as the Dashboard's Action Center     */
+/*  rows and DealFormSheet's section headers: a tinted icon box with a  */
+/*  matching accent, not one global purple everywhere.                  */
+/* ------------------------------------------------------------------ */
+const SECTION_META = {
+  payment: { icon: CreditCard, accent: "#2563EB", tint: "#DBEAFE", label: "Payment Status" },
+  dealStatus: { icon: Clapperboard, accent: "#7C3AED", tint: "#EDE9FE", label: "Deal Status" },
+  invoice: { icon: Receipt, accent: "#16A34A", tint: "#DCFCE7", label: "Invoice" },
+  collaboration: { icon: Handshake, accent: "#D97706", tint: "#FEF3C7", label: "Collaboration" },
+};
+
+// Falls back to a section's own accent for options that don't have a
+// dedicated status color (e.g. "All", "Created", "Not Created").
+function chipColorFor(sectionId, option, colorMap) {
+  if (option === "All") return "var(--slate)";
+  return colorMap?.[option] || SECTION_META[sectionId].accent;
+}
+
+function Section({ id, options, value, onChange, colorMap }) {
+  const meta = SECTION_META[id];
+  const Icon = meta.icon;
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <div
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 8,
+            background: meta.tint,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon size={13} color={meta.accent} strokeWidth={2.4} />
+        </div>
+        <div className="dp-label" style={{ marginBottom: 0 }}>
+          {meta.label}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {options.map((option) => {
+          const active = value === option;
+          const color = chipColorFor(id, option, colorMap);
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onChange(option)}
+              className="dp-chip"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                border: active ? `1.5px solid ${color}` : "1px solid var(--line)",
+                background: active ? `${color}15` : "var(--surface, #fff)",
+                color: active ? color : "var(--slate)",
+                fontWeight: active ? 700 : 600,
+              }}
+            >
+              {active && <Check size={12} strokeWidth={3} />}
+              {option}
+            </button>
+          );
+        })}
+      </div>
     </div>
-
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 8,
-      }}
-    >
-      {options.map((option) => {
-        const active = value === option;
-
-        return (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onChange(option)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "9px 14px",
-              borderRadius: 999,
-              border: active
-                ? "1px solid rgba(108,92,231,0.55)"
-                : "1px solid rgba(20,20,30,0.10)",
-              background: active
-                ? "linear-gradient(135deg, rgba(108,92,231,0.95), rgba(130,110,255,0.85))"
-                : "rgba(255,255,255,0.35)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-              color: active ? "#fff" : "rgba(20,20,30,0.8)",
-              fontSize: 13.5,
-              fontWeight: active ? 700 : 500,
-              cursor: "pointer",
-              transition: "all .18s ease",
-              boxShadow: active
-                ? "0 4px 14px rgba(108,92,231,0.35)"
-                : "none",
-            }}
-          >
-            {active && <Check size={13} strokeWidth={3} />}
-            {option}
-          </button>
-        );
-      })}
-    </div>
-  </div>
-);
+  );
+}
 
 const DEFAULT_FILTERS = {
   payment: "All",
@@ -87,78 +101,56 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
   if (!open) return null;
 
   const reset = () => setFilters(DEFAULT_FILTERS);
-
   const activeCount = Object.values(filters).filter((v) => v !== "All").length;
 
   return (
     <>
-      {/* Backdrop — blurred but bg still visible */}
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(20,20,35,0.28)",
-          backdropFilter: "blur(3px)",
-          WebkitBackdropFilter: "blur(3px)",
-          zIndex: 998,
-          animation: "dpFadeIn .18s ease",
-        }}
-      />
+      <div className="dp-sheet-backdrop" onClick={onClose} />
 
       <div
+        className="dp-sheet"
         style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
+          top: "auto",
           bottom: 0,
-          zIndex: 999,
           maxHeight: "82vh",
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: "24px 24px 0 0",
-          background: "rgba(255,255,255,0.55)",
-          backdropFilter: "blur(24px) saturate(180%)",
-          WebkitBackdropFilter: "blur(24px) saturate(180%)",
-          border: "1px solid rgba(255,255,255,0.6)",
-          borderBottom: "none",
-          boxShadow: "0 -8px 40px rgba(20,20,40,0.25)",
+          borderRadius: "22px 22px 0 0",
           animation: "dpSlideUp .22s cubic-bezier(.32,.72,.35,1)",
         }}
       >
         {/* Drag handle */}
         <div
           style={{
-            width: 40,
+            width: 38,
             height: 4,
             borderRadius: 999,
-            background: "rgba(20,20,30,0.18)",
-            margin: "10px auto 4px",
+            background: "var(--line)",
+            margin: "10px auto 2px",
+            flexShrink: 0,
           }}
         />
 
-        {/* Header */}
+        {/* Header — same layout/border as DealFormSheet's header */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "10px 20px 16px",
-            borderBottom: "1px solid rgba(20,20,30,0.08)",
+            padding: "12px 18px 14px",
+            borderBottom: "1px solid var(--line)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <SlidersHorizontal size={18} color="#6C5CE7" />
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>
+            <SlidersHorizontal size={17} color="var(--signal)" />
+            <div className="dp-display" style={{ fontSize: 17, fontWeight: 800 }}>
               Filters
-            </h3>
+            </div>
             {activeCount > 0 && (
               <span
                 style={{
                   fontSize: 11,
                   fontWeight: 800,
                   color: "#fff",
-                  background: "#6C5CE7",
+                  background: "var(--signal)",
                   borderRadius: 999,
                   padding: "2px 7px",
                   minWidth: 18,
@@ -171,38 +163,34 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             style={{
               border: "none",
-              background: "rgba(20,20,30,0.06)",
+              background: "#F1F2F8",
               cursor: "pointer",
               display: "flex",
               padding: 8,
               borderRadius: 999,
+              color: "var(--slate)",
             }}
           >
-            <X size={17} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div
-          style={{
-            padding: "18px 20px 8px",
-            overflowY: "auto",
-          }}
-        >
+        <div className="dp-scroll" style={{ padding: "18px 18px 6px", overflowY: "auto", flex: 1 }}>
           <Section
-            icon={<CreditCard size={15} color="#6C5CE7" />}
-            title="Payment Status"
+            id="payment"
             options={["All", "Pending", "Partially Paid", "Paid", "Overdue", "Barter"]}
             value={filters.payment}
             onChange={(payment) => setFilters((p) => ({ ...p, payment }))}
+            colorMap={PAYMENT_STATUS_COLORS}
           />
 
           <Section
-            icon={<Clapperboard size={15} color="#6C5CE7" />}
-            title="Deal Status"
+            id="dealStatus"
             options={[
               "All",
               "Negotiation",
@@ -215,73 +203,64 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
             ]}
             value={filters.dealStatus}
             onChange={(dealStatus) => setFilters((p) => ({ ...p, dealStatus }))}
+            colorMap={DEAL_STATUS_COLORS}
           />
 
           <Section
-            icon={<Receipt size={15} color="#6C5CE7" />}
-            title="Invoice"
+            id="invoice"
             options={["All", "Created", "Not Created"]}
             value={filters.invoice}
             onChange={(invoice) => setFilters((p) => ({ ...p, invoice }))}
           />
 
           <Section
-            icon={<Handshake size={15} color="#6C5CE7" />}
-            title="Collaboration"
+            id="collaboration"
             options={["All", "Paid", "Barter"]}
             value={filters.collaboration}
-            onChange={(collaboration) =>
-              setFilters((p) => ({ ...p, collaboration }))
-            }
+            onChange={(collaboration) => setFilters((p) => ({ ...p, collaboration }))}
+            colorMap={COLLABORATION_TYPE_COLORS}
           />
         </div>
 
-        {/* Footer */}
+        {/* Footer — same button language as DealFormSheet's save control */}
         <div
           style={{
             display: "flex",
             gap: 10,
-            padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 16px)",
-            borderTop: "1px solid rgba(20,20,30,0.08)",
-            background: "rgba(255,255,255,0.35)",
+            padding: "14px 18px calc(env(safe-area-inset-bottom, 0px) + 16px)",
+            borderTop: "1px solid var(--line)",
+            background: "var(--surface, #fff)",
+            flexShrink: 0,
           }}
         >
           <button
+            type="button"
             onClick={reset}
             style={{
               flex: 1,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 8,
+              gap: 7,
               padding: "13px 0",
-              borderRadius: 14,
-              border: "1px solid rgba(20,20,30,0.14)",
-              background: "rgba(255,255,255,0.5)",
+              borderRadius: 12,
+              border: "1px solid var(--line)",
+              background: "var(--surface, #fff)",
               fontWeight: 700,
-              fontSize: 14,
+              fontSize: 13.5,
               cursor: "pointer",
-              color: "rgba(20,20,30,0.75)",
+              color: "var(--slate)",
             }}
           >
-            <RotateCcw size={15} />
+            <RotateCcw size={14} />
             Reset
           </button>
 
           <button
+            type="button"
             onClick={onClose}
-            style={{
-              flex: 1.4,
-              padding: "13px 0",
-              borderRadius: 14,
-              border: "none",
-              background: "linear-gradient(135deg, #ce5ce7, #8E7CFF)",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 14,
-              cursor: "pointer",
-              boxShadow: "0 6px 18px rgba(227, 28, 214, 0.4)",
-            }}
+            className="dp-btn-signal"
+            style={{ flex: 1.4 }}
           >
             Show results
           </button>
@@ -289,10 +268,6 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
       </div>
 
       <style>{`
-        @keyframes dpFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
         @keyframes dpSlideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
