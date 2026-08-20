@@ -50,8 +50,6 @@ import {
 /* Purely presentational helpers — no data/behavior changes below.    */
 /* ------------------------------------------------------------------ */
 
-// Time-of-day greeting. Cosmetic only, derived from the clock, doesn't
-// touch any deal/account data or state.
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 5) return "Still up,";
@@ -61,8 +59,6 @@ function getGreeting() {
   return "Working late,";
 }
 
-// A single small badge telling you, at a glance, how far away a shoot is —
-// this is what replaces burying that information inside a plain date string.
 function shootCountdown(dateStr) {
   const d = new Date(dateStr);
   d.setHours(0, 0, 0, 0);
@@ -88,13 +84,6 @@ function shootBadge(shoot) {
   return shootCountdown(shoot.shoot_date);
 }
 
-/* ------------------------------------------------------------------ */
-/* Revenue recognition — mirrors utils/dashboard.js exactly, so the    */
-/* month-scoped analytics below (Revenue, Average Deal, Highest Deal,  */
-/* Top Brand, the weekly chart) agree with the headline earnings card. */
-/* A deal counts once money has actually landed: "Paid" in full, or    */
-/* "Partially Paid" for just the portion actually received so far.    */
-/* ------------------------------------------------------------------ */
 function isRevenueRecognized(deal) {
   return (
     (deal.payment_status === "Paid" || deal.payment_status === "Partially Paid") &&
@@ -170,8 +159,6 @@ const analyticsDeals = useMemo(() => {
   });
 }, [deals, analyticsMonth]);
 
-// Deals that actually contributed received money in the selected month —
-// now includes Partially Paid, not just fully Paid.
 const revenueDeals = useMemo(() => {
   return deals.filter((deal) => {
     if (!isRevenueRecognized(deal)) return false;
@@ -210,11 +197,8 @@ const monthlyRevenueChart = useMemo(() => {
   const grouped = {};
 
   deals.forEach((deal) => {
-    // Counts any deal with money actually received — Paid in full, or
-    // Partially Paid for the portion received so far.
     if (!isRevenueRecognized(deal)) return;
 
-    // Revenue belongs to the month payment was received
     const month = new Date(deal.payment_received_date).toLocaleString(
       "default",
       {
@@ -239,19 +223,13 @@ const highestDealAmount = useMemo(() => {
 
   return Math.max(...revenueDeals.map(recognizedAmount));
 }, [revenueDeals]);
-// Cosmetic-only: greeting text, derived purely from the clock.
+
 const greeting = useMemo(() => getGreeting(), []);
 
-// stats.paymentHealth was already being computed in utils/dashboard.js but
-// never rendered anywhere. Surfacing it here is a display-only addition —
-// no new data, no new computation, nothing else in the app changes.
 const health = stats.paymentHealth;
 
 const nextShoot = stats.upcomingShoots[0] || null;
 
-// --- NEW: Paid vs Barter breakdown, all-time, for the Collaboration Mix
-// card below. Pure display + click-to-filter, no new data source — just
-// counts collaboration_type across the full deals list.
 const collaborationMix = useMemo(() => {
   const paid = deals.filter((d) => d.collaboration_type === "Paid").length;
   const barter = deals.filter((d) => d.collaboration_type === "Barter").length;
@@ -278,9 +256,6 @@ const formatShootTime = (time) => {
   );
 };
 
-// Everything the "Shoot Schedule" card needs to show, in one flat,
-// chronologically-sensible list: overdue first (needs attention), then
-// today, tomorrow, and the rest — capped so the card doesn't run away.
 const scheduleShoots = useMemo(() => {
   const seen = new Set();
   const combined = [];
@@ -1054,7 +1029,17 @@ const extraShootCount = Math.max(
 
   <button
     type="button"
-    onClick={() => onFilterDeals?.({ dealStatus: "Pending" })}
+    onClick={() =>
+      onFilterDeals?.({
+        dealStatus: [
+          "Confirmed",
+          "Content Shot",
+          "Editing",
+          "Submitted for Approval",
+          "Approved",
+        ],
+      })
+    }
     className="dpx-row"
     style={{
       display: "flex",
@@ -1103,9 +1088,6 @@ const extraShootCount = Math.max(
     </div>
   </button>
 </div>
-{/* --- NEW: Payment Health gauge. Purely a display of stats.paymentHealth,
-     which was already being computed in utils/dashboard.js but never shown
-     anywhere in the UI. No new data, no new logic. --- */}
 {health && health.score !== null && (
   <div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
     <div
@@ -1229,11 +1211,6 @@ const extraShootCount = Math.max(
   </div>
 )}
 
-{/* --- NEW: Collaboration Mix — Paid vs Barter breakdown, all time.
-     Interactive: clicking either the donut slice or a legend row jumps
-     straight to that filtered deal list, same pattern as the Action
-     Center rows above (onFilterDeals). Purely derived from deals already
-     in memory — no new data source. --- */}
 <div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
     <div

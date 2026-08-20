@@ -11,6 +11,21 @@ const DEFAULT_FILTERS = {
   collaboration: "All",
 };
 
+// Friendly labels for filter chips that were applied as an array (e.g. the
+// Dashboard's "Pending Content" shortcut selects several deal statuses at
+// once). Falls back to "N selected" for anything not explicitly named here.
+const ARRAY_FILTER_LABELS = {
+  dealStatus: {
+    "Confirmed,Content Shot,Editing,Submitted for Approval,Approved": "Pending Content",
+  },
+};
+
+function describeFilterValue(key, value) {
+  if (!Array.isArray(value)) return value;
+  const named = ARRAY_FILTER_LABELS[key]?.[value.join(",")];
+  return named || `${value.length} selected`;
+}
+
 const PageStyle = () => (
   <style>{`
     .dp-deals-search {
@@ -87,14 +102,22 @@ function DealsPage({
         return false;
       }
 
-      // Payment Status
-      if (filters.payment !== "All" && d.payment_status !== filters.payment) {
-        return false;
+      // Payment Status — supports a single string or an array of statuses
+      if (filters.payment !== "All") {
+        const matches = Array.isArray(filters.payment)
+          ? filters.payment.includes(d.payment_status)
+          : d.payment_status === filters.payment;
+        if (!matches) return false;
       }
 
-      // Deal Status
-      if (filters.dealStatus !== "All" && d.deal_status !== filters.dealStatus) {
-        return false;
+      // Deal Status — supports a single string or an array of statuses
+      // (e.g. the Dashboard's "Pending Content" shortcut passes an array
+      // covering every status that still counts as "in the pipeline")
+      if (filters.dealStatus !== "All") {
+        const matches = Array.isArray(filters.dealStatus)
+          ? filters.dealStatus.includes(d.deal_status)
+          : d.deal_status === filters.dealStatus;
+        if (!matches) return false;
       }
 
       // Invoice
@@ -104,12 +127,12 @@ function DealsPage({
         if (filters.invoice === "Not Created" && hasInvoice) return false;
       }
 
-      // Collaboration type
-      if (
-        filters.collaboration !== "All" &&
-        d.collaboration_type !== filters.collaboration
-      ) {
-        return false;
+      // Collaboration type — supports a single string or an array
+      if (filters.collaboration !== "All") {
+        const matches = Array.isArray(filters.collaboration)
+          ? filters.collaboration.includes(d.collaboration_type)
+          : d.collaboration_type === filters.collaboration;
+        if (!matches) return false;
       }
 
       return true;
@@ -264,7 +287,7 @@ function DealsPage({
                   cursor: "pointer",
                 }}
               >
-                {value}
+                {describeFilterValue(key, value)}
                 <X size={12} strokeWidth={3} />
               </button>
             ) : null

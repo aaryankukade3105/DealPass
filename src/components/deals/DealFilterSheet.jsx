@@ -10,6 +10,9 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import {
+  PAYMENT_STATUS,
+  DEAL_STATUS,
+  COLLABORATION_TYPES,
   PAYMENT_STATUS_COLORS,
   DEAL_STATUS_COLORS,
   COLLABORATION_TYPE_COLORS,
@@ -31,7 +34,7 @@ const SECTION_META = {
 // dedicated status color (e.g. "All", "Created", "Not Created").
 function chipColorFor(sectionId, option, colorMap) {
   if (option === "All") return "var(--slate)";
-  return colorMap?.[option] || SECTION_META[sectionId].accent;
+  return colorMap?.[option]?.text || colorMap?.[option] || SECTION_META[sectionId].accent;
 }
 
 function Section({ id, options, value, onChange, colorMap }) {
@@ -62,7 +65,13 @@ function Section({ id, options, value, onChange, colorMap }) {
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {options.map((option) => {
-          const active = value === option;
+          // value can be a single string (chip picked from this sheet) or
+          // an array (a shortcut applied from the Dashboard, e.g. "Pending
+          // Content" selecting several deal statuses at once) — handle both
+          // so the right chips light up either way.
+          const active = Array.isArray(value)
+            ? value.includes(option)
+            : value === option;
           const color = chipColorFor(id, option, colorMap);
           return (
             <button
@@ -183,7 +192,7 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
         <div className="dp-scroll" style={{ padding: "18px 18px 6px", overflowY: "auto", flex: 1 }}>
           <Section
             id="payment"
-            options={["All", "Pending", "Partially Paid", "Paid", "Overdue", "Barter"]}
+            options={["All", ...PAYMENT_STATUS]}
             value={filters.payment}
             onChange={(payment) => setFilters((p) => ({ ...p, payment }))}
             colorMap={PAYMENT_STATUS_COLORS}
@@ -191,16 +200,7 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
 
           <Section
             id="dealStatus"
-            options={[
-              "All",
-              "Negotiation",
-              "Confirmed",
-              "Content Shot",
-              "Content Submitted",
-              "Posted",
-              "Completed",
-              "Cancelled",
-            ]}
+            options={["All", ...DEAL_STATUS]}
             value={filters.dealStatus}
             onChange={(dealStatus) => setFilters((p) => ({ ...p, dealStatus }))}
             colorMap={DEAL_STATUS_COLORS}
@@ -215,7 +215,7 @@ function DealFilterSheet({ open, onClose, filters, setFilters }) {
 
           <Section
             id="collaboration"
-            options={["All", "Paid", "Barter"]}
+            options={["All", ...COLLABORATION_TYPES]}
             value={filters.collaboration}
             onChange={(collaboration) => setFilters((p) => ({ ...p, collaboration }))}
             colorMap={COLLABORATION_TYPE_COLORS}
