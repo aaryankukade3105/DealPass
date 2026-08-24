@@ -195,9 +195,23 @@ const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
     e.preventDefault();
 
     if (mode === "signup") {
-      if (!name.trim()) {
-        return showAlert("warning", "Full Name Required", "Please enter your full name.");
-      }
+     if (!name.trim()) {
+  return showAlert(
+    "warning",
+    "Full Name Required",
+    "Please enter your full name."
+  );
+}
+
+const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
+
+if (!nameRegex.test(name.trim())) {
+  return showAlert(
+    "warning",
+    "Invalid Name",
+    "Please use letters and spaces only."
+  );
+}
 
       if (!identifier.trim()) {
         return showAlert("warning", "Email Required", "Please enter your email address.");
@@ -365,7 +379,10 @@ if (!hasSpecial) {
                 <input
                   className="dp-auth-input"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+  const value = e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, "");
+  setName(value);
+}}
                   placeholder="Enter your name"
                 />
               </div>

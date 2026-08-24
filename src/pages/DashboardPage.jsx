@@ -1211,142 +1211,6 @@ const extraShootCount = Math.max(
   </div>
 )}
 
-<div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-    <div
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: 10,
-        background: "#F3E8FF",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-      }}
-    >
-      <Handshake size={18} strokeWidth={2.4} color="#7C3AED" />
-    </div>
-    <div>
-      <div className="dp-display" style={{ fontSize: 16, fontWeight: 800 }}>
-        Collaboration Mix
-      </div>
-      <div style={{ fontSize: 12, color: "var(--slate)" }}>
-        Paid vs Barter, all time
-      </div>
-    </div>
-  </div>
-
-  {collaborationMix.total === 0 ? (
-    <div style={{ textAlign: "center", color: "var(--slate)", padding: "22px 0", fontSize: 13 }}>
-      No deals yet to break down.
-    </div>
-  ) : (
-    <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-      <div style={{ position: "relative", width: 104, height: 104, flexShrink: 0 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={[
-                { name: "Paid", value: collaborationMix.paid },
-                { name: "Barter", value: collaborationMix.barter },
-              ]}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={34}
-              outerRadius={50}
-              paddingAngle={collaborationMix.paid && collaborationMix.barter ? 3 : 0}
-              stroke="none"
-              cursor="pointer"
-              onClick={(entry) =>
-                onFilterDeals?.({ collaboration: entry.name })
-              }
-            >
-              <Cell fill="#16A34A" />
-              <Cell fill="#D97706" />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <div className="dp-display" style={{ fontSize: 19, fontWeight: 800 }}>
-            {collaborationMix.total}
-          </div>
-          <div style={{ fontSize: 10, color: "var(--slate)", fontWeight: 600 }}>
-            deals
-          </div>
-        </div>
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <button
-          type="button"
-          onClick={() => onFilterDeals?.({ collaboration: "Paid" })}
-          className="dpx-row"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            width: "100%",
-            textAlign: "left",
-            border: "none",
-            background: "transparent",
-            padding: "9px 8px",
-            cursor: "pointer",
-            font: "inherit",
-            color: "inherit",
-          }}
-        >
-          <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 600 }}>
-            <span style={{ width: 9, height: 9, borderRadius: 999, background: "#16A34A", display: "inline-block", flexShrink: 0 }} />
-            Paid
-          </span>
-          <span style={{ fontSize: 13.5, fontWeight: 800, color: "#16A34A" }}>
-            {collaborationMix.paid} · {collaborationMix.paidPct}%
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onFilterDeals?.({ collaboration: "Barter" })}
-          className="dpx-row"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            width: "100%",
-            textAlign: "left",
-            border: "none",
-            background: "transparent",
-            padding: "9px 8px",
-            cursor: "pointer",
-            font: "inherit",
-            color: "inherit",
-          }}
-        >
-          <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 600 }}>
-            <span style={{ width: 9, height: 9, borderRadius: 999, background: "#D97706", display: "inline-block", flexShrink: 0 }} />
-            Barter
-          </span>
-          <span style={{ fontSize: 13.5, fontWeight: 800, color: "#D97706" }}>
-            {collaborationMix.barter} · {collaborationMix.barterPct}%
-          </span>
-        </button>
-      </div>
-    </div>
-  )}
-</div>
-
 <div className="dp-card dpx-card" style={{ padding: 18, marginBottom: 16 }}>
 
   <div
@@ -1547,6 +1411,141 @@ const extraShootCount = Math.max(
   ))}
 
 </div>
+</div>
+<div className="dp-card dpx-card" style={{ padding: 20, marginBottom: 16 }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        background: "#F3E8FF",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <Handshake size={18} strokeWidth={2.4} color="#7C3AED" />
+    </div>
+    <div>
+      <div className="dp-display" style={{ fontSize: 16, fontWeight: 800 }}>
+        Collaboration Mix
+      </div>
+      <div style={{ fontSize: 12, color: "var(--slate)" }}>
+        Paid vs Barter, all time
+      </div>
+    </div>
+  </div>
+
+  {collaborationMix.total === 0 ? (
+    <div style={{ textAlign: "center", color: "var(--slate)", padding: "22px 0", fontSize: 13 }}>
+      No deals yet to break down.
+    </div>
+  ) : (
+    <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+      <div style={{ position: "relative", width: 104, height: 104, flexShrink: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={[
+                { name: "Paid", value: collaborationMix.paid },
+                { name: "Barter", value: collaborationMix.barter },
+              ]}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={34}
+              outerRadius={50}
+              paddingAngle={collaborationMix.paid && collaborationMix.barter ? 3 : 0}
+              stroke="none"
+              cursor="pointer"
+              onClick={(entry) =>
+                onFilterDeals?.({ collaboration: entry.name })
+              }
+            >
+              <Cell fill="#16A34A" />
+              <Cell fill="#D97706" />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div className="dp-display" style={{ fontSize: 19, fontWeight: 800 }}>
+            {collaborationMix.total}
+          </div>
+          <div style={{ fontSize: 10, color: "var(--slate)", fontWeight: 600 }}>
+            deals
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+        <button
+          type="button"
+          onClick={() => onFilterDeals?.({ collaboration: "Paid" })}
+          className="dpx-row"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            width: "100%",
+            textAlign: "left",
+            border: "none",
+            background: "transparent",
+            padding: "9px 8px",
+            cursor: "pointer",
+            font: "inherit",
+            color: "inherit",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 600 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 999, background: "#16A34A", display: "inline-block", flexShrink: 0 }} />
+            Paid
+          </span>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: "#16A34A" }}>
+            {collaborationMix.paid} · {collaborationMix.paidPct}%
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onFilterDeals?.({ collaboration: "Barter" })}
+          className="dpx-row"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            width: "100%",
+            textAlign: "left",
+            border: "none",
+            background: "transparent",
+            padding: "9px 8px",
+            cursor: "pointer",
+            font: "inherit",
+            color: "inherit",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 600 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 999, background: "#D97706", display: "inline-block", flexShrink: 0 }} />
+            Barter
+          </span>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: "#D97706" }}>
+            {collaborationMix.barter} · {collaborationMix.barterPct}%
+          </span>
+        </button>
+      </div>
+    </div>
+  )}
 </div>
       {hasChartData && (
         <div className="dp-card dpx-card" style={{ padding: "16px 8px 8px", marginBottom: 16 }}>

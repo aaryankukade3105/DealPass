@@ -23,6 +23,18 @@ function hasValue(v) {
   return v !== undefined && v !== null && String(v).trim() !== "";
 }
 
+// Formats a stored "HH:MM" (24hr) shoot_time into a human "h:MM AM/PM" string.
+function formatShootTime(value) {
+  if (!hasValue(value)) return "";
+  const [hStr, mStr] = String(value).split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  if (Number.isNaN(h) || Number.isNaN(m)) return value;
+  const period = h >= 12 ? "PM" : "AM";
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${hh}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 function buildPrintHTML({ deal, account, fileTitle, logoUrl }) {
   // Returns "" for empty values so callers can filter them out before
   // deciding whether a whole section has anything worth showing.
@@ -103,6 +115,12 @@ function buildPrintHTML({ deal, account, fileTitle, logoUrl }) {
     row("Phone", deal.contact_number),
   ]);
 
+  const shootHTML = section("Shoot Details", [
+    row("Date", hasValue(deal.shoot_date) ? formatDate(deal.shoot_date) : ""),
+    row("Time", hasValue(deal.shoot_time) ? formatShootTime(deal.shoot_time) : ""),
+    row("Location", deal.shoot_location),
+  ]);
+
   const paymentHTML = section("Payment", [
     row("Mode", deal.payment_mode),
     row("Deadline", hasValue(deal.payment_deadline) ? formatDate(deal.payment_deadline) : ""),
@@ -130,7 +148,7 @@ function buildPrintHTML({ deal, account, fileTitle, logoUrl }) {
     row("Transaction", deal.transaction_id),
   ]);
 
-  const leftColumnHTML = dealDetailsHTML + contactHTML + paymentHTML;
+  const leftColumnHTML = dealDetailsHTML + contactHTML + shootHTML + paymentHTML;
   const rightColumnHTML = deliverablesHTML + timelineHTML + invoiceHTML;
 
   const statusChipsHTML = [
@@ -418,6 +436,11 @@ function DealPreview({ deal, account, onClose }) {
 
   const hasContact = hasValue(deal.poc_name) || hasValue(deal.contact_number);
 
+  const hasShoot =
+    hasValue(deal.shoot_date) ||
+    hasValue(deal.shoot_time) ||
+    hasValue(deal.shoot_location);
+
   const hasPayment =
     hasValue(deal.payment_mode) ||
     hasValue(deal.payment_deadline) ||
@@ -556,6 +579,7 @@ function DealPreview({ deal, account, onClose }) {
           </div>
         )}
 
+        {/* Left chip = deal status, right chip = payment status */}
         {(hasValue(deal.deal_status) || hasValue(deal.payment_status)) && (
           <div style={{ marginBottom: 18 }}>
             {hasValue(deal.deal_status) && <span style={chipStyle("#DDF7E8")}>{deal.deal_status}</span>}
@@ -592,6 +616,18 @@ function DealPreview({ deal, account, onClose }) {
           <Section title="CONTACT">
             <Field label="POC" value={deal.poc_name} />
             <Field label="Phone" value={deal.contact_number} />
+          </Section>
+        )}
+
+        {hasShoot && (
+          <Section title="SHOOT DETAILS">
+            {hasValue(deal.shoot_date) && (
+              <div><b>Date:</b> {formatDate(deal.shoot_date)}</div>
+            )}
+            {hasValue(deal.shoot_time) && (
+              <div><b>Time:</b> {formatShootTime(deal.shoot_time)}</div>
+            )}
+            <Field label="Location" value={deal.shoot_location} />
           </Section>
         )}
 

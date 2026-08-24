@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DealPass</string>
+    <string name="title_activity_main">DealPass</string>
+    <string name="package_name">com.aaryan.dealpass</string>
+    <string name="custom_url_scheme">com.aaryan.dealpass</string>
+</resources>

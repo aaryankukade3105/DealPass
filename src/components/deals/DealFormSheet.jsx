@@ -717,7 +717,7 @@ const canEditShoot = ![
           next.payment_received_amount = "";
         } else {
           next.currency = "INR";
-          next.payment_mode = "UPI";
+          next.payment_mode = "";
           next.payment_status = "Pending";
         }
       }
