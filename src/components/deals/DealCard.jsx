@@ -1,5 +1,35 @@
-import { Pencil, Trash2, FileText } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  FileText,
+  Clock3,
+  MapPin,
+  ArrowUpRight,
+} from "lucide-react";
+
 import { formatINR, formatDate } from "../../utils/formatters";
+
+import {
+  DEAL_STATUS_COLORS,
+  PAYMENT_STATUS_COLORS,
+  COLLABORATION_TYPE_COLORS,
+} from "../../utils/constants";
+
+function formatDisplayTime(value) {
+  if (!value) return "";
+
+  const [h, m] = value.split(":").map(Number);
+
+  if (Number.isNaN(h) || Number.isNaN(m)) {
+    return value;
+  }
+
+  const period = h >= 12 ? "PM" : "AM";
+  const hh = h % 12 === 0 ? 12 : h % 12;
+
+  return `${hh}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 function DealCard({
   deal,
   onClick,
@@ -8,152 +38,366 @@ function DealCard({
   onGenerateInvoice,
   compact,
 }) {
-  const statusInfo =
-  deal.collaboration_type === "Barter"
-    ? {
-        label: "Barter",
-        color: "#8B5CF6", // Purple
-      }
-    : deal.payment_status === "Paid"
-    ? {
-        label: "Paid",
-        color: "var(--mint)",
-      }
-    : {
-        label: deal.payment_status,
-        color: "var(--amber)",
-      };
+  const dealStatus =
+    DEAL_STATUS_COLORS?.[deal.deal_status] || {
+      bg: "#F3F4F6",
+      text: "#4B5563",
+      border: "#D1D5DB",
+    };
+
+  const paymentStatus =
+    deal.collaboration_type === "Barter"
+      ? COLLABORATION_TYPE_COLORS?.Barter || {
+          bg: "#F3E8FF",
+          text: "#7E22CE",
+          border: "#D8B4FE",
+        }
+      : PAYMENT_STATUS_COLORS?.[deal.payment_status] || {
+          bg: "#F3F4F6",
+          text: "#4B5563",
+          border: "#D1D5DB",
+        };
+
+  const deliverables = Array.isArray(deal.deliverables)
+    ? deal.deliverables
+    : [];
+
+  const hasShootInfo = Boolean(
+    deal.shoot_date || deal.shoot_location
+  );
+
+  const isBarter = deal.collaboration_type === "Barter";
+
+  const isPaid =
+    !isBarter && deal.payment_status === "Paid";
 
   return (
-    <div
-      className="dp-card"
-      style={{ display: "flex", overflow: "hidden", marginBottom: 12, cursor: onClick ? "pointer" : "default" }}
+    <article
+      className="dp-tier-card"
       onClick={onClick}
+      style={{
+        cursor: onClick ? "pointer" : "default",
+      }}
     >
-      <div style={{ flex: 1, padding: 14, minWidth: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="dp-display" style={{ fontWeight: 700, fontSize: 15.5 }}>{deal.brand_name}</div>
+      {/* =====================================================
+          MAIN TICKET
+      ===================================================== */}
+
+      <div className="dp-tier-main">
+        {/* TOP ACCENT */}
+        <div
+          className="dp-tier-accent"
+          style={{
+            background: dealStatus.text,
+          }}
+        />
+
+        {/* ===================================================
+            HEADER
+        =================================================== */}
+
+        <div className="dp-tier-header">
+          <div className="dp-tier-brand-wrap">
+            <div className="dp-tier-label">
+              COLLABORATION
+            </div>
+
+            <div className="dp-tier-brand">
+              {deal.brand_name}
+            </div>
+
             {deal.poc_name && (
-              <div style={{ fontSize: 12, color: "var(--slate)", marginTop: 1 }}>
-                {deal.poc_name}{deal.contact_number ? ` · ${deal.contact_number}` : ""}
+              <div className="dp-tier-poc">
+                {deal.poc_name}
+
+                {deal.contact_number && (
+                  <>
+                    <span className="dp-tier-meta-dot" />
+                    {deal.contact_number}
+                  </>
+                )}
               </div>
             )}
           </div>
-          <div className="dp-mono" style={{ fontWeight: 700, fontSize: 15, whiteSpace: "nowrap" }}>
-          {deal.collaboration_type === "Barter"
-  ? "Barter"
-  : formatINR(deal.commercials)}
+
+          <div className="dp-tier-commercial">
+            <div className="dp-tier-label">
+              VALUE
+            </div>
+
+            <div
+              className="dp-tier-commercial-value"
+              style={{
+                color: isBarter
+                  ? paymentStatus.text
+                  : "var(--ink)",
+              }}
+            >
+              {isBarter
+                ? "BARTER"
+                : formatINR(deal.commercials)}
+            </div>
           </div>
         </div>
 
-       {deal.deliverables.slice(0, 4).map((dv, index) => (
-  <span
-    key={dv.type ?? index}
-    style={{
-      fontSize: 10.5,
-      fontWeight: 600,
-      color: "var(--slate)",
-      background: "var(--paper)",
-      padding: "3px 8px",
-      borderRadius: 999,
-    }}
-  >
-    {typeof dv === "string"
-      ? dv
-      : `${dv.type} ×${dv.qty}`}
-  </span>
-))}
+        {/* ===================================================
+            STATUS ROW
+        =================================================== */}
 
-        <div style={{ marginTop: 10, fontSize: 11, color: "var(--slate)" }}>
-          Confirmed {formatDate(deal.confirmation_date)} · {deal.confirmation_mode}
+        <div className="dp-tier-status-row">
+          {deal.deal_status && (
+            <span
+              className="dp-tier-status"
+              style={{
+                color: dealStatus.text,
+                background: dealStatus.bg,
+                borderColor: dealStatus.border,
+              }}
+            >
+              <span
+                className="dp-tier-status-dot"
+                style={{
+                  background: dealStatus.text,
+                }}
+              />
+
+              {deal.deal_status}
+            </span>
+          )}
+
+          <span
+            className="dp-tier-status"
+            style={{
+              color: paymentStatus.text,
+              background: paymentStatus.bg,
+              borderColor: paymentStatus.border,
+            }}
+          >
+            {isBarter ? "Barter" : deal.payment_status}
+          </span>
+
+          {deal.collaboration_type &&
+            !isBarter && (
+              <span className="dp-tier-type">
+                {deal.collaboration_type}
+              </span>
+            )}
         </div>
+
+        {/* ===================================================
+            DELIVERABLES
+        =================================================== */}
+
+        {deliverables.length > 0 && (
+          <div className="dp-tier-deliverables">
+            {deliverables.slice(0, 4).map((item, index) => {
+              const label =
+                typeof item === "string"
+                  ? item
+                  : `${item.type || "Deliverable"}${
+                      item.qty ? ` ×${item.qty}` : ""
+                    }`;
+
+              return (
+                <span
+                  key={`${label}-${index}`}
+                  className="dp-tier-deliverable"
+                >
+                  {label}
+                </span>
+              );
+            })}
+
+            {deliverables.length > 4 && (
+              <span className="dp-tier-more">
+                +{deliverables.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* ===================================================
+            INFORMATION GRID
+        =================================================== */}
+
+        <div className="dp-tier-info">
+          <div className="dp-tier-info-item">
+            <span className="dp-tier-info-label">
+              CONFIRMED
+            </span>
+
+            <span className="dp-tier-info-value">
+              {formatDate(deal.confirmation_date)}
+            </span>
+          </div>
+
+          {deal.confirmation_mode && (
+            <div className="dp-tier-info-item">
+              <span className="dp-tier-info-label">
+                VIA
+              </span>
+
+              <span className="dp-tier-info-value">
+                {deal.confirmation_mode}
+              </span>
+            </div>
+          )}
+
+          {hasShootInfo && deal.shoot_date && (
+            <div className="dp-tier-info-item">
+              <span className="dp-tier-info-label">
+                SHOOT
+              </span>
+
+              <span className="dp-tier-info-value dp-tier-inline">
+                <Clock3 size={11} />
+
+                {formatDate(deal.shoot_date)}
+
+                {deal.shoot_time &&
+                  ` · ${formatDisplayTime(
+                    deal.shoot_time
+                  )}`}
+              </span>
+            </div>
+          )}
+
+          {hasShootInfo && deal.shoot_location && (
+            <div className="dp-tier-info-item dp-tier-location">
+              <span className="dp-tier-info-label">
+                LOCATION
+              </span>
+
+              <span className="dp-tier-info-value dp-tier-inline">
+                <MapPin size={11} />
+
+                <span>
+                  {deal.shoot_location}
+                </span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ===================================================
+            ACTION BAR
+        =================================================== */}
 
         {!compact && (
-          <div style={{ display: "flex", gap: 16, marginTop: 10, borderTop: "1px dashed var(--line)", paddingTop: 10 }}>
-   <button
-  onClick={(e) => {
-    e.stopPropagation();
-    onEdit(deal);
-  }}
-  style={{
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    background: "none",
-    border: "none",
-    color: "var(--ink)",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: 0,
-  }}
->
-  <Pencil size={13} />
-  Edit
-</button>
+          <div className="dp-tier-actions">
+            <button
+              type="button"
+              className="dp-tier-action dp-tier-action-neutral"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit?.(deal);
+              }}
+            >
+              <Pencil size={13} />
+              <span>Edit deal</span>
+            </button>
 
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    onGenerateInvoice(deal);
-  }}
-  style={{
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    background: "none",
-    border: "none",
-    color: "#2563EB",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: 0,
-  }}
->
-  <FileText size={13} />
-  Invoice
-</button>
+            <button
+              type="button"
+              className="dp-tier-action dp-tier-action-primary"
+              onClick={(event) => {
+                event.stopPropagation();
+                onGenerateInvoice?.(deal);
+              }}
+            >
+              <FileText size={13} />
+              <span>Invoice</span>
+            </button>
 
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    onDelete(deal);
-  }}
-  style={{
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    background: "none",
-    border: "none",
-    color: "var(--signal)",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: 0,
-  }}
->
-  <Trash2 size={13} />
-  Delete
-</button>
+            <button
+              type="button"
+              className="dp-tier-action dp-tier-action-danger"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete?.(deal);
+              }}
+            >
+              <Trash2 size={13} />
+              <span>Delete</span>
+            </button>
           </div>
         )}
       </div>
 
-      <div
-        className="dp-divider-dash"
-        style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 12px", minWidth: 80 }}
-      >
-        <span className="dp-stamp" style={{ color: statusInfo.color }}>{statusInfo.label}</span>
-        {deal.collaboration_type !== "Barter" &&
-  deal.payment_deadline &&
-  deal.payment_status !== "Paid" && (
-          <div style={{ fontSize: 9.5, color: "var(--slate)", marginTop: 8, textAlign: "center", lineHeight: 1.3 }}>
-            Due<br />{formatDate(deal.payment_deadline)}
+      {/* =====================================================
+          RIGHT TICKET STUB
+      ===================================================== */}
+
+      <aside className="dp-tier-stub">
+        {/* PERFORATION */}
+        <div className="dp-tier-perforation" />
+
+        <div className="dp-tier-stub-content">
+          <div className="dp-tier-stub-label">
+            DEALPASS
+          </div>
+
+          <div
+            className="dp-tier-stamp"
+            style={{
+              color: dealStatus.text,
+              borderColor: dealStatus.border,
+              background: dealStatus.bg,
+            }}
+          >
+            {deal.deal_status || "PENDING"}
+          </div>
+
+          <div className="dp-tier-stub-divider" />
+
+          <div className="dp-tier-stub-data">
+            <span>CONFIRMED</span>
+            <strong>
+              {formatDate(deal.confirmation_date)}
+            </strong>
+          </div>
+
+          <div className="dp-tier-stub-divider" />
+
+          <div className="dp-tier-stub-data">
+            <span>
+              {isPaid
+                ? "PAYMENT"
+                : isBarter
+                ? "TYPE"
+                : "PAYMENT DUE"}
+            </span>
+
+            <strong
+              style={{
+                color: isPaid
+                  ? "#15803D"
+                  : isBarter
+                  ? paymentStatus.text
+                  : deal.payment_deadline
+                  ? paymentStatus.text
+                  : "var(--slate)",
+              }}
+            >
+              {isPaid
+                ? "PAID"
+                : isBarter
+                ? "BARTER"
+                : deal.payment_deadline
+                ? formatDate(deal.payment_deadline)
+                : "—"}
+            </strong>
+          </div>
+        </div>
+
+        {onClick && (
+          <div className="dp-tier-arrow">
+            <ArrowUpRight size={14} />
           </div>
         )}
-      </div>
-    </div>
+      </aside>
+    </article>
   );
 }
+
 export default DealCard;
