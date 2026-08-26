@@ -1,3 +1,18 @@
+
+export function formatDeliverableLabel(item) {
+  if (!item) return "";
+
+  if (typeof item === "string") return item;
+
+  const label = item.type || item.name || "";
+  const count = item.count;
+
+  if (count && Number(count) > 1) {
+    return `${label} × ${count}`;
+  }
+
+  return label;
+}
 export const COLLABORATION_TYPES = [
   "Paid",
   "Barter",

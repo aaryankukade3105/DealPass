@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   PenTool,
   Trash2,
-  Save,
   Type,
   Eraser,
 } from "lucide-react";
@@ -588,19 +587,28 @@ export default function InvoiceEditorPage({
   const [billingProfile, setBillingProfile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [attemptedPreview, setAttemptedPreview] = useState(false);
-  const [attemptedSave, setAttemptedSave] = useState(false);
 
   // The persisted invoice this deal is bound to. `null` means nothing has
-  // been saved yet — Save Invoice will INSERT. Once set, it never changes
-  // for the lifetime of this invoice, and Save Invoice always UPDATEs.
+  // been saved yet — the first successful autosave will INSERT. Once set,
+  // it never changes for the lifetime of this invoice, and every autosave
+  // after that UPDATEs.
   const [invoiceId, setInvoiceId] = useState(deal?.invoice_id || null);
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState(null);
-const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
-// Fires only when an actual invoice save (create/update) succeeds — not
-// on every local-draft autosave — so it doesn't pop up on every keystroke.
-const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
+  const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
+
+  // Autosave status shown inline above the Preview button:
+  // idle | saving | saved | error
+  const [autosaveStatus, setAutosaveStatus] = useState("idle");
+  // Skips the very first autosave-effect run, which fires as soon as data
+  // loads from Supabase/localStorage — we only want to autosave changes
+  // the user actually makes afterward, not immediately re-save what we
+  // just loaded.
+  const initializedRef = useRef(false);
+  // Prevents overlapping autosave network calls if a save is still in
+  // flight when the debounce timer fires again.
+  const autosaveInFlightRef = useRef(false);
+
   // `detail` (e.g. "Collab", "90 Days", "3 Stories") is carried over from
   // the deal's deliverables so it survives into the invoice and is shown
   // via formatDeliverableLabel everywhere below.
@@ -729,17 +737,19 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
     setLastSaved(new Date());
   }
 
-  // Debounced autosave while the user is actively editing — every keystroke
-  // resets a 500ms timer, so the draft is written to localStorage shortly
-  // after the user pauses, without hammering storage on every character.
-  // This is still just the local draft, separate from the persisted
-  // invoice — Save Invoice is the only thing that writes to Supabase.
+  // Debounced local-draft autosave while the user is actively editing —
+  // every keystroke resets a 500ms timer, so the draft is written to
+  // localStorage shortly after the user pauses, without hammering storage
+  // on every character. This is separate from the Supabase autosave below
+  // and always runs, regardless of whether the invoice is valid to persist
+  // — it's the safety net.
   useEffect(() => {
     const timer = setTimeout(() => {
       saveDraft();
     }, 500);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice, lineItems, gstEnabled, gstPercent, signatureMode, signatureName, signatureFontId, signatureDrawnData]);
 
   // Always-current snapshot of form state, so we can flush a save
@@ -842,6 +852,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
   // and simply won't render on the invoice if left blank.
   const clientNameMissing = !invoice.clientName.trim();
   const canPreview = !amountMismatch && !clientNameMissing;
+  // Same gate is used to decide whether it's safe to autosave to Supabase.
   const canSave = !amountMismatch && !clientNameMissing;
 
   const signatureProvided =
@@ -874,7 +885,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
   const completedCount = steps.filter((s) => s.done).length;
   const progressPct = Math.round((completedCount / steps.length) * 100);
   // Labels of whatever's still incomplete, used to drive the pending-items
-  // bar pinned above the Save button (kept in sync with the sidebar rail).
+  // bar pinned above the Preview button (kept in sync with the sidebar rail).
   const missingStepLabels = steps.filter((s) => !s.done).map((s) => s.label);
 
   // Flush the latest draft immediately (bypassing the debounce) and then
@@ -890,111 +901,145 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
     if (canPreview) setShowPreview(true);
   };
 
-  // Save Invoice: create on first save, update on every save after that.
-  // The invoice number is only ever assigned inside createInvoice — this
-  // function never generates or overwrites it. On every successful save
-  // (create or update) the deals.invoice_number column is kept in sync
-  // with whatever invoice number actually ended up persisted, so the
-  // deals table never shows a stale/incorrect invoice number.
-  async function handleSaveInvoice() {
-    setAttemptedSave(true);
-    setSaveError(null);
-    if (!canSave) return;
+  // Core persist logic — creates the invoice on the very first successful
+  // save for this deal, updates it on every save after that. The invoice
+  // number is only ever assigned inside createInvoice — this function
+  // never generates or overwrites it. On every successful save the
+  // deals.invoice_number column is kept in sync with whatever invoice
+  // number actually ended up persisted, so the deals table never shows a
+  // stale/incorrect invoice number.
+  //
+  // This is called only by the autosave effect below — there is no manual
+  // Save/Update button anymore.
+  async function persistInvoice() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    setSaving(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setSaveError("Please login again.");
-        return;
-      }
-
-      const invoicePayload = {
-        deal_id: deal.id,
-
-        invoice_date: invoice.invoiceDate,
-        due_date: invoice.dueDate || null,
-
-        client_name: invoice.clientName,
-        company_name: invoice.companyName,
-        client_email: invoice.clientEmail,
-        client_phone: invoice.clientPhone,
-        billing_address: invoice.billingAddress,
-        client_gst: invoice.gstNumber,
-
-        subtotal,
-        gst_enabled: gstEnabled,
-        gst_percent: gstPercent,
-        gst_amount: gst,
-        total,
-
-        signature_mode: signatureMode,
-        // Only persist the fields relevant to the active mode, so switching
-        // modes doesn't leave stale data from the other mode in the DB.
-        signature_name: signatureMode === "typed" ? signatureName : "",
-        signature_font: signatureMode === "typed" ? (signatureFontId || null) : null,
-        signature_drawn: signatureMode === "drawn" ? (signatureDrawnData || null) : null,
-      };
-
-      if (!invoiceId) {
-        // First save for this deal — create it, and remember it on the deal.
-        const created = await createInvoice(user.id, invoicePayload, lineItems);
-
-        // Keep the deals table's invoice_id AND invoice_number in sync with
-        // whatever was actually persisted (createInvoice is the only place
-        // the invoice number is assigned, so this is the corrected value).
-        const { error: dealError } = await supabase
-          .from("deals")
-          .update({
-            invoice_id: created.id,
-            invoice_number: created.invoice_number,
-          })
-          .eq("id", deal.id);
-
-        if (dealError) throw dealError;
-
-        if (deal) {
-          deal.invoice_id = created.id;
-          deal.invoice_number = created.invoice_number;
-        }
-
-        setInvoiceId(created.id);
-        // The invoice number is now fixed — reflect it in the form, but
-        // never regenerate it again.
-        setInvoice((prev) => ({ ...prev, invoiceNumber: created.invoice_number }));
-      } else {
-        // Already has an invoice — update in place, same invoice number.
-        await updateInvoice(invoiceId, invoicePayload, lineItems);
-
-        // The invoice number itself is locked and never changes after
-        // creation, but make sure the deals row reflects it too (covers
-        // cases where the deal's invoice_number was missing/out of date).
-        const { error: dealSyncError } = await supabase
-          .from("deals")
-          .update({ invoice_number: invoice.invoiceNumber })
-          .eq("id", deal.id);
-
-        if (dealSyncError) throw dealSyncError;
-
-        if (deal) deal.invoice_number = invoice.invoiceNumber;
-      }
-
-      setLastSaved(new Date());
-
-      // Real invoice save succeeded — surface the success alert and let it
-      // auto-dismiss, mirroring the "Saved!" confirmation on the deal form.
-      setSaveSuccessOpen(true);
-      setTimeout(() => setSaveSuccessOpen(false), 2500);
-    } catch (err) {
-      console.error(err);
-      setSaveError("Failed to save invoice. Please try again.");
-    } finally {
-      setSaving(false);
+    if (!user) {
+      throw new Error("Please login again.");
     }
+
+    const invoicePayload = {
+      deal_id: deal.id,
+
+      invoice_date: invoice.invoiceDate,
+      due_date: invoice.dueDate || null,
+
+      client_name: invoice.clientName,
+      company_name: invoice.companyName,
+      client_email: invoice.clientEmail,
+      client_phone: invoice.clientPhone,
+      billing_address: invoice.billingAddress,
+      client_gst: invoice.gstNumber,
+
+      subtotal,
+      gst_enabled: gstEnabled,
+      gst_percent: gstPercent,
+      gst_amount: gst,
+      total,
+
+      signature_mode: signatureMode,
+      // Only persist the fields relevant to the active mode, so switching
+      // modes doesn't leave stale data from the other mode in the DB.
+      signature_name: signatureMode === "typed" ? signatureName : "",
+      signature_font: signatureMode === "typed" ? (signatureFontId || null) : null,
+      signature_drawn: signatureMode === "drawn" ? (signatureDrawnData || null) : null,
+    };
+
+    if (!invoiceId) {
+      // First save for this deal — create it, and remember it on the deal.
+      const created = await createInvoice(user.id, invoicePayload, lineItems);
+
+      // Keep the deals table's invoice_id AND invoice_number in sync with
+      // whatever was actually persisted (createInvoice is the only place
+      // the invoice number is assigned, so this is the corrected value).
+      const { error: dealError } = await supabase
+        .from("deals")
+        .update({
+          invoice_id: created.id,
+          invoice_number: created.invoice_number,
+        })
+        .eq("id", deal.id);
+
+      if (dealError) throw dealError;
+
+      if (deal) {
+        deal.invoice_id = created.id;
+        deal.invoice_number = created.invoice_number;
+      }
+
+      setInvoiceId(created.id);
+      // The invoice number is now fixed — reflect it in the form, but
+      // never regenerate it again.
+      setInvoice((prev) => ({ ...prev, invoiceNumber: created.invoice_number }));
+    } else {
+      // Already has an invoice — update in place, same invoice number.
+      await updateInvoice(invoiceId, invoicePayload, lineItems);
+
+      // The invoice number itself is locked and never changes after
+      // creation, but make sure the deals row reflects it too (covers
+      // cases where the deal's invoice_number was missing/out of date).
+      const { error: dealSyncError } = await supabase
+        .from("deals")
+        .update({ invoice_number: invoice.invoiceNumber })
+        .eq("id", deal.id);
+
+      if (dealSyncError) throw dealSyncError;
+
+      if (deal) deal.invoice_number = invoice.invoiceNumber;
+    }
+
+    setLastSaved(new Date());
   }
+
+  // Debounced autosave to Supabase. Fires ~900ms after the user pauses
+  // editing, same pattern as the localStorage draft autosave above, but
+  // only once the invoice is actually valid to persist (client name set,
+  // deliverable amounts match the deal's commercial total).
+  useEffect(() => {
+    // Skip the run that fires on initial mount/load — we only want to
+    // autosave changes the user actually makes, not immediately re-save
+    // data we just loaded from the DB or a local draft.
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      return;
+    }
+
+    if (!canSave) {
+      setAutosaveStatus("idle");
+      return;
+    }
+
+    setAutosaveStatus("saving");
+    const timer = setTimeout(async () => {
+      if (autosaveInFlightRef.current) return;
+      autosaveInFlightRef.current = true;
+      try {
+        await persistInvoice();
+        setAutosaveStatus("saved");
+        setSaveError(null);
+      } catch (err) {
+        console.error(err);
+        setAutosaveStatus("error");
+        setSaveError("Autosave failed. Your changes are still kept locally.");
+      } finally {
+        autosaveInFlightRef.current = false;
+      }
+    }, 900);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    invoice,
+    lineItems,
+    gstEnabled,
+    gstPercent,
+    signatureMode,
+    signatureName,
+    signatureFontId,
+    signatureDrawnData,
+  ]);
 
   // Delete Invoice: removes the invoice + its items, clears the deal's
   // reference (both invoice_id and invoice_number), and does NOT touch
@@ -1021,6 +1066,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
 
       setInvoiceId(null);
       setDeleteInvoiceOpen(false);
+      setAutosaveStatus("idle");
       setInvoice((prev) => ({ ...prev, invoiceNumber: defaultInvoiceNumber }));
     } catch (err) {
       setDeleteInvoiceOpen(false);
@@ -1089,7 +1135,6 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-         
           <button className="dp-inv-btn dp-inv-btn-primary" onClick={handlePreviewClick}>
             <Eye size={17} />
             Preview & Send
@@ -1190,7 +1235,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
               }}
             >
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              Fix deliverable totals to unlock preview and saving.
+              Fix deliverable totals to unlock preview and autosave.
             </div>
           )}
 
@@ -1211,7 +1256,7 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
               }}
             >
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              Add a client name to unlock preview and saving.
+              Add a client name to unlock preview and autosave.
             </div>
           )}
 
@@ -1490,12 +1535,12 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
 
           <Field label="Client Name">
             <input
-              className={`dp-input ${(attemptedPreview || attemptedSave) && clientNameMissing ? "dp-input-error" : ""}`}
+              className={`dp-input ${attemptedPreview && clientNameMissing ? "dp-input-error" : ""}`}
               value={invoice.clientName}
               onChange={(e) => update("clientName", e.target.value)}
             />
           </Field>
-          {(attemptedPreview || attemptedSave) && clientNameMissing && (
+          {attemptedPreview && clientNameMissing && (
             <div style={{ fontSize: 12, color: DANGER, fontWeight: 600, marginTop: -10, marginBottom: 14 }}>
               Client name is required.
             </div>
@@ -1905,83 +1950,133 @@ const [saveSuccessOpen, setSaveSuccessOpen] = useState(false);
             ✨ Deliverables and totals are synced with the selected deal. Discounts and
             multi-currency support are on the roadmap.
           </div>
+
+          {/* ---------- Bottom bar: progress + autosave status + Preview ---------- */}
           <div
-  style={{
-    position: "sticky",
-    bottom: 0,
-    background: "#fff",
-    borderTop: "1px solid #E7E9F3",
-    padding: "18px 0",
-    marginTop: 28,
-    zIndex: 100,
-  }}
->
-  {/* Pending-items bar — pinned right above the Save button so it's
-      always visible, even on mobile where the sidebar rail isn't sticky
-      and can scroll out of view. Mirrors the sidebar's progress but
-      spells out exactly what's still missing. */}
-  <div style={{ marginBottom: 12 }}>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 10,
-        marginBottom: 6,
-        fontSize: 12.5,
-        fontWeight: 700,
-        color: missingStepLabels.length ? DANGER : SUCCESS,
-      }}
-    >
-      <span style={{ overflowWrap: "anywhere" }}>
-        {missingStepLabels.length
-          ? `Missing: ${missingStepLabels.join(", ")}`
-          : "All sections complete"}
-      </span>
-      <span style={{ flexShrink: 0 }}>{progressPct}%</span>
-    </div>
-    <div
-      style={{
-        height: 6,
-        borderRadius: 999,
-        background: "#EEF0F8",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          height: "100%",
-          width: `${progressPct}%`,
-          borderRadius: 999,
-          background: missingStepLabels.length
-            ? `linear-gradient(90deg, ${VIOLET}, ${AMBER})`
-            : SUCCESS,
-          transition: "width .4s ease, background .3s ease",
-        }}
-      />
-    </div>
-  </div>
+            style={{
+              position: "sticky",
+              bottom: 0,
+              background: "#fff",
+              borderTop: "1px solid #E7E9F3",
+              padding: "18px 0",
+              marginTop: 28,
+              zIndex: 100,
+            }}
+          >
+            {/* Pending-items bar — pinned right above the Preview button so
+                it's always visible, even on mobile where the sidebar rail
+                isn't sticky and can scroll out of view. Mirrors the
+                sidebar's progress but spells out exactly what's still
+                missing. */}
+            <div style={{ marginBottom: 12 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 10,
+                  marginBottom: 6,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: missingStepLabels.length ? DANGER : SUCCESS,
+                }}
+              >
+                <span style={{ overflowWrap: "anywhere" }}>
+                  {missingStepLabels.length
+                    ? `Missing: ${missingStepLabels.join(", ")}`
+                    : "All sections complete"}
+                </span>
+                <span style={{ flexShrink: 0 }}>{progressPct}%</span>
+              </div>
+              <div
+                style={{
+                  height: 6,
+                  borderRadius: 999,
+                  background: "#EEF0F8",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${progressPct}%`,
+                    borderRadius: 999,
+                    background: missingStepLabels.length
+                      ? `linear-gradient(90deg, ${VIOLET}, ${AMBER})`
+                      : SUCCESS,
+                    transition: "width .4s ease, background .3s ease",
+                  }}
+                />
+              </div>
+            </div>
 
-  <button
-    className="dp-inv-btn dp-inv-btn-primary"
-    style={{
-      width: "100%",
-      height: 52,
-      fontSize: 16,
-      fontWeight: 700,
-    }}
-    onClick={handleSaveInvoice}
-    disabled={saving}
-  >
-    <Save size={18} />
+            {/* Autosave status — quiet, inline, no button required to save */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color:
+                  autosaveStatus === "saving"
+                    ? SLATE
+                    : autosaveStatus === "error"
+                    ? DANGER
+                    : autosaveStatus === "saved"
+                    ? SUCCESS
+                    : SLATE,
+                marginBottom: 12,
+              }}
+            >
+              {autosaveStatus === "saving" && (
+                <>
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: VIOLET,
+                      display: "inline-block",
+                      animation: "dpPulse 1.2s ease-out infinite",
+                    }}
+                  />
+                  Saving changes...
+                </>
+              )}
+              {autosaveStatus === "saved" && (
+                <>
+                  <Check size={14} color={SUCCESS} strokeWidth={3} />
+                  All changes saved{invoiceId ? ` · ${invoice.invoiceNumber}` : ""}
+                </>
+              )}
+              {autosaveStatus === "error" && (
+                <>
+                  <AlertTriangle size={14} color={DANGER} />
+                  Couldn't save changes — retrying automatically
+                </>
+              )}
+              {autosaveStatus === "idle" && missingStepLabels.length > 0 && (
+                <span style={{ color: SLATE }}>
+                  Fill in the required fields above to start autosaving
+                </span>
+              )}
+            </div>
 
-    {saving
-      ? "Saving Invoice..."
-      : invoiceId
-      ? "Update Invoice"
-      : "Save Invoice"}
-  </button>
-</div>
+            <button
+              className="dp-inv-btn dp-inv-btn-primary"
+              style={{
+                width: "100%",
+                height: 52,
+                fontSize: 16,
+                fontWeight: 700,
+              }}
+              onClick={handlePreviewClick}
+            >
+              <Eye size={18} />
+              Preview Invoice
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2016,14 +2111,6 @@ This action cannot be undone.`}
     onCancel={() => setDeleteInvoiceOpen(false)}
   />
 )}
-      {saveSuccessOpen && (
-        <AlertModal
-          type="success"
-          title="Invoice Saved"
-          message={`Invoice ${invoice.invoiceNumber} has been saved successfully.`}
-          onClose={() => setSaveSuccessOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -2511,8 +2598,8 @@ function InvoicePreviewModal({
   //
   // This function is PDF export only — it has no database logic at all.
   // It never creates, updates, or reads any invoice row; it only prints
-  // whatever is currently in the form. Saving/updating an invoice is
-  // handled entirely by the "Save Invoice" button on the editor page.
+  // whatever is currently in the form. Saving is handled entirely by the
+  // autosave effect on the editor page.
   const downloadPDF = () => {
     const element = invoiceRef.current;
     if (!element) {

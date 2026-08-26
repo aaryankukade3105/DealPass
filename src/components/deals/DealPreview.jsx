@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { formatINR, formatDate } from "../../utils/formatters";
+import { formatDeliverableLabel } from "../../utils/constants";
 import { useRef } from "react";
 import logo from "../../assets/logo.svg";
 
@@ -67,7 +68,8 @@ function buildPrintHTML({ deal, account, fileTitle, logoUrl }) {
         <div>
           ${deliverables
             .map((item) => {
-              const text = typeof item === "string" ? item : `${item.type} ×${item.qty}`;
+              const text =
+                typeof item === "string" ? item : formatDeliverableLabel(item);
               return `<span class="dp-chip">${text}</span>`;
             })
             .join("")}
@@ -156,7 +158,7 @@ function buildPrintHTML({ deal, account, fileTitle, logoUrl }) {
       ? `<span class="dp-status-chip" style="background:#DDF7E8;">${deal.deal_status}</span>`
       : "",
     hasValue(deal.payment_status)
-      ? `<span class="dp-status-chip" style="background:#FFF2C8;">${deal.payment_status}</span>`
+      ? `<span class="dp-status-chip" style="background:#FFF2C8;">Payment: ${deal.payment_status}</span>`
       : "",
   ].join("");
 
@@ -584,7 +586,7 @@ function DealPreview({ deal, account, onClose }) {
           <div style={{ marginBottom: 18 }}>
             {hasValue(deal.deal_status) && <span style={chipStyle("#DDF7E8")}>{deal.deal_status}</span>}
             {hasValue(deal.payment_status) && (
-              <span style={chipStyle("#FFF2C8")}>{deal.payment_status}</span>
+              <span style={chipStyle("#FFF2C8")}>Payment: {deal.payment_status}</span>
             )}
           </div>
         )}
@@ -605,7 +607,7 @@ function DealPreview({ deal, account, onClose }) {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {deal.deliverables.map((item, index) => (
                 <span key={item.type ?? index} style={chipStyle("var(--paper)")}>
-                  {typeof item === "string" ? item : `${item.type} ×${item.qty}`}
+                  {typeof item === "string" ? item : formatDeliverableLabel(item)}
                 </span>
               ))}
             </div>
