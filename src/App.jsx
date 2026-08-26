@@ -333,61 +333,91 @@ if (!hasSpecial) {
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const fileInputRef = useRef(null);
-useEffect(() => {
-  const checkSession = async () => {
-    const hash = window.location.hash;
 
-    if (hash.includes("type=recovery") || window.location.pathname === "/reset-password") {
-      setIsResetPasswordPage(true);
-    }
+  // ---- FIXED: checkSession now has try/catch/finally so a failed profile
+  // lookup (e.g. brand-new Google OAuth user with no profiles row yet)
+  // can never leave the app stuck on the loading screen. It also now
+  // creates a profiles row for first-time OAuth users instead of assuming
+  // one already exists. ----
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const hash = window.location.hash;
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+        if (hash.includes("type=recovery") || window.location.pathname === "/reset-password") {
+          setIsResetPasswordPage(true);
+        }
 
-    if (session) {
-      const user = session.user;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (
-        user.user_metadata?.avatar_url &&
-        profile?.avatar_url !== user.user_metadata.avatar_url
-      ) {
-        await supabase
-          .from("profiles")
-          .update({ avatar_url: user.user_metadata.avatar_url })
-          .eq("id", user.id);
+        if (session) {
+          const user = session.user;
 
-        profile.avatar_url = user.user_metadata.avatar_url;
+          let { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+          if (!profile) {
+            // First-time OAuth (e.g. Google) login — no profiles row yet.
+            const { data: newProfile, error: insertError } = await supabase
+              .from("profiles")
+              .insert({
+                id: user.id,
+                full_name:
+                  user.user_metadata?.full_name ||
+                  user.user_metadata?.name ||
+                  "Creator",
+                email: user.email,
+                avatar_url: user.user_metadata?.avatar_url || null,
+              })
+              .select()
+              .single();
+
+            if (insertError) throw insertError;
+
+            profile = newProfile;
+          } else if (
+            user.user_metadata?.avatar_url &&
+            profile.avatar_url !== user.user_metadata.avatar_url
+          ) {
+            await supabase
+              .from("profiles")
+              .update({ avatar_url: user.user_metadata.avatar_url })
+              .eq("id", user.id);
+
+            profile.avatar_url = user.user_metadata.avatar_url;
+          }
+
+          const { data: billing } = await supabase
+            .from("billing_profiles")
+            .select("*")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          setAccount({
+            id: user.id,
+            full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
+            email: user.email,
+            avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
+            created_at: profile?.created_at,
+            ...billing, // phone, account_holder, bank_name, account_number, ifsc, upi_id, etc.
+          });
+
+          setLoggedIn(true);
+        }
+      } catch (err) {
+        console.error("Session check failed:", err);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const { data: billing } = await supabase
-        .from("billing_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      setAccount({
-        id: user.id,
-        full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
-        email: user.email,
-        avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
-        created_at: profile?.created_at,
-        ...billing, // phone, account_holder, bank_name, account_number, ifsc, upi_id, etc.
-      });
-
-      setLoggedIn(true);
-    }
-
-    setLoading(false);
-  };
-
-  checkSession();
-}, []);
+    checkSession();
+  }, []);
 
   const showToast = (msg) => {
     setToast(msg);
