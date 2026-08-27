@@ -44,6 +44,51 @@ function formatAmount(value) {
   return `₹${Number(value).toLocaleString("en-IN")}`;
 }
 
+/* =====================================================================
+   reconcileLineItemsWithDeal
+   -----------------------------------------------------------------------
+   The deal is always the source of truth for WHICH deliverables exist,
+   their type, detail, and qty. Line items previously stored for this
+   invoice (whether a localStorage draft or rows already saved to
+   invoice_items) can go stale the moment someone edits the deal's
+   deliverables in DealFormSheet — a rate the user already typed in is
+   worth keeping, but the deliverable list itself must always mirror
+   whatever the deal currently says.
+
+   Matching an old line item to a deal deliverable can't be done by id:
+   invoice_items rows don't store the deal deliverable's id (only their
+   own DB row id), and a localStorage draft's ids could predate a deal
+   edit entirely. Instead we match on "type + detail", which is the
+   closest stable identity available on both sides, and carry over the
+   rate for whichever old item matches. Anything removed from the deal
+   drops out; anything newly added shows up with rate 0 for the user to
+   fill in.
+   ===================================================================== */
+function reconcileLineItemsWithDeal(existingItems, deal) {
+  const dealDeliverables = deal?.deliverables || [];
+
+  // Nothing on the deal to reconcile against — leave whatever we had
+  // (covers the edge case of a deal saved without any deliverables yet).
+  if (!dealDeliverables.length) return existingItems || [];
+
+  const rateByKey = new Map(
+    (existingItems || []).map((it) => [`${it.label}||${it.detail || ""}`, it.rate])
+  );
+
+  return dealDeliverables.map((item) => {
+    const key = `${item.type}||${item.detail || ""}`;
+    const carriedRate = rateByKey.has(key) ? Number(rateByKey.get(key) || 0) : Number(item.rate || 0);
+
+    return {
+      id: item.id || crypto.randomUUID(),
+      label: item.type,
+      detail: item.detail || "",
+      qty: Number(item.qty || 1),
+      rate: carriedRate,
+    };
+  });
+}
+
 /* ---------- shared visual tokens (editor chrome) ---------- */
 const INK = "#12172B";
 const PAPER = "#F7F8FC";
@@ -637,6 +682,11 @@ export default function InvoiceEditorPage({
   // If this deal already has a saved invoice, the database is the source
   // of truth and we load straight from it (ignoring any local draft).
   // Otherwise we fall back to whatever draft is sitting in localStorage.
+  // Either way, the deliverable LIST (type/detail/qty) is always
+  // reconciled against the deal's current deliverables — see
+  // reconcileLineItemsWithDeal above — so an edit made in DealFormSheet
+  // is reflected here immediately, even if a stale draft or an older
+  // invoice_items snapshot exists.
  useEffect(() => {
   loadBillingProfile();
 
@@ -649,6 +699,21 @@ export default function InvoiceEditorPage({
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
+
+  // Keeps line items in sync if the `deal` prop itself changes while this
+  // page is mounted (e.g. the deal was edited elsewhere and the parent
+  // re-rendered this page with a fresh deal object, without a full
+  // unmount/remount). Skips the very first render since the initial
+  // state and the load functions above already account for the deal as
+  // it stood at mount time.
+  const lastSyncedDeliverablesRef = useRef(JSON.stringify(deal?.deliverables || []));
+  useEffect(() => {
+    const currentJSON = JSON.stringify(deal?.deliverables || []);
+    if (currentJSON === lastSyncedDeliverablesRef.current) return;
+    lastSyncedDeliverablesRef.current = currentJSON;
+    setLineItems((prev) => reconcileLineItemsWithDeal(prev, deal));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal?.deliverables]);
 
   async function loadBillingProfile() {
     const {
@@ -709,15 +774,20 @@ export default function InvoiceEditorPage({
     }
 
     if (itemRows && itemRows.length) {
-      setLineItems(
-        itemRows.map((it) => ({
-          id: it.id,
-          label: it.deliverable,
-          detail: it.detail || "",
-          qty: Number(it.qty || 1),
-          rate: Number(it.rate || 0),
-        }))
-      );
+      const persistedItems = itemRows.map((it) => ({
+        id: it.id,
+        label: it.deliverable,
+        detail: it.detail || "",
+        qty: Number(it.qty || 1),
+        rate: Number(it.rate || 0),
+      }));
+
+      // Reconcile against the deal's CURRENT deliverables rather than
+      // trusting this snapshot as-is — the deal may have been edited
+      // (deliverables added/removed/changed) after this invoice was last
+      // saved. Rates already entered are preserved by matching on
+      // type + detail.
+      setLineItems(reconcileLineItemsWithDeal(persistedItems, deal));
     }
   }
 
@@ -786,7 +856,11 @@ export default function InvoiceEditorPage({
       const draft = JSON.parse(saved);
 
       if (draft.invoice) setInvoice(draft.invoice);
-      if (draft.lineItems) setLineItems(draft.lineItems);
+      // Reconcile the draft's deliverable list against the deal's current
+      // deliverables — this draft could predate a deal edit made in
+      // DealFormSheet, so it must never be trusted verbatim. Rates the
+      // user already typed in are preserved by matching type + detail.
+      if (draft.lineItems) setLineItems(reconcileLineItemsWithDeal(draft.lineItems, deal));
       if (draft.gstEnabled !== undefined) setGstEnabled(draft.gstEnabled);
       if (draft.gstPercent !== undefined) setGstPercent(draft.gstPercent);
       if (draft.signatureMode !== undefined) setSignatureMode(draft.signatureMode);
