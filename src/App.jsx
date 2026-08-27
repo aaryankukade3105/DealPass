@@ -63,6 +63,21 @@ const SHOOT_STATUS_OPTIONS = [
   "Rescheduled",
 ];
 
+// Billing rows have their own primary key column also called "id" — that
+// is NOT the same as the logged-in user's auth id (account.id). Spreading
+// a raw billing object into the account object would silently overwrite
+// the real user id with the billing row's id, which then gets sent as
+// `user_id` on every deal insert/update and gets rejected by Supabase RLS
+// (auth.uid() no longer matches). This helper strips billing's own `id`
+// (and `user_id`, which is also not meant to override account fields)
+// before it's ever spread into account state. Use this everywhere billing
+// data is merged into account — never spread a raw billing object.
+function stripBillingIdentity(billing) {
+  if (!billing) return {};
+  const { id: _billingRowId, user_id: _billingUserId, ...rest } = billing;
+  return rest;
+}
+
 function emptyDeal() {
   return {
     brand_id: "",
@@ -286,7 +301,14 @@ if (!hasSpecial) {
       setDeals(backup.deals);
 
       if (backup.account) {
-        setAccount(backup.account);
+        // Guard the imported backup's account object the same way as any
+        // other account merge — never let a stale/backup id silently
+        // replace the currently logged-in user's real auth id.
+        setAccount((prev) => ({
+          ...prev,
+          ...backup.account,
+          id: prev?.id ?? backup.account.id,
+        }));
       }
 
       showSuccess("Backup Restored", `${backup.deals.length} deals imported successfully.`);
@@ -333,6 +355,16 @@ if (!hasSpecial) {
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const fileInputRef = useRef(null);
+  // Synchronous guard against a double-tap firing two saves before React
+  // re-renders with saving: true — see handleSaveDeal below. A ref is
+  // read/written immediately, unlike state which only takes effect on
+  // the next render, so this closes a window a state flag alone can't.
+  const savingLockRef = useRef(false);
+  // Per-deal "which save attempt is the newest" token. If the same deal
+  // is edited twice in quick succession, the slower of the two network
+  // responses must not be allowed to overwrite the result of the
+  // faster/newer one — see handleSaveDeal below.
+  const saveTokensRef = useRef(new Map());
 
   // ---- FIXED: checkSession now has try/catch/finally so a failed profile
   // lookup (e.g. brand-new Google OAuth user with no profiles row yet)
@@ -398,13 +430,17 @@ if (!hasSpecial) {
             .eq("user_id", user.id)
             .maybeSingle();
 
+          // IMPORTANT: billing_profiles has its own "id" column (its row's
+          // primary key) which is NOT the logged-in user's auth id. Never
+          // spread a raw billing object after `id: user.id` — strip its
+          // identity columns first so the real auth id always wins.
           setAccount({
             id: user.id,
             full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
             email: user.email,
             avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
             created_at: profile?.created_at,
-            ...billing, // phone, account_holder, bank_name, account_number, ifsc, upi_id, etc.
+            ...stripBillingIdentity(billing), // phone, account_holder, bank_name, account_number, ifsc, upi_id, etc.
           });
 
           setLoggedIn(true);
@@ -554,12 +590,14 @@ const handleLogin = async ({ identifier, password }) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
+    // Same fix as checkSession: strip billing's own "id"/"user_id" before
+    // spreading, so it can never overwrite the real auth user id below.
     setAccount({
       id: user.id,
       full_name: profile?.full_name || user.user_metadata?.full_name || "Creator",
       email: user.email,
       created_at: profile?.created_at,
-      ...billing,
+      ...stripBillingIdentity(billing),
     });
 
     setLoggedIn(true);
@@ -683,8 +721,20 @@ const handleLogin = async ({ identifier, password }) => {
     showAlert("success", "Request Submitted", "Your account deletion request has been submitted successfully.");
   };
 
-  // ---- FIXED: instant local update on both add and edit, no more waiting on the network ----
+  // ---- Instant local update on both add and edit. Also guards against
+  // two real bugs the previous version was exposed to:
+  //  1. Race condition: if the same deal is edited twice in quick
+  //     succession, the first (slower) network response could arrive
+  //     after the second edit and stomp it with stale data. We tag each
+  //     save with a per-deal token and only apply a response if it's
+  //     still the latest one issued for that deal.
+  //  2. Double submit: relies on more than just React's `saving` state
+  //     (which only takes effect after a re-render) — a synchronous ref
+  //     blocks a second call in the same tick.
   const handleSaveDeal = async (deal) => {
+    if (savingLockRef.current) return;
+    savingLockRef.current = true;
+
     try {
       const duplicateDeal = deals.find(
         (d) =>
@@ -695,11 +745,12 @@ const handleLogin = async ({ identifier, password }) => {
       );
 
       if (duplicateDeal) {
-        return showAlert(
+        showAlert(
           "warning",
           "Duplicate Deal",
           "A collaboration with the same brand, deal title and confirmation date already exists."
         );
+        return;
       }
 
       if (editingDeal) {
@@ -711,15 +762,37 @@ const handleLogin = async ({ identifier, password }) => {
         setEditingDeal(null);
         setFormOpen(false);
 
-        const updated = await updateDeal(editedId, deal);
+        const myToken = Symbol("save");
+        saveTokensRef.current.set(editedId, myToken);
 
-        // Reconcile with the server's copy once it lands (server-side
-        // defaults/derived columns), without blocking the UI on it.
-        if (updated) {
-          setDeals((prev) => prev.map((d) => (d.id === editedId ? updated : d)));
+        try {
+          const updated = await updateDeal(editedId, deal);
+
+          // Only apply this response if nothing newer has been issued
+          // for this deal since we started. If a second edit fired
+          // while this request was in flight, its own request (and its
+          // own token) is now the latest — we must not overwrite it.
+          if (updated && saveTokensRef.current.get(editedId) === myToken) {
+            setDeals((prev) =>
+              prev.map((d) => (d.id === editedId ? { ...d, ...updated } : d))
+            );
+          }
+
+          showAlert("success", "Deal Updated", "Your collaboration has been updated successfully.");
+        } catch (err) {
+          console.error(err);
+          showAlert("error", "Failed to Save Deal", err.message);
+
+          // Only roll back to server truth if this was still the latest
+          // attempt for this deal — an older failed request shouldn't
+          // undo a newer, still-in-flight or already-succeeded edit.
+          if (saveTokensRef.current.get(editedId) === myToken) {
+            try {
+              const latest = await getDeals();
+              setDeals(latest);
+            } catch (_) {}
+          }
         }
-
-        showAlert("success", "Deal Updated", "Your collaboration has been updated successfully.");
       } else {
         const tempDeal = {
           ...deal,
@@ -730,27 +803,38 @@ const handleLogin = async ({ identifier, password }) => {
         setDeals((prev) => [tempDeal, ...prev]);
         setFormOpen(false);
 
-        const newDeal = await addDeal(deal);
+        try {
+          console.log("account.id being sent:", account.id);
+          const newDeal = await addDeal(deal, account.id);
 
-        setDeals((prev) =>
-          prev.map((d) => (d.id === tempDeal.id ? (newDeal || { ...deal, id: tempDeal.id }) : d))
-        );
+          setDeals((prev) =>
+            prev.map((d) =>
+              d.id === tempDeal.id
+                ? newDeal
+                  ? { ...deal, ...newDeal, saving: false }
+                  : { ...deal, id: tempDeal.id, saving: false }
+                : d
+            )
+          );
 
-        showAlert("success", "Deal Added", "Your collaboration has been added successfully.");
+          showAlert("success", "Deal Added", "Your collaboration has been added successfully.");
+        } catch (err) {
+          console.error(err);
+          showAlert("error", "Failed to Save Deal", err.message);
+
+          // The optimistic temp deal never made it to the server —
+          // remove it rather than leaving a phantom entry, but don't
+          // silently drop the user's input: the form is already closed,
+          // so surface it clearly via the alert above (message includes
+          // err.message) and drop the temp row since it was never real.
+          setDeals((prev) => prev.filter((d) => d.id !== tempDeal.id));
+        }
       }
-    } catch (err) {
-      console.error(err);
-
-      showAlert("error", "Failed to Save Deal", err.message);
-
-      // Something went wrong server-side — resync with the source of truth
-      // rather than leaving stale optimistic data on screen.
-      try {
-        const latest = await getDeals();
-        setDeals(latest);
-      } catch (_) {}
+    } finally {
+      savingLockRef.current = false;
     }
   };
+
 const updateShootStatus = async (dealId, status, extra = {}) => {
   const updates = {
     shoot_status: status,
@@ -811,21 +895,22 @@ case "Cancelled":
 
   return updated;
 };
-  const handleDeleteDeal = async () => {
+   const handleDeleteDeal = async () => {
     if (!deletingDeal) return;
 
     const deletedId = deletingDeal.id;
+    const deletedSnapshot = deletingDeal; // keep a copy in case we need to restore on failure
 
     try {
       // Optimistic removal too, so deletes feel instant.
       setDeals((prev) => prev.filter((d) => d.id !== deletedId));
       setDeletingDeal(null);
 
-     // Delete linked invoice (if it exists)
-await deleteInvoiceByDealId(deletedId);
+      // Delete linked invoice (if it exists)
+      await deleteInvoiceByDealId(deletedId);
 
-// Delete the deal
-await deleteDeal(deletedId);
+      // Delete the deal
+      await deleteDeal(deletedId);
 
       showToast("Deal deleted successfully.");
     } catch (err) {
@@ -833,14 +918,18 @@ await deleteDeal(deletedId);
 
       showAlert("error", "Failed to Delete Deal", err.message);
 
-      // Resync in case the delete actually failed server-side.
+      // Resync in case the delete actually failed server-side. Using a
+      // full getDeals() here (rather than re-inserting the snapshot) is
+      // intentional: we don't know whether the invoice delete succeeded
+      // but the deal delete failed, or vice versa, so server truth is
+      // the only safe source at this point.
       try {
         const latest = await getDeals();
         setDeals(latest);
       } catch (_) {}
     }
   };
-
+  
   const showValidation = (field) => {
     setAlert({
       open: true,
@@ -1012,7 +1101,13 @@ await deleteDeal(deletedId);
   <BillingProfilePage
     account={account}
     onSaved={(billingForm) => {
-      setAccount((prev) => ({ ...prev, ...billingForm }));
+      // Same rule as everywhere else: billingForm may carry its own
+      // "id"/"user_id" fields from the billing_profiles row — never let
+      // those override the real logged-in user's account.id.
+      setAccount((prev) => ({
+        ...prev,
+        ...stripBillingIdentity(billingForm),
+      }));
       setPage("profile");
     }}
   />

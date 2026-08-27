@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Field from "../common/Field";
 import ChipSelect from "../common/ChipSelect";
+
 import {
   X,
   Receipt,
@@ -687,6 +688,15 @@ const [form, setForm] = useState(() => {
   const [isDirty, setIsDirty] = useState(false);
   const [activeSection, setActiveSection] = useState("brand");
   const scrollRootRef = useRef(null);
+  // Synchronous guard against double-submission (two rapid taps, or the
+  // Ctrl/Cmd+S shortcut firing while a tap is already mid-flight). This
+  // is deliberately a ref rather than relying solely on the `saving`
+  // state flag: state updates only take effect on the next render, so
+  // two calls to handleSubmit() in the same tick (e.g. a fast double
+  // click before React has re-rendered `saving: true`) could otherwise
+  // both slip through and race each other into onSave. A ref is read
+  // and written synchronously, so the second call is blocked immediately.
+  const submittingRef = useRef(false);
   const isBarter = form.collaboration_type === "Barter";
 const canEditShoot = ![
   "Negotiation",
@@ -755,7 +765,11 @@ const canEditShoot = ![
   };
 
   // Keep save reachable from anywhere in the long form.
-  const completionPercent = (() => {
+  // Recomputed only when a field that actually affects completion
+  // changes, instead of on every render (i.e. every keystroke anywhere
+  // in this ~10-section form, including fields like Notes or Campaign
+  // Links that have nothing to do with this calculation).
+  const completionPercent = useMemo(() => {
     const checks = [
       form.brand_name?.trim(),
       form.deal_title?.trim(),
@@ -769,9 +783,40 @@ const canEditShoot = ![
       form.collaboration_type === "Barter" || Boolean(form.payment_status),
     ];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
-  })();
+  }, [
+    form.brand_name,
+    form.deal_title,
+    form.collaboration_type,
+    form.deal_status,
+    form.confirmation_date,
+    form.confirmation_mode,
+    form.deliverables,
+    form.commercials,
+    form.payment_mode,
+    form.payment_status,
+  ]);
 
-  const sectionCompletion = getSectionCompletion(form, touchedFields);
+  const sectionCompletion = useMemo(
+    () => getSectionCompletion(form, touchedFields),
+    [
+      form.brand_name,
+      form.deal_title,
+      form.collaboration_type,
+      form.deal_status,
+      form.confirmation_date,
+      form.confirmation_mode,
+      form.deliverables,
+      form.shoot_date,
+      form.content_due_date,
+      form.content_submitted_date,
+      form.posted_date,
+      form.commercials,
+      form.payment_mode,
+      form.payment_status,
+      form.invoice_number,
+      form.notes,
+    ]
+  );
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -842,6 +887,10 @@ const canEditShoot = ![
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
+
+    // Block a second call that lands before React has re-rendered with
+    // saving: true — see submittingRef comment above.
+    if (submittingRef.current) return;
 
     if (!form.brand_name.trim()) {
       showAlert("warning", "Brand Name Required", "Please enter the brand name.");
@@ -999,6 +1048,7 @@ if (
     // here beyond what's already captured above.
 
     // All validation passed — lock the form so it can't be double-submitted.
+    submittingRef.current = true;
     setSaving(true);
 
     const emptyToNull = (value) => (value === "" || value === undefined ? null : value);
@@ -1069,6 +1119,7 @@ payment_received_date: emptyToNull(form.payment_received_date),
 
       showAlert("error", "Failed to Save Deal", err.message);
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   };
