@@ -201,7 +201,7 @@ export default function IOSInstallPrompt() {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>
-            📲 Install DealPass — 2 taps
+            📲 Install DealPass (2 taps)
           </div>
           <div style={{ fontSize: 11, color: "var(--slate)", marginTop: 0 }}>
             Faster access, full-screen, no browser bar
@@ -248,7 +248,7 @@ export default function IOSInstallPrompt() {
             icon={<SquarePlus size={13} strokeWidth={2.4} aria-hidden="true" />}
             reducedMotion={prefersReducedMotion}
           />
-          <Step number={3} text={<>Tap <strong>Add</strong> — that's it 🎉</>} last />
+          <Step number={3} text={<>Tap <strong>Add</strong> - that's it 🎉</>} last />
         </ol>
 
         <div
