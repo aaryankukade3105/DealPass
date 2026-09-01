@@ -25,6 +25,7 @@ import {
 import { formatDate, formatINR } from "../../utils/formatters";
 import DateField from "../common/DateField";
 import DeliverablesSelector from "./DeliverablesSelector";
+import AlertModal from "../common/AlertModal";
 import { createPortal } from "react-dom";
 import {
   COLLABORATION_TYPES,
@@ -45,14 +46,14 @@ const FORM_SECTION_META = {
     icon: Building2,
     accent: "#7C5CFC",
     tint: "#F4F1FF",
-    sub: "Who’s on the other side",
+    sub: "Who's on the other side",
   },
 
   "Deal Details": {
     icon: FileSignature,
     accent: "#2563EB",
     tint: "#EFF6FF",
-    sub: "What’s the deal?",
+    sub: "What's the deal?",
   },
 
   "Confirmation": {
@@ -703,6 +704,11 @@ const canEditShoot = ![
   "Cancelled",
 ].includes(form.deal_status);
   const [touchedFields, setTouchedFields] = useState(() => new Set());
+  // Drives the "Mark this deal as Completed too?" confirm modal that pops
+  // up right after payment_status is set to Paid. Kept as its own piece
+  // of state (rather than reusing the parent's showAlert, which only
+  // renders a single OK button) since this needs a real Yes/No choice.
+  const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
   const update = (field, value) => {
     setIsDirty(true);
     setJustSaved(false);
@@ -732,6 +738,24 @@ const canEditShoot = ![
         }
       }
 
+      // Deal status logic — a deal can't be marked Completed until it's
+      // been paid (barter deals are exempt, since they never carry a
+      // "Paid" payment status to begin with).
+      if (field === "deal_status") {
+        if (
+          value === "Completed" &&
+          next.collaboration_type !== "Barter" &&
+          next.payment_status !== "Paid"
+        ) {
+          showAlert(
+            "warning",
+            "Payment Required",
+            "This deal can't be marked Completed until payment status is Paid."
+          );
+          return prev; // reject the status change, keep previous state
+        }
+      }
+
       // Payment status logic
       if (field === "payment_status") {
         if (value === "Pending") {
@@ -746,6 +770,15 @@ const canEditShoot = ![
 
         if (value === "Paid") {
           next.payment_received_amount = next.commercials;
+
+          // Offer to auto-mark the deal Completed once it's fully paid.
+          // The actual status flip happens once the user confirms in the
+          // modal (see confirmCompleteOpen below) rather than here, since
+          // this runs inside a synchronous state updater and can't wait
+          // on a UI confirmation.
+          if (prev.deal_status !== "Completed") {
+            setConfirmCompleteOpen(true);
+          }
         }
 
         // Partially Paid doesn't change anything — entered manually
@@ -916,6 +949,19 @@ const canEditShoot = ![
         "warning",
         "Deal Status Required",
         "Please select the current deal status."
+      );
+      return;
+    }
+
+    if (
+      form.deal_status === "Completed" &&
+      form.collaboration_type !== "Barter" &&
+      form.payment_status !== "Paid"
+    ) {
+      showAlert(
+        "warning",
+        "Payment Required",
+        "This deal can't be marked Completed until payment status is Paid."
       );
       return;
     }
@@ -1824,6 +1870,20 @@ payment_received_date: emptyToNull(form.payment_received_date),
           </button>
         </div>
       </div>
+
+      <AlertModal
+        open={confirmCompleteOpen}
+        type="confirm"
+        title="Mark as Completed?"
+        message="Payment has been marked as Paid. Would you like to mark this deal as Completed too?"
+        confirmLabel="Yes, complete it"
+        cancelLabel="Not yet"
+        onConfirm={() => {
+          setConfirmCompleteOpen(false);
+          update("deal_status", "Completed");
+        }}
+        onCancel={() => setConfirmCompleteOpen(false)}
+      />
     </>
   );
 }

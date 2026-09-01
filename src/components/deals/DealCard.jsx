@@ -175,13 +175,6 @@ function DealCard({
           >
             {isBarter ? "Barter" : deal.payment_status}
           </span>
-
-          {deal.collaboration_type &&
-            !isBarter && (
-              <span className="dp-tier-type">
-                {deal.collaboration_type}
-              </span>
-            )}
         </div>
 
         {/* ===================================================
@@ -346,15 +339,6 @@ function DealCard({
             }}
           >
             {deal.deal_status || "PENDING"}
-          </div>
-
-          <div className="dp-tier-stub-divider" />
-
-          <div className="dp-tier-stub-data">
-            <span>CONFIRMED</span>
-            <strong>
-              {formatDate(deal.confirmation_date)}
-            </strong>
           </div>
 
           <div className="dp-tier-stub-divider" />

@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, XCircle, HelpCircle } from "lucide-react";
 
 export default function AlertModal({
   open,
@@ -6,6 +6,10 @@ export default function AlertModal({
   title,
   message,
   onClose,
+  onConfirm,
+  onCancel,
+  confirmLabel = "Yes",
+  cancelLabel = "No",
 }) {
   if (!open) return null;
 
@@ -30,14 +34,31 @@ export default function AlertModal({
       color: "#2563EB",
       bg: "#EFF6FF",
     },
+    confirm: {
+      icon: <HelpCircle size={44} />,
+      color: "#2563EB",
+      bg: "#EFF6FF",
+    },
   };
 
   const current = config[type] || config.warning;
+  const isConfirm = type === "confirm";
+
+  // For a confirm dialog, clicking outside (backdrop) is treated as "No" /
+  // dismiss rather than "OK", since there's no neutral close action here —
+  // the user needs to make an explicit choice.
+  const handleBackdropClick = () => {
+    if (isConfirm) {
+      onCancel ? onCancel() : onClose?.();
+    } else {
+      onClose?.();
+    }
+  };
 
   return (
     <>
       <div
-        onClick={onClose}
+        onClick={handleBackdropClick}
         style={{
           position: "fixed",
           inset: 0,
@@ -103,15 +124,45 @@ export default function AlertModal({
           {message}
         </div>
 
-        <button
-          onClick={onClose}
-          className="dp-btn-signal"
-          style={{
-            width: "100%",
-          }}
-        >
-          OK
-        </button>
+        {isConfirm ? (
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={onCancel}
+              style={{
+                flex: 1,
+                padding: "12px 16px",
+                borderRadius: 12,
+                border: "1px solid var(--line)",
+                background: "#fff",
+                color: "var(--slate)",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              {cancelLabel}
+            </button>
+            <button
+              onClick={onConfirm}
+              className="dp-btn-signal"
+              style={{
+                flex: 1,
+              }}
+            >
+              {confirmLabel}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onClose}
+            className="dp-btn-signal"
+            style={{
+              width: "100%",
+            }}
+          >
+            OK
+          </button>
+        )}
       </div>
     </>
   );
