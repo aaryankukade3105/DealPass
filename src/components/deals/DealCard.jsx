@@ -16,17 +16,24 @@ const DEAL_CARD_STYLES = `
 .bp-card {
   position: relative;
   width: 100%;
+  margin-bottom: 24px;
   border-radius: 16px;
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 2px 6px rgba(16, 24, 40, 0.05),
+    0 12px 28px -8px rgba(16, 24, 40, 0.14);
   overflow: hidden;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .bp-card:hover {
-  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.08);
-  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(16, 24, 40, 0.06),
+    0 6px 16px rgba(16, 24, 40, 0.08),
+    0 20px 40px -10px rgba(16, 24, 40, 0.2);
+  transform: translateY(-2px);
 }
 
 .bp-ticket {
@@ -65,9 +72,7 @@ const DEAL_CARD_STYLES = `
   font-weight: 600;
   color: #6B7280;
   margin: 0 0 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .bp-deal-name {
@@ -75,9 +80,13 @@ const DEAL_CARD_STYLES = `
   font-weight: 700;
   color: var(--ink, #111827);
   margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.bp-titles {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .bp-pill {
@@ -90,6 +99,7 @@ const DEAL_CARD_STYLES = `
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
 /* Deliverables */
@@ -187,7 +197,8 @@ const DEAL_CARD_STYLES = `
   justify-content: center;
   gap: 10px;
   text-align: center;
-  background: #FAFAFA;
+  background: linear-gradient(180deg, #FAFAFA 0%, #F3F4F6 100%);
+  box-shadow: inset 3px 0 6px -4px rgba(16, 24, 40, 0.12);
 }
 
 .bp-stub-label {
@@ -301,7 +312,7 @@ function DealCard({
         {/* MAIN PANEL */}
         <div className="bp-main">
           <div className="bp-row">
-            <div>
+            <div className="bp-titles">
               <p className="bp-collab">{deal.brand_name}</p>
               <h3 className="bp-deal-name">
                 {deal.deal_name || deal.brand_name}
